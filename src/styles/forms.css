@@ -1,0 +1,71 @@
+/* ── Shared form utilities ──────────────────────────────────────
+   Import this in index.css or in each page that uses forms.
+   Both SellCrops.css and EquipmentBooking.css reference these
+   class names — having them in one file avoids duplication.
+──────────────────────────────────────────────────────────────── */
+
+.form-group         { margin-bottom: 1.1rem; }
+.form-group--row    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.form-label {
+  display: block;
+  font-size: 11px; font-weight: 600;
+  color: var(--soil-light);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  margin-bottom: 5px;
+}
+.form-label .form-label-telugu {
+  font-size: 10px; font-weight: 300; text-transform: none;
+  letter-spacing: 0; opacity: 0.7; margin-left: 4px;
+}
+.form-label .req { color: var(--harvest); margin-left: 2px; }
+
+.form-divider {
+  height: 1px; background: var(--cream-dark); margin: 1.25rem 0;
+}
+.form-section-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--harvest);
+  margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 8px;
+}
+.form-section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--cream-dark);
+}
+
+.form-error {
+  font-size: 11px; color: #C0392B; margin-top: 4px; display: block;
+}
+
+.form-success-msg {
+  background: #EAF3DE; border: 1px solid var(--leaf-pale);
+  border-radius: var(--radius-md); padding: 1.5rem;
+  text-align: center; margin-top: 1rem;
+}
+.form-success-msg .success-icon { font-size: 40px; margin-bottom: 10px; }
+.form-success-msg h3 {
+  font-family: var(--font-heading); font-size: 18px;
+  color: var(--leaf); margin-bottom: 6px;
+}
+.form-success-msg p { font-size: 13px; color: var(--soil); line-height: 1.7; }
+
+.form-submit {
+  width: 100%; background: var(--leaf); color: var(--white);
+  border: none; padding: 13px; border-radius: var(--radius-sm);
+  font-family: var(--font-body); font-size: 15px; font-weight: 600;
+  cursor: pointer; letter-spacing: 0.5px;
+  transition: background var(--transition), transform var(--transition);
+  margin-top: 0.5rem;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.form-submit:hover:not(:disabled) { background: var(--leaf-light); transform: translateY(-1px); }
+.form-submit:disabled              { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.whatsapp-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #25D366; color: white; border-radius: var(--radius-sm);
+  padding: 11px; font-size: 14px; font-weight: 600; text-decoration: none;
+  font-family: var(--font-body); transition: background var(--transition);
+  margin-top: 0.5rem;
+}
+.whatsapp-btn:hover { background: #1eb857; }

@@ -1,0 +1,135 @@
+.products__hero {
+  background: var(--bark);
+  padding: 2.5rem 2.5rem;
+  border-bottom: 3px solid var(--harvest);
+}
+.products__hero-tag   { color: var(--harvest-lt); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 6px; }
+.products__hero-title { font-family: var(--font-heading); color: var(--cream); font-size: 32px; font-weight: 700; }
+
+/* ── Crops ── */
+.products__crops {
+  padding: 3rem 2.5rem;
+}
+
+.products__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 2rem;
+}
+
+.crop-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--cream-dark);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.crop-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.crop-card__img {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+}
+
+.crop-card__img--grain  { background: #FFF3DC; }
+.crop-card__img--veggie { background: #E8F5E0; }
+.crop-card__img--pulse  { background: #F5EDE0; }
+.crop-card__img--fruit  { background: #FFE8E8; }
+.crop-card__img--spice  { background: #FDE8E8; }
+.crop-card__img--oilseed { background: #FFF8E0; }
+
+.crop-card__info {
+  padding: 12px 10px 16px;
+}
+
+.crop-card__name {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bark);
+  margin-bottom: 3px;
+}
+
+.crop-card__variety {
+  font-size: 11px;
+  color: var(--soil-light);
+  margin-bottom: 7px;
+}
+
+.crop-card__badge {
+  display: inline-block;
+  background: var(--cream);
+  color: var(--leaf);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: 2px;
+  border: 1px solid var(--leaf-pale);
+}
+
+/* ── Services ── */
+.products__services {
+  background: var(--cream-dark);
+  padding: 3rem 2.5rem;
+}
+
+.products__services-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 2rem;
+}
+
+.biz-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  border: 1px solid var(--cream-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+.biz-card__num {
+  font-family: var(--font-heading);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--cream-dark);
+  line-height: 1;
+  flex-shrink: 0;
+  width: 36px;
+}
+
+.biz-card__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--bark);
+  margin-bottom: 4px;
+}
+
+.biz-card__desc {
+  font-size: 12px;
+  color: var(--soil-light);
+  line-height: 1.65;
+}
+
+@media (max-width: 900px) {
+  .products__grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .products__crops    { padding: 2rem 1.25rem; }
+  .products__services { padding: 2rem 1.25rem; }
+  .products__services-grid { grid-template-columns: 1fr; }
+}
