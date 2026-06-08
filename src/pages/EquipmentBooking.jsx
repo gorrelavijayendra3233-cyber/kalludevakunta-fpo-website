@@ -1,23 +1,37 @@
 import { useState } from "react";
+import { 
+  Tractor, 
+  Settings, 
+  Droplet, 
+  Sprout, 
+  Wheat, 
+  Calendar, 
+  Phone, 
+  CheckCircle,
+  AlertTriangle,
+  User,
+  DollarSign
+} from "lucide-react";
 import "./EquipmentBooking.css";
 
 // ── Constants ──────────────────────────────────────────────────
 const EQUIPMENT_LIST = [
-  { id: "tractor",    icon: "🚜", name: "Tractor",    rateHour: 350,  rateDay: 2500 },
-  { id: "rotavator",  icon: "⚙️",  name: "Rotavator", rateHour: 250,  rateDay: 1800 },
-  { id: "sprayer",    icon: "💧", name: "Sprayer",    rateHour: 150,  rateDay: 900  },
-  { id: "cultivator", icon: "🌱", name: "Cultivator", rateHour: 200,  rateDay: 1400 },
-  { id: "harvester",  icon: "🌾", name: "Harvester",  rateHour: 600,  rateDay: 4000 },
-  { id: "seeddrill",  icon: "🫘", name: "Seed Drill", rateHour: 300,  rateDay: 2000 },
+  { id: "tractor",    icon: <Tractor size={24} />, name: "Tractor",    rateHour: 350,  rateDay: 2500 },
+  { id: "rotavator",  icon: <Settings size={24} />,  name: "Rotavator", rateHour: 250,  rateDay: 1800 },
+  { id: "sprayer",    icon: <Droplet size={24} />, name: "Sprayer",    rateHour: 150,  rateDay: 900  },
+  { id: "cultivator", icon: <Sprout size={24} />, name: "Cultivator", rateHour: 200,  rateDay: 1400 },
+  { id: "harvester",  icon: <Wheat size={24} />, name: "Harvester",  rateHour: 600,  rateDay: 4000 },
+  { id: "seeddrill",  icon: <Settings size={24} />, name: "Seed Drill", rateHour: 300,  rateDay: 2000 },
 ];
 
 const VILLAGE_OPTIONS = [
-  "Kalludevakunta", "Uppal Kalan", "Ghatkesar", "Medchal",
-  "Keesara", "Bibi Nagar", "Aler", "Bhongir", "Other",
+  "Kalludevakunta", "Mantralayam", "Madhavaram", "Kosigi",
+  "Nandavaram", "Emmiganur", "Adoni", "Yemmiganur",
+  "Pedakadubur", "Gonegandla", "Kowthalam", "Holagunda", "Other"
 ];
 
 const INITIAL_FORM = {
-  farmerName: "", mobileNumber: "", village: "",
+  farmerName: "", mobileNumber: "", village: "", otherVillage: "",
   bookingDate: "", duration: "", remarks: "",
 };
 
@@ -31,7 +45,7 @@ function validate(form, selectedEquipment) {
   let valid = true;
 
   if (!selectedEquipment) {
-    valid = false; // handled separately with banner
+    valid = false;
   }
   if (!form.farmerName.trim()) {
     errors.farmerName = "Name is required / పేరు అవసరం"; valid = false;
@@ -41,6 +55,8 @@ function validate(form, selectedEquipment) {
   }
   if (!form.village) {
     errors.village = "Please select your village"; valid = false;
+  } else if (form.village === "Other" && !form.otherVillage.trim()) {
+    errors.otherVillage = "Please specify village name / గ్రామం రాయండి"; valid = false;
   }
   if (!form.bookingDate) {
     errors.bookingDate = "Booking date is required"; valid = false;
@@ -96,16 +112,11 @@ function EquipmentBooking() {
     try {
       const payload = {
         ...form,
+        village: form.village === "Other" ? form.otherVillage.trim() : form.village,
         equipmentName: selectedEquipment.name,
         durationUnit,
       };
-      // TODO: replace with real API call
-      // const res = await fetch(`${import.meta.env.VITE_API_URL}/api/equipment`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(payload),
-      // });
-      // if (!res.ok) throw new Error("Submission failed");
+      delete payload.otherVillage;
       console.log("Booking payload:", payload);
 
       await new Promise((r) => setTimeout(r, 1200));
@@ -126,8 +137,10 @@ function EquipmentBooking() {
   return (
     <main>
       {/* Hero */}
-      <div className="equip__hero fade-up">
-        <span className="equip__hero-tag">Farmer Services</span>
+      <div className="equip__hero glass-panel fade-up">
+        <span className="equip__hero-tag">
+          <Tractor size={12} style={{ color: "var(--harvest-lt)" }} /> Farmer Services
+        </span>
         <h1 className="equip__hero-title">Equipment Booking</h1>
         <p className="equip__hero-sub">
           వ్యవసాయ యంత్రాల బుకింగ్ — Book tractors, harvesters & more by hour or day.
@@ -135,30 +148,32 @@ function EquipmentBooking() {
       </div>
 
       {/* Equipment selector */}
-      <div className="equip__selector">
+      <div className="equip__selector glass-panel fade-up">
         <div className="equip__selector-title">
           Step 1 — Select Equipment / యంత్రం ఎంచుకోండి
         </div>
+        
         <div className="equip__grid">
           {EQUIPMENT_LIST.map((eq) => (
             <div
               key={eq.id}
-              className={`equip-tile${selectedId === eq.id ? " selected" : ""}`}
+              className={`equip-tile glass-panel${selectedId === eq.id ? " selected" : ""}`}
               onClick={() => handleEquipSelect(eq.id)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => e.key === "Enter" && handleEquipSelect(eq.id)}
               aria-pressed={selectedId === eq.id}
             >
-              <div className="equip-tile__icon">{eq.icon}</div>
+              <div className="equip-tile__icon-wrap">{eq.icon}</div>
               <div className="equip-tile__name">{eq.name}</div>
               <div className="equip-tile__rate">₹{eq.rateHour}/hr</div>
             </div>
           ))}
         </div>
+        
         {equipError && (
-          <p style={{ color: "#C0392B", fontSize: "12px", marginTop: "10px" }}>
-            ⚠ Please select an equipment first / ముందు యంత్రం ఎంచుకోండి
+          <p className="equip-select-error">
+            <AlertTriangle size={14} /> Please select an equipment first / ముందు యంత్రం ఎంచుకోండి
           </p>
         )}
       </div>
@@ -167,9 +182,9 @@ function EquipmentBooking() {
       <div className="equip__body">
 
         {/* ── Form ── */}
-        <div className="equip__form-card fade-up">
+        <div className="equip__form-card glass-panel fade-up">
           <div className="equip__form-header">
-            <div className="equip__form-header-icon">📅</div>
+            <div className="equip__form-header-icon"><Calendar size={20} className="text-leaf-light" /></div>
             <div>
               <div className="equip__form-header-title">Booking Request</div>
               <div className="equip__form-header-sub">Step 2 — Fill your details</div>
@@ -179,19 +194,19 @@ function EquipmentBooking() {
           <div className="equip__form-body">
             {submitted ? (
               <div className="form-success-msg fade-up">
-                <div className="success-icon">✅</div>
+                <div className="success-icon"><CheckCircle size={44} className="text-leaf-light" /></div>
                 <h3>Booking Confirmed!</h3>
                 <p>
                   Your request for <strong>{selectedEquipment?.name || "equipment"}</strong> has
                   been submitted. Our team will call you at your registered number within
                   <strong> 24 hours</strong> to confirm the booking.
                 </p>
-                <p style={{ marginTop: "12px", color: "var(--soil-light)", fontSize: "12px" }}>
+                <p style={{ marginTop: "12px", color: "var(--text-muted)", fontSize: "12px" }}>
                   మీ బుకింగ్ అభ్యర్థన విజయవంతంగా సమర్పించబడింది.
                 </p>
                 <button
                   className="form-submit"
-                  style={{ marginTop: "1rem" }}
+                  style={{ marginTop: "1.5rem" }}
                   onClick={handleNewBooking}
                 >
                   Book Another Equipment
@@ -201,21 +216,21 @@ function EquipmentBooking() {
               <form onSubmit={handleSubmit} noValidate>
 
                 {selectedEquipment ? (
-                  <div className="equip__selected-banner">
-                    <span style={{ fontSize: "22px" }}>{selectedEquipment.icon}</span>
+                  <div className="equip__selected-banner glass-panel">
+                    <span className="selected-banner-icon">{selectedEquipment.icon}</span>
                     <span>
-                      <strong>{selectedEquipment.name}</strong> selected —
-                      ₹{selectedEquipment.rateHour}/hour · ₹{selectedEquipment.rateDay}/day
+                      <strong>{selectedEquipment.name}</strong> selected — 
+                      ₹{selectedEquipment.rateHour}/hr · ₹{selectedEquipment.rateDay}/day
                     </span>
                   </div>
                 ) : (
-                  <div className="equip__no-selection">
-                    👆 Select equipment above to continue
+                  <div className="equip__no-selection glass-panel">
+                    <Tractor size={16} style={{ marginRight: '8px', verticalAlign: 'middle', display: 'inline' }} /> Select equipment above to continue
                   </div>
                 )}
 
                 {/* Section: Personal Details */}
-                <div className="form-section-label">👤 Your Details</div>
+                <div className="form-section-label"><User size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Your Details</div>
 
                 <div className="form-group--row">
                   <div className="form-group">
@@ -256,7 +271,7 @@ function EquipmentBooking() {
                   </div>
                 </div>
 
-                <div className="form-group">
+                 <div className="form-group">
                   <label className="form-label" htmlFor="eq-village">
                     Village / Farm Location <span className="form-label-telugu">/ గ్రామం</span>
                     <span className="req">*</span>
@@ -276,10 +291,29 @@ function EquipmentBooking() {
                   {errors.village && <span className="form-error">{errors.village}</span>}
                 </div>
 
+                {form.village === "Other" && (
+                  <div className="form-group fade-in">
+                    <label className="form-label" htmlFor="eq-otherVillage">
+                      Specify Village Name <span className="form-label-telugu">/ గ్రామం పేరు రాయండి</span>
+                      <span className="req">*</span>
+                    </label>
+                    <input
+                      id="eq-otherVillage"
+                      type="text"
+                      className={`form-input${errors.otherVillage ? " error" : ""}`}
+                      name="otherVillage"
+                      value={form.otherVillage}
+                      onChange={handleChange}
+                      placeholder="Enter your village name"
+                    />
+                    {errors.otherVillage && <span className="form-error">{errors.otherVillage}</span>}
+                  </div>
+                )}
+
                 <div className="form-divider" />
 
                 {/* Section: Booking Details */}
-                <div className="form-section-label">📅 Booking Details</div>
+                <div className="form-section-label"><Calendar size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Booking Details</div>
 
                 <div className="form-group--row">
                   <div className="form-group">
@@ -305,7 +339,7 @@ function EquipmentBooking() {
                       <span className="req">*</span>
                     </label>
                     <div className="duration-row">
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <input
                           id="eq-duration"
                           className={`form-input${errors.duration ? " error" : ""}`}
@@ -313,12 +347,12 @@ function EquipmentBooking() {
                           name="duration"
                           value={form.duration}
                           onChange={handleChange}
-                          placeholder={durationUnit === "Hours" ? "No. of hours" : "No. of days"}
+                          placeholder={durationUnit === "Hours" ? "Hours" : "Days"}
                           min="1"
                           inputMode="decimal"
                         />
-                        {errors.duration && <span className="form-error">{errors.duration}</span>}
                       </div>
+                      
                       <div className="duration-toggle" role="group" aria-label="Duration unit">
                         <button
                           type="button"
@@ -336,19 +370,15 @@ function EquipmentBooking() {
                         </button>
                       </div>
                     </div>
+                    {errors.duration && <span className="form-error" style={{ marginTop: "6px" }}>{errors.duration}</span>}
                   </div>
                 </div>
 
-                {/* Estimated cost */}
+                {/* Estimated cost details */}
                 {estimatedCost !== null && (
-                  <div style={{
-                    background: "#EAF3DE", border: "1px solid var(--leaf-pale)",
-                    borderRadius: "var(--radius-sm)", padding: "10px 14px",
-                    fontSize: "13px", color: "var(--leaf)", marginBottom: "1rem",
-                    display: "flex", justifyContent: "space-between", alignItems: "center"
-                  }}>
-                    <span>Estimated cost for {form.duration} {durationUnit.toLowerCase()}</span>
-                    <strong style={{ fontSize: "16px", fontFamily: "var(--font-heading)" }}>
+                  <div className="estimated-cost-card glass-panel fade-up">
+                    <span>Estimated rental cost ({form.duration} {durationUnit.toLowerCase()}):</span>
+                    <strong className="estimated-cost-price">
                       ₹{estimatedCost.toLocaleString("en-IN")}
                     </strong>
                   </div>
@@ -369,7 +399,7 @@ function EquipmentBooking() {
                 </div>
 
                 <button className="form-submit" type="submit" disabled={loading}>
-                  {loading ? "⏳ Submitting…" : "📅 Submit Booking Request"}
+                  {loading ? "Submitting…" : <><Calendar size={16} /> Submit Booking Request</>}
                 </button>
 
               </form>
@@ -381,19 +411,19 @@ function EquipmentBooking() {
         <div className="equip__sidebar fade-up-2">
 
           {/* Rate card */}
-          <div className="equip__info-card">
-            <div className="equip__info-head">💰 Rate Card</div>
+          <div className="equip__info-card glass-panel">
+            <div className="equip__info-head"><DollarSign size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--harvest-lt)' }} /> Rate Card</div>
             <div className="equip__info-body">
               {EQUIPMENT_LIST.map((eq) => (
                 <div className="equip-rate-row" key={eq.id}>
                   <div className="equip-rate-name">
-                    <span>{eq.icon}</span>
+                    <span className="equip-rate-icon">{eq.icon}</span>
                     <span>{eq.name}</span>
                   </div>
-                  <div>
+                  <div className="equip-rate-pricing">
                     <span className="equip-rate-price">₹{eq.rateHour}</span>
                     <span className="equip-rate-unit">/hr</span>
-                    <span style={{ margin: "0 4px", color: "var(--cream-dark)" }}>·</span>
+                    <span className="rate-divider">·</span>
                     <span className="equip-rate-price">₹{eq.rateDay}</span>
                     <span className="equip-rate-unit">/day</span>
                   </div>
@@ -403,26 +433,19 @@ function EquipmentBooking() {
           </div>
 
           {/* Note */}
-          <div className="equip__note">
-            ⚠️ Rates are indicative. Final pricing confirmed on call. Fuel charges may apply separately. Booking subject to availability.
+          <div className="equip__note glass-panel">
+            <AlertTriangle size={14} style={{ marginRight: '6px', verticalAlign: 'middle', display: 'inline', color: 'var(--harvest-lt)' }} /> Rates are indicative. Final pricing confirmed on call. Fuel charges may apply separately. Booking subject to availability.
           </div>
 
           {/* WhatsApp */}
           <div style={{ marginTop: "1rem" }}>
             <a
-              href="https://wa.me/91XXXXXXXXXX?text=Hello%20Kalludevakunta%20FPO%2C%20I%20want%20to%20book%20equipment."
+              href="https://wa.me/919014488562?text=Hello%20Kalludevakunta%20FPC%2C%20I%20want%20to%20book%20equipment."
               target="_blank"
               rel="noopener noreferrer"
               className="whatsapp-btn"
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                gap: "8px", background: "#25D366", color: "white",
-                borderRadius: "var(--radius-sm)", padding: "11px",
-                fontSize: "14px", fontWeight: "600", textDecoration: "none",
-                fontFamily: "var(--font-body)", transition: "background var(--transition)"
-              }}
             >
-              💬 Book via WhatsApp
+              <Phone size={16} /> Book via WhatsApp
             </a>
           </div>
 

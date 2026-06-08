@@ -1,4 +1,16 @@
 import { useState } from "react";
+import { 
+  Sprout, 
+  CheckCircle, 
+  Clock, 
+  Phone, 
+  CreditCard, 
+  Calendar, 
+  FileText,
+  User,
+  MapPin,
+  TrendingUp
+} from "lucide-react";
 import "./SellCrop.css";
 
 // ── Constants ──────────────────────────────────────────────────
@@ -9,8 +21,9 @@ const CROP_OPTIONS = [
 ];
 
 const VILLAGE_OPTIONS = [
-  "Kalludevakunta", "Uppal Kalan", "Ghatkesar", "Medchal",
-  "Keesara", "Bibi Nagar", "Aler", "Bhongir", "Other",
+  "Kalludevakunta", "Mantralayam", "Madhavaram", "Kosigi",
+  "Nandavaram", "Emmiganur", "Adoni", "Yemmiganur",
+  "Pedakadubur", "Gonegandla", "Kowthalam", "Holagunda", "Other"
 ];
 
 const UNIT_OPTIONS = ["Quintal", "Kg", "Ton", "Bags"];
@@ -18,19 +31,19 @@ const UNIT_OPTIONS = ["Quintal", "Kg", "Ton", "Bags"];
 const HOW_IT_WORKS = [
   { num: "1", label: "Fill the form below" },
   { num: "2", label: "We verify your details" },
-  { num: "3", label: "FPO team calls you" },
+  { num: "3", label: "KDFPC team calls you" },
   { num: "4", label: "Crop collected & paid" },
 ];
 
 const ACCEPTED_CROPS = [
-  { emoji: "🌾", name: "Paddy" }, { emoji: "🌽", name: "Maize" },
-  { emoji: "🫘", name: "Red Gram" }, { emoji: "🌰", name: "Groundnut" },
-  { emoji: "🍅", name: "Tomato" }, { emoji: "🫑", name: "Chilli" },
-  { emoji: "🧅", name: "Onion" }, { emoji: "🌻", name: "Sunflower" },
+  { name: "Paddy" }, { name: "Maize" },
+  { name: "Red Gram" }, { name: "Groundnut" },
+  { name: "Tomato" }, { name: "Chilli" },
+  { name: "Onion" }, { name: "Sunflower" },
 ];
 
 const INITIAL_FORM = {
-  farmerName: "", mobileNumber: "", village: "",
+  farmerName: "", mobileNumber: "", village: "", otherVillage: "",
   cropName: "", quantity: "", quantityUnit: "Quintal",
   expectedPrice: "", harvestDate: "", notes: "",
 };
@@ -52,6 +65,8 @@ function validate(form) {
   }
   if (!form.village) {
     errors.village = "Please select your village"; valid = false;
+  } else if (form.village === "Other" && !form.otherVillage.trim()) {
+    errors.otherVillage = "Please specify village name / గ్రామం రాయండి"; valid = false;
   }
   if (!form.cropName) {
     errors.cropName = "Please select the crop"; valid = false;
@@ -76,7 +91,6 @@ function SellCrops() {
   const [loading, setLoading]   = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Today's date string for min date on harvest input
   const today = new Date().toISOString().split("T")[0];
 
   const handleChange = (e) => {
@@ -92,15 +106,14 @@ function SellCrops() {
 
     setLoading(true);
     try {
-      // TODO: replace with real API call when backend is ready
-      // const res = await fetch(`${import.meta.env.VITE_API_URL}/api/crops`, {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(form),
-      // });
-      // if (!res.ok) throw new Error("Submission failed");
+      const payload = {
+        ...form,
+        village: form.village === "Other" ? form.otherVillage.trim() : form.village
+      };
+      delete payload.otherVillage;
+      console.log("Sell crops payload:", payload);
 
-      await new Promise((r) => setTimeout(r, 1200)); // simulate network
+      await new Promise((r) => setTimeout(r, 1200));
       setSubmitted(true);
       setForm(INITIAL_FORM);
     } catch {
@@ -115,18 +128,20 @@ function SellCrops() {
   return (
     <main>
       {/* Hero */}
-      <div className="sellcrops__hero fade-up">
-        <span className="sellcrops__hero-tag">Farmer Services</span>
-        <h1 className="sellcrops__hero-title">Sell Your Crops to FPO</h1>
+      <div className="sellcrops__hero glass-panel fade-up">
+        <span className="sellcrops__hero-tag">
+          <TrendingUp size={12} style={{ color: "var(--harvest-lt)" }} /> Farmer Services
+        </span>
+        <h1 className="sellcrops__hero-title">Sell Your Crops to KDFPC</h1>
         <p className="sellcrops__hero-sub">
           పంట అమ్మకానికి దరఖాస్తు చేయండి — Get a fair price directly. No middlemen.
         </p>
       </div>
 
       {/* How it works */}
-      <div className="sellcrops__steps">
+      <div className="sellcrops__steps fade-up-2">
         {HOW_IT_WORKS.map((s) => (
-          <div className="sellcrops__step" key={s.num}>
+          <div className="sellcrops__step glass-panel" key={s.num}>
             <div className="sellcrops__step-num">{s.num}</div>
             <div className="sellcrops__step-label">{s.label}</div>
           </div>
@@ -137,9 +152,9 @@ function SellCrops() {
       <div className="sellcrops__body">
 
         {/* ── Form ── */}
-        <div className="sellcrops__form-card fade-up">
+        <div className="sellcrops__form-card glass-panel fade-up">
           <div className="form-card__header">
-            <div className="form-card__header-icon">🌾</div>
+            <div className="form-card__header-icon"><Sprout size={22} className="text-leaf-light" /></div>
             <div>
               <div className="form-card__header-title">Crop Sale Request</div>
               <div className="form-card__header-sub">పంట అమ్మకం దరఖాస్తు — All fields marked * are required</div>
@@ -149,19 +164,19 @@ function SellCrops() {
           <div className="form-card__body">
             {submitted ? (
               <div className="form-success-msg fade-up">
-                <div className="success-icon">✅</div>
+                <div className="success-icon"><CheckCircle size={44} className="text-leaf-light" /></div>
                 <h3>Request Submitted!</h3>
                 <p>
                   Thank you <strong>{form.farmerName || "Farmer"}</strong>. Our team will
                   call you on your registered mobile within <strong>24 hours</strong> to
                   confirm your crop sale details.
                 </p>
-                <p style={{ marginTop: "12px", color: "var(--soil-light)", fontSize: "12px" }}>
+                <p style={{ marginTop: "12px", color: "var(--text-muted)", fontSize: "12px" }}>
                   మీ అభ్యర్థన విజయవంతంగా సమర్పించబడింది. మేము 24 గంటల్లో సంప్రదిస్తాం.
                 </p>
                 <button
                   className="form-submit"
-                  style={{ marginTop: "1rem" }}
+                  style={{ marginTop: "1.5rem" }}
                   onClick={handleNewRequest}
                 >
                   Submit Another Request
@@ -171,7 +186,7 @@ function SellCrops() {
               <form onSubmit={handleSubmit} noValidate>
 
                 {/* Section: Personal Details */}
-                <div className="form-section-label">👤 Personal Details</div>
+                <div className="form-section-label"><User size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Personal Details</div>
 
                 <div className="form-group--row">
                   <div className="form-group">
@@ -233,10 +248,29 @@ function SellCrops() {
                   {errors.village && <span className="form-error">{errors.village}</span>}
                 </div>
 
+                {form.village === "Other" && (
+                  <div className="form-group fade-in">
+                    <label className="form-label" htmlFor="otherVillage">
+                      Specify Village Name <span className="form-label-telugu">/ గ్రామం పేరు రాయండి</span>
+                      <span className="req">*</span>
+                    </label>
+                    <input
+                      id="otherVillage"
+                      type="text"
+                      className={`form-input${errors.otherVillage ? " error" : ""}`}
+                      name="otherVillage"
+                      value={form.otherVillage}
+                      onChange={handleChange}
+                      placeholder="Enter your village name"
+                    />
+                    {errors.otherVillage && <span className="form-error">{errors.otherVillage}</span>}
+                  </div>
+                )}
+
                 <div className="form-divider" />
 
                 {/* Section: Crop Details */}
-                <div className="form-section-label">🌾 Crop Details</div>
+                <div className="form-section-label"><Sprout size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Crop Details</div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="cropName">
@@ -264,7 +298,7 @@ function SellCrops() {
                       Quantity <span className="form-label-telugu">/ పరిమాణం</span>
                       <span className="req">*</span>
                     </label>
-                    <div className={`input-unit-wrap${errors.quantity ? " error" : ""}`}>
+                    <div className="input-unit-wrap">
                       <input
                         id="quantity"
                         className="form-input"
@@ -272,9 +306,10 @@ function SellCrops() {
                         name="quantity"
                         value={form.quantity}
                         onChange={handleChange}
-                        placeholder="e.g. 50"
+                        placeholder="Quantity"
                         min="1"
                         inputMode="decimal"
+                        style={{ borderRight: "none", borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
                       />
                       <select
                         className="unit-selector"
@@ -282,21 +317,22 @@ function SellCrops() {
                         value={form.quantityUnit}
                         onChange={handleChange}
                         aria-label="Unit"
+                        style={{ width: "110px", borderTopLeftRadius: 0, borderBottomLeftRadius: 0, background: "rgba(255,255,255,0.06)", borderLeft: "1px solid var(--panel-border)" }}
                       >
                         {UNIT_OPTIONS.map((u) => (
                           <option key={u} value={u}>{u}</option>
                         ))}
                       </select>
                     </div>
-                    {errors.quantity && <span className="form-error">{errors.quantity}</span>}
+                    {errors.quantity && <span className="form-error" style={{ marginTop: "6px" }}>{errors.quantity}</span>}
                   </div>
 
                   <div className="form-group">
                     <label className="form-label" htmlFor="expectedPrice">
                       Expected Price <span className="form-label-telugu">/ ధర</span>
                     </label>
-                    <div className="price-wrap">
-                      <span className="price-prefix">₹</span>
+                    <div className="price-wrap" style={{ position: "relative" }}>
+                      <span className="price-prefix" style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "14px", color: "var(--text-secondary)" }}>₹</span>
                       <input
                         id="expectedPrice"
                         className={`form-input${errors.expectedPrice ? " error" : ""}`}
@@ -304,9 +340,10 @@ function SellCrops() {
                         name="expectedPrice"
                         value={form.expectedPrice}
                         onChange={handleChange}
-                        placeholder="per unit (optional)"
+                        placeholder="Price per unit"
                         min="0"
                         inputMode="decimal"
+                        style={{ paddingLeft: "30px" }}
                       />
                     </div>
                     {errors.expectedPrice && <span className="form-error">{errors.expectedPrice}</span>}
@@ -345,11 +382,7 @@ function SellCrops() {
                 </div>
 
                 <button className="form-submit" type="submit" disabled={loading}>
-                  {loading ? (
-                    <>⏳ Submitting…</>
-                  ) : (
-                    <>🌾 Submit Crop Sale Request</>
-                  )}
+                  {loading ? "Submitting…" : <><Sprout size={16} /> Submit Crop Sale Request</>}
                 </button>
 
               </form>
@@ -361,15 +394,15 @@ function SellCrops() {
         <div className="sellcrops__sidebar fade-up-2">
 
           {/* Accepted crops */}
-          <div className="sidebar-card">
+          <div className="sidebar-card glass-panel">
             <div className="sidebar-card__head">
-              🌿 Crops We Accept
+              <Sprout size={16} className="text-leaf-light" /> Crops We Accept
             </div>
             <div className="sidebar-card__body">
               <div className="crop-chip-grid">
                 {ACCEPTED_CROPS.map((c) => (
-                  <div className="crop-chip" key={c.name}>
-                    <span>{c.emoji}</span>
+                  <div className="crop-chip glass-panel" key={c.name}>
+                    <Sprout size={12} className="text-leaf-pale" />
                     <span>{c.name}</span>
                   </div>
                 ))}
@@ -378,35 +411,38 @@ function SellCrops() {
           </div>
 
           {/* Contact info */}
-          <div className="sidebar-card">
+          <div className="sidebar-card glass-panel">
             <div className="sidebar-card__head">
-              📞 Need Help?
+              <Phone size={16} className="text-harvest-lt" /> Need Help?
             </div>
             <div className="sidebar-card__body">
               <div className="info-row">
-                <div className="info-row-icon">📞</div>
+                <div className="info-row-icon"><Phone size={16} /></div>
                 <div className="info-row-text">
                   <div className="info-row-label">Call Us</div>
-                  <div>+91 XXXXX XXXXX</div>
-                  <div style={{ fontSize: "11px", opacity: 0.7 }}>Mon–Sat, 9 AM – 5 PM</div>
+                  <div className="info-value">+91 9014488562</div>
+                  <div style={{ fontSize: "11px", opacity: 0.6 }}>Mon–Sat, 9 AM – 5 PM</div>
                 </div>
               </div>
+              
               <div className="info-row">
-                <div className="info-row-icon">🕐</div>
+                <div className="info-row-icon"><Clock size={16} /></div>
                 <div className="info-row-text">
                   <div className="info-row-label">Response Time</div>
-                  <div>Within 24 hours of submission</div>
+                  <div className="info-value">Within 24 hours of submission</div>
                 </div>
               </div>
+              
               <div className="info-row">
-                <div className="info-row-icon">💰</div>
+                <div className="info-row-icon"><CreditCard size={16} /></div>
                 <div className="info-row-text">
                   <div className="info-row-label">Payment</div>
-                  <div>Direct bank transfer within 3 days of crop collection</div>
+                  <div className="info-value">Direct bank transfer within 3 days</div>
                 </div>
               </div>
+              
               <a
-                href="https://wa.me/91XXXXXXXXXX?text=Hello%20Kalludevakunta%20FPO%2C%20I%20want%20to%20sell%20my%20crops."
+                href="https://wa.me/919014488562?text=Hello%20Kalludevakunta%20FPC%2C%20I%20want%20to%20sell%20my%20crops."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="whatsapp-btn"

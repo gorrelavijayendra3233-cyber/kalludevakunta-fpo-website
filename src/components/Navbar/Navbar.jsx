@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { Sprout, Menu, X } from "lucide-react";
 import "./Navbar.css";
 
 const NAV_LINKS = [
   { to: "/",                 label: "Home",              end: true  },
   { to: "/about",            label: "About",             end: false },
   { to: "/products",         label: "Products",          end: false },
-  { to: "/sell-crops",       label: "Sell Crops 🌾",    end: false },
+  { to: "/sell-crops",       label: "Sell Crops",        end: false },
   { to: "/equipment-booking",label: "Equipment Booking", end: false },
   { to: "/gallery",          label: "Gallery",           end: false },
 ];
@@ -18,10 +19,12 @@ function Navbar() {
   return (
     <nav className="navbar">
       <NavLink to="/" className="navbar__logo" onClick={close}>
-        <div className="navbar__logo-icon">🌾</div>
+        <div className="navbar__logo-icon">
+          <Sprout size={22} className="logo-svg" />
+        </div>
         <div className="navbar__logo-text">
-          <span className="navbar__logo-name">Kalludevakunta FPO</span>
-          <span className="navbar__logo-sub">Farmers Producer Organisation</span>
+          <span className="navbar__logo-name">Kalludevakunta FPC</span>
+          <span className="navbar__logo-sub">Farmers Producer Company Limited</span>
         </div>
       </NavLink>
 
@@ -31,9 +34,7 @@ function Navbar() {
         aria-label="Toggle navigation menu"
         aria-expanded={open}
       >
-        <span />
-        <span />
-        <span />
+        {open ? <X size={24} /> : <Menu size={24} />}
       </button>
 
       <ul className={`navbar__links${open ? " open" : ""}`}>

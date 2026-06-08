@@ -1,23 +1,28 @@
+import { Target, Eye, ClipboardList, Heart, Sprout } from "lucide-react";
 import "./About.css";
 
 const pillars = [
   {
-    label: "🎯 Mission",
+    label: "Mission",
+    icon: <Target size={20} className="text-leaf-light" />,
     text: "Empower small farmers through collective action and fair market access.",
     accent: false,
   },
   {
-    label: "👁 Vision",
+    label: "Vision",
+    icon: <Eye size={20} className="text-harvest-lt" />,
     text: "A prosperous farming community with dignified, sustainable livelihoods.",
     accent: true,
   },
   {
-    label: "📋 Objectives",
+    label: "Objectives",
+    icon: <ClipboardList size={20} className="text-leaf-light" />,
     text: "Collective bargaining, quality inputs, and better market linkages for all.",
     accent: false,
   },
   {
-    label: "🤝 Values",
+    label: "Values",
+    icon: <Heart size={20} className="text-harvest-lt" />,
     text: "Transparency, equity, sustainability, and unwavering farmer welfare.",
     accent: true,
   },
@@ -50,52 +55,46 @@ function About() {
   return (
     <main>
       {/* Hero Section */}
-      <div className="about__hero">
-        <span className="about__hero-tag">Our Story</span>
-        <h1 className="about__hero-title">About Kalludevakunta FPO</h1>
+      <div className="about__hero glass-panel fade-up">
+        <span className="about__hero-tag">
+          <Sprout size={12} style={{ color: "var(--harvest-lt)" }} /> Our Story
+        </span>
+        <h1 className="about__hero-title">About Kalludevakunta Farmers Producer Company Limited</h1>
       </div>
 
       {/* About Section */}
       <section className="about__body">
         <div className="about__grid">
 
-          {/* Left Side */}
-          <div className="about__visual">
-            <div className="about__visual-bg">🌾</div>
+          {/* Left Side (Visual Card) */}
+          <div className="about__visual glass-panel fade-up">
+            <div className="about__visual-bg-overlay" />
+            <div className="about__visual-icon"><Sprout size={36} /></div>
             <div className="about__visual-title">
-              United in purpose,
-              <br />
-              rooted in land
+              United in purpose,<br />rooted in land
             </div>
             <div className="about__visual-sub">
-              Kalludevakunta, Telangana · Est. 2019
+              Kalludevakunta, Andhra Pradesh · Est. 2019
             </div>
           </div>
 
           {/* Right Side */}
-          <div className="about__text">
-            <span className="section-tag">Background</span>
-
-            <h2
-              className="section-title"
-              style={{
-                fontSize: "22px",
-                marginBottom: "1rem",
-              }}
-            >
+          <div className="about__text fade-up-2">
+            <span className="section-tag"><Sprout size={14} /> Background</span>
+            <h2 className="section-title" style={{ fontSize: "24px", marginBottom: "1rem" }}>
               Who We Are
             </h2>
 
-            <p>
-              Kalludevakunta Farmers Producer Organisation (FPO) was established
+            <p className="about__paragraph">
+              Kalludevakunta Farmers Producer Company Limited (KDFPC) was established
               to give small and marginal farmers a collective voice in the
               marketplace. We believe that when farmers unite, they have the
               power to negotiate better prices, access quality inputs, and build
               a sustainable future.
             </p>
 
-            <p>
-              Operating in the Telangana region, our FPO brings together
+            <p className="about__paragraph">
+              Operating in the Kurnool district of Andhra Pradesh, our company brings together
               farmers from Kalludevakunta and neighbouring villages. Our
               members cultivate a diverse range of crops — from staple grains
               to seasonal vegetables — using both traditional knowledge and
@@ -106,40 +105,34 @@ function About() {
               {pillars.map((pillar) => (
                 <div
                   key={pillar.label}
-                  className={`pillar ${
-                    pillar.accent ? "pillar--harvest" : ""
-                  }`}
+                  className={`pillar glass-panel ${pillar.accent ? "pillar--harvest" : ""}`}
                 >
-                  <div className="pillar__title">{pillar.label}</div>
+                  <div className="pillar__head">
+                    <span className="pillar__icon">{pillar.icon}</span>
+                    <span className="pillar__title">{pillar.label}</span>
+                  </div>
                   <div className="pillar__text">{pillar.text}</div>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
       </section>
 
       {/* Services Section */}
       <section className="about__services">
-        <span className="section-tag">What We Do</span>
-
+        <span className="section-tag"><Sprout size={14} /> What We Do</span>
         <h2 className="section-title">Our Services</h2>
-
         <div className="section-divider"></div>
 
         <div className="services__grid">
-          {services.map((service) => (
-            <div className="service-card" key={service.num}>
+          {services.map((service, index) => (
+            <div className={`service-card glass-panel fade-up-${index % 4 + 1}`} key={service.num}>
               <div className="service-card__num">{service.num}</div>
-
               <div>
-                <div className="service-card__title">
-                  {service.title}
-                </div>
-
-                <div className="service-card__desc">
-                  {service.desc}
-                </div>
+                <h3 className="service-card__title">{service.title}</h3>
+                <p className="service-card__desc">{service.desc}</p>
               </div>
             </div>
           ))}

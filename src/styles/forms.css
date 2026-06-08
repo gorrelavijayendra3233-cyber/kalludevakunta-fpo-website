@@ -1,71 +1,227 @@
-/* ── Shared form utilities ──────────────────────────────────────
-   Import this in index.css or in each page that uses forms.
-   Both SellCrops.css and EquipmentBooking.css reference these
-   class names — having them in one file avoids duplication.
-──────────────────────────────────────────────────────────────── */
+/* ── Glassmorphic Form Styles ─────────────────────────────────── */
 
-.form-group         { margin-bottom: 1.1rem; }
-.form-group--row    { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group--row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .form-group--row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
 
 .form-label {
-  display: block;
-  font-size: 11px; font-weight: 600;
-  color: var(--soil-light);
-  text-transform: uppercase; letter-spacing: 0.8px;
-  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
 }
+
 .form-label .form-label-telugu {
-  font-size: 10px; font-weight: 300; text-transform: none;
-  letter-spacing: 0; opacity: 0.7; margin-left: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.6;
+  color: var(--leaf-pale);
 }
-.form-label .req { color: var(--harvest); margin-left: 2px; }
+
+.form-label .req {
+  color: var(--harvest-lt);
+}
 
 .form-divider {
-  height: 1px; background: var(--cream-dark); margin: 1.25rem 0;
+  height: 1px;
+  background: var(--panel-border);
+  margin: 1.5rem 0;
 }
+
 .form-section-label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 1px; color: var(--harvest);
-  margin-bottom: 1rem;
-  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--harvest-lt);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
+
 .form-section-label::after {
-  content: ''; flex: 1; height: 1px; background: var(--cream-dark);
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--panel-border);
+}
+
+/* Base Glass Input Styling */
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--white);
+  transition: all var(--transition);
+  outline: none;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--leaf-light);
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);
+}
+
+.form-select option {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
 }
 
 .form-error {
-  font-size: 11px; color: #C0392B; margin-top: 4px; display: block;
+  font-size: 11px;
+  color: #ef4444;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
+/* Translucent Success card */
 .form-success-msg {
-  background: #EAF3DE; border: 1px solid var(--leaf-pale);
-  border-radius: var(--radius-md); padding: 1.5rem;
-  text-align: center; margin-top: 1rem;
+  background: rgba(46, 125, 50, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+  text-align: center;
+  margin-top: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
-.form-success-msg .success-icon { font-size: 40px; margin-bottom: 10px; }
+
+.form-success-msg .success-icon {
+  font-size: 44px;
+  margin-bottom: 12px;
+  display: inline-block;
+  animation: scaleUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 .form-success-msg h3 {
-  font-family: var(--font-heading); font-size: 18px;
-  color: var(--leaf); margin-bottom: 6px;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 8px;
 }
-.form-success-msg p { font-size: 13px; color: var(--soil); line-height: 1.7; }
 
+.form-success-msg p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Glass Buttons inside forms */
 .form-submit {
-  width: 100%; background: var(--leaf); color: var(--white);
-  border: none; padding: 13px; border-radius: var(--radius-sm);
-  font-family: var(--font-body); font-size: 15px; font-weight: 600;
-  cursor: pointer; letter-spacing: 0.5px;
-  transition: background var(--transition), transform var(--transition);
-  margin-top: 0.5rem;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%;
+  background: linear-gradient(135deg, var(--leaf) 0%, var(--leaf-light) 100%);
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 15px rgba(46, 125, 50, 0.2);
+  transition: all var(--transition);
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
-.form-submit:hover:not(:disabled) { background: var(--leaf-light); transform: translateY(-1px); }
-.form-submit:disabled              { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-.whatsapp-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: #25D366; color: white; border-radius: var(--radius-sm);
-  padding: 11px; font-size: 14px; font-weight: 600; text-decoration: none;
-  font-family: var(--font-body); transition: background var(--transition);
-  margin-top: 0.5rem;
+.form-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(46, 125, 50, 0.4);
+  border-color: rgba(255, 255, 255, 0.25);
 }
-.whatsapp-btn:hover { background: #1eb857; }
+
+.form-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* WhatsApp Button */
+.whatsapp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(37, 211, 102, 0.15);
+  color: #25D366;
+  border: 1px solid rgba(37, 211, 102, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  font-family: var(--font-body);
+  backdrop-filter: blur(4px);
+  transition: all var(--transition);
+  margin-top: 0.75rem;
+}
+
+.whatsapp-btn:hover {
+  background: rgba(37, 211, 102, 0.25);
+  border-color: #25D366;
+  box-shadow: 0 0 15px rgba(37, 211, 102, 0.25);
+  transform: translateY(-2px);
+  color: var(--white);
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+/* Validation Errors on Input Elements */
+.form-input.error,
+.form-select.error,
+.form-textarea.error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.15) !important;
+}
+
+.form-input.error:focus,
+.form-select.error:focus,
+.form-textarea.error:focus {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3) !important;
+}

@@ -1,0 +1,327 @@
+/* ── Hero ── */
+.products-page__hero {
+  background: var(--bark);
+  padding: 2.5rem 2.5rem;
+  border-bottom: 3px solid var(--harvest);
+}
+.products-page__hero-tag   { color: var(--harvest-lt); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 6px; }
+.products-page__hero-title { font-family: var(--font-heading); color: var(--cream); font-size: 32px; font-weight: 700; margin-bottom: 6px; }
+.products-page__hero-sub   { color: var(--cream-dark); font-size: 14px; font-weight: 300; opacity: 0.8; }
+
+/* ── Filter bar ── */
+.products-page__filter-bar {
+  background: var(--cream-dark);
+  padding: 1.25rem 2.5rem;
+  border-bottom: 1px solid #D8CCAE;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 64px; /* height of navbar */
+  z-index: 10;
+}
+.filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--soil-light);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--cream-dark);
+  background: var(--white);
+  color: var(--soil);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.filter-btn:hover { border-color: var(--leaf-pale); color: var(--leaf); }
+.filter-btn.active {
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: var(--white);
+  font-weight: 600;
+}
+.filter-count {
+  background: rgba(255,255,255,0.25);
+  color: inherit;
+  border-radius: 10px;
+  font-size: 10px;
+  padding: 1px 6px;
+  font-weight: 700;
+}
+.filter-btn:not(.active) .filter-count {
+  background: var(--cream-dark);
+  color: var(--soil-light);
+}
+
+/* ── Search ── */
+.products-page__search {
+  margin-left: auto;
+  position: relative;
+  flex-shrink: 0;
+}
+.products-page__search input {
+  padding: 7px 13px 7px 34px;
+  border-radius: 20px;
+  border: 1.5px solid var(--cream-dark);
+  background: var(--white);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--bark-deep);
+  outline: none;
+  width: 200px;
+  transition: border-color 0.15s, width 0.2s;
+}
+.products-page__search input:focus { border-color: var(--leaf); width: 240px; }
+.products-page__search-icon {
+  position: absolute;
+  left: 11px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--soil-light);
+  pointer-events: none;
+}
+
+/* ── Body ── */
+.products-page__body { padding: 2.5rem 2.5rem; }
+
+.products-page__count {
+  font-size: 13px;
+  color: var(--soil-light);
+  margin-bottom: 1.5rem;
+}
+.products-page__count strong { color: var(--bark); }
+
+/* ── Grid ── */
+.products-page__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+/* ── Product Card ── */
+.product-card-item {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--cream-dark);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.product-card-item:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Category stripe */
+.product-card-item__stripe { height: 4px; }
+.stripe--fertilizer { background: #3A6B35; }
+.stripe--pesticide  { background: #C8842A; }
+.stripe--seeds      { background: #854F0B; }
+.stripe--farmtools  { background: #5C3D1E; }
+
+/* Image area */
+.product-card-item__img {
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  position: relative;
+}
+.img-bg--fertilizer { background: linear-gradient(135deg, #EAF3DE 0%, #D4E8C8 100%); }
+.img-bg--pesticide  { background: linear-gradient(135deg, #FFF3DC 0%, #FFE4A8 100%); }
+.img-bg--seeds      { background: linear-gradient(135deg, #F5EDE0 0%, #E8D4B8 100%); }
+.img-bg--farmtools  { background: linear-gradient(135deg, #E8E0D0 0%, #D8CCC0 100%); }
+
+.product-card-item__badge-wrap {
+  position: absolute;
+  top: 10px; right: 10px;
+}
+.product-card-item__cat-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+.cat-badge--fertilizer { background: #3A6B35; color: #EAF3DE; }
+.cat-badge--pesticide  { background: #854F0B; color: #FFF3DC; }
+.cat-badge--seeds      { background: #5C3D1E; color: #F5EDE0; }
+.cat-badge--farmtools  { background: #3D2B10; color: #E8E0D0; }
+
+/* Info */
+.product-card-item__info { padding: 14px 16px 16px; flex: 1; display: flex; flex-direction: column; }
+.product-card-item__name {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--bark);
+  margin-bottom: 3px;
+  line-height: 1.3;
+}
+.product-card-item__desc {
+  font-size: 12px;
+  color: var(--soil-light);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  flex: 1;
+}
+.product-card-item__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.product-card-item__price {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--bark);
+}
+.product-card-item__unit {
+  font-size: 11px;
+  color: var(--soil-light);
+  font-family: var(--font-body);
+  font-weight: 300;
+  margin-left: 2px;
+}
+.product-card-item__stock {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.product-card-item__stock.in  { color: var(--leaf); }
+.product-card-item__stock.out { color: #C0392B; }
+.stock-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+.product-card-item__enquire {
+  width: 100%;
+  background: var(--leaf);
+  color: var(--white);
+  border: none;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.product-card-item__enquire:hover {
+  background: var(--leaf-light);
+  transform: translateY(-1px);
+}
+.product-card-item__enquire:disabled {
+  background: var(--cream-dark);
+  color: var(--soil-light);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Empty state ── */
+.products-page__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--soil-light);
+}
+.products-page__empty-icon { font-size: 48px; margin-bottom: 1rem; }
+.products-page__empty p { font-size: 14px; }
+
+/* ── Enquiry modal overlay ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(61,43,16,0.55);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.modal-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  overflow: hidden;
+  animation: slideUp 0.2s ease;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.modal-header {
+  background: var(--bark);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-header-title {
+  font-family: var(--font-heading);
+  color: var(--cream);
+  font-size: 16px;
+  font-weight: 600;
+}
+.modal-header-product {
+  color: var(--harvest-lt);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.modal-close {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: var(--cream);
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.2); }
+.modal-body { padding: 1.5rem; }
+.modal-success { text-align: center; padding: 2rem 1rem; }
+.modal-success-icon { font-size: 40px; margin-bottom: 10px; }
+.modal-success h3 {
+  font-family: var(--font-heading);
+  font-size: 18px; color: var(--leaf); margin-bottom: 6px;
+}
+.modal-success p { font-size: 13px; color: var(--soil); line-height: 1.7; }
+
+/* ── Responsive ── */
+@media (max-width: 1100px) { .products-page__grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 800px)  { .products-page__grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 550px) {
+  .products-page__body { padding: 1.5rem 1.25rem; }
+  .products-page__filter-bar { padding: 1rem 1.25rem; }
+  .products-page__hero { padding: 2rem 1.25rem; }
+  .products-page__search { margin-left: 0; width: 100%; }
+  .products-page__search input { width: 100%; }
+  .products-page__grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}

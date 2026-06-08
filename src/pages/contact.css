@@ -1,193 +1,200 @@
+/* ── Contact Hero ── */
 .contact__hero {
-  background: var(--bark);
-  padding: 2.5rem 2.5rem;
-  border-bottom: 3px solid var(--harvest);
+  width: 92%;
+  max-width: 1200px;
+  margin: 1.5rem auto 0;
+  padding: 3rem;
+  text-align: center;
+  background: rgba(13, 20, 15, 0.5);
 }
-.contact__hero-tag   { color: var(--harvest-lt); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; display: block; margin-bottom: 6px; }
-.contact__hero-title { font-family: var(--font-heading); color: var(--cream); font-size: 32px; font-weight: 700; }
 
+.contact__hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(230, 81, 0, 0.15);
+  border: 1px solid rgba(230, 81, 0, 0.25);
+  color: var(--harvest-lt);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 50px;
+  margin-bottom: 1rem;
+}
+
+.contact__hero-title {
+  font-family: var(--font-heading);
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--white);
+}
+
+/* ── Body Layout ── */
 .contact__body {
-  padding: 3rem 2.5rem;
+  width: 92%;
+  max-width: 1200px;
+  margin: 3rem auto 5rem;
 }
 
 .contact__grid {
   display: grid;
-  grid-template-columns: 1fr 1.5fr;
-  gap: 2.5rem;
-  margin-top: 2rem;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 40px;
+  align-items: start;
 }
 
-/* ── Info side ── */
-.contact__item {
+@media (max-width: 900px) {
+  .contact__grid { grid-template-columns: 1fr; gap: 30px; }
+}
+
+.contact__info-list {
   display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  padding-bottom: 1.25rem;
-  margin-bottom: 1.25rem;
-  border-bottom: 1px solid var(--cream-dark);
+  flex-direction: column;
+  gap: 16px;
 }
 
-.contact__item:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
+/* Info Cards */
+.contact__item {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .contact__icon {
-  width: 40px;
-  height: 40px;
-  background: var(--leaf);
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
+  background: rgba(46, 125, 50, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 18px;
+  color: var(--leaf-light);
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .contact__label {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--harvest);
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
   margin-bottom: 3px;
 }
 
 .contact__value {
-  font-size: 13px;
-  color: var(--soil);
-  line-height: 1.7;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
 }
 
-/* Map placeholder */
+/* Stylized Google Maps Box */
 .contact__map {
-  background: var(--sky);
-  border-radius: var(--radius-md);
-  height: 150px;
+  position: relative;
+  height: 200px;
+  background: rgba(20, 26, 22, 0.7);
+  border: 1px solid var(--panel-border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 150px; height: 150px;
+  background: radial-gradient(circle, rgba(46, 125, 50, 0.2) 0%, rgba(0,0,0,0) 70%);
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  filter: blur(15px);
+}
+
+.map-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--leaf);
-  border: 1px dashed var(--leaf-pale);
-  margin-top: 1.25rem;
+  gap: 8px;
 }
 
-.contact__map span { font-size: 13px; }
-.contact__map small { font-size: 11px; opacity: 0.7; }
+.map-pin-pulse {
+  color: var(--leaf-light);
+  filter: drop-shadow(0 0 8px var(--leaf-light));
+  animation: pulsePin 1.8s infinite ease-in-out;
+}
 
-/* ── Form side ── */
+.map-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.map-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+@keyframes pulsePin {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+
+/* Form card styling */
 .contact__form {
-  background: var(--white);
-  border-radius: var(--radius-md);
-  padding: 2rem;
-  border: 1px solid var(--cream-dark);
-  box-shadow: var(--shadow-sm);
+  padding: 2.5rem;
+  background: rgba(20, 26, 22, 0.7);
+  border: 1px solid var(--panel-border);
 }
 
 .contact__form-heading {
   font-family: var(--font-heading);
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--bark);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
   margin-bottom: 4px;
 }
 
 .contact__form-sub {
   font-size: 12px;
-  color: var(--soil-light);
-  margin-bottom: 1.5rem;
-}
-
-.form__row {
-  margin-bottom: 14px;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
 }
 
 .form__row--two {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .form__row--two { grid-template-columns: 1fr; gap: 0; }
+  .contact__form { padding: 2rem 1.5rem; }
+}
+
+/* Phone & WhatsApp Card layout overrides */
+.contact__item--phone {
+  flex-direction: column;
+  align-items: stretch;
   gap: 12px;
 }
 
-.form__label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--soil-light);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 5px;
+.contact-phone-content {
+  display: flex;
+  align-items: center;
+  gap: 18px;
 }
 
-.form__input,
-.form__select,
-.form__textarea {
+.contact-whatsapp-btn {
+  margin-top: 0;
   width: 100%;
-  padding: 9px 13px;
-  border: 1px solid var(--cream-dark);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--bark-deep);
-  background: var(--cream);
-  outline: none;
-  transition: border-color var(--transition), background var(--transition);
-}
-
-.form__input:focus,
-.form__select:focus,
-.form__textarea:focus {
-  border-color: var(--leaf);
-  background: var(--white);
-}
-
-.form__textarea {
-  min-height: 90px;
-  resize: vertical;
-}
-
-.form__submit {
-  width: 100%;
-  background: var(--leaf);
-  color: var(--white);
-  border: none;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  letter-spacing: 0.5px;
-  transition: background var(--transition), transform var(--transition);
-}
-
-.form__submit:hover {
-  background: var(--leaf-light);
-  transform: translateY(-1px);
-}
-
-.form__submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Success message */
-.form__success {
-  background: #EAF3DE;
-  color: #27500A;
-  border: 1px solid var(--leaf-pale);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-size: 13px;
-  margin-top: 12px;
-  text-align: center;
-}
-
-@media (max-width: 768px) {
-  .contact__body   { padding: 2rem 1.25rem; }
-  .contact__grid   { grid-template-columns: 1fr; }
-  .form__row--two  { grid-template-columns: 1fr; }
 }
