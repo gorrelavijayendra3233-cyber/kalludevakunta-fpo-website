@@ -101,33 +101,59 @@ function EquipmentBooking() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedEquipment) { setEquipError(true); return; }
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    const { errors: newErrors, valid } = validate(form, selectedEquipment);
-    if (!valid) { setErrors(newErrors); return; }
+  if (!selectedEquipment) {
+    setEquipError(true);
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const payload = {
-        ...form,
-        village: form.village === "Other" ? form.otherVillage.trim() : form.village,
-        equipmentName: selectedEquipment.name,
-        durationUnit,
-      };
-      delete payload.otherVillage;
-      console.log("Booking payload:", payload);
+  const { errors: newErrors, valid } = validate(form, selectedEquipment);
 
-      await new Promise((r) => setTimeout(r, 1200));
+  if (!valid) {
+    setErrors(newErrors);
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const payload = {
+      farmerName: form.farmerName,
+      equipmentName: selectedEquipment.name,
+      bookingDate: form.bookingDate,
+      phone: form.mobileNumber,
+    };
+
+    const response = await fetch(
+      "http://localhost:5000/api/bookings",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("Server Response:", data);
+
+    if (response.ok) {
       setSubmitted(true);
       setForm(INITIAL_FORM);
-    } catch {
-      alert("Something went wrong. Please try again or call us directly.");
-    } finally {
-      setLoading(false);
+    } else {
+      alert(data.message || "Failed to submit booking request");
     }
-  };
+  } catch (error) {
+    console.error(error);
+    alert("Server connection failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleNewBooking = () => {
     setSubmitted(false);

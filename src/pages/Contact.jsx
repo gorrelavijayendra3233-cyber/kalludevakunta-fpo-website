@@ -87,25 +87,53 @@ function Contact() {
     return isValid;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    setLoading(true);
-    const payload = {
-      ...form,
-      village: form.village === "Other" ? form.otherVillage.trim() : form.village
-    };
-    delete payload.otherVillage;
-    console.log("Contact form payload:", payload);
+  if (!validateForm()) return;
 
-    // Simulate API request
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSubmitted(true);
-    setForm(INITIAL_FORM);
-    setErrors(INITIAL_ERRORS);
+  setLoading(true);
+
+  const payload = {
+    ...form,
+    village:
+      form.village === "Other"
+        ? form.otherVillage.trim()
+        : form.village,
   };
+
+  delete payload.otherVillage;
+
+  try {
+    const response = await fetch(
+      "http://localhost:5000/api/contact",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("Server Response:", data);
+
+    if (response.ok) {
+      setSubmitted(true);
+      setForm(INITIAL_FORM);
+      setErrors(INITIAL_ERRORS);
+    } else {
+      alert(data.message || "Failed to send message");
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Server connection failed");
+  }
+
+  setLoading(false);
+};
 
   return (
     <main>
