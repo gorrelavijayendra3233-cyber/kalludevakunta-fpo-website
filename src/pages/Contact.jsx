@@ -106,7 +106,7 @@ const handleSubmit = async (e) => {
 
   try {
     const response = await fetch(
-      "http://localhost:5000/api/contact",
+      "https://kalludevakunta-fpo-website.onrender.com/api/contact",
       {
         method: "POST",
         headers: {

@@ -121,7 +121,7 @@ const handleSubmit = async (e) => {
     };
 
     const response = await fetch(
-      "http://localhost:5000/api/crops",
+      "https://kalludevakunta-fpo-website.onrender.com/api/crops",
       {
         method: "POST",
         headers: {

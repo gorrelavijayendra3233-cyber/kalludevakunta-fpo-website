@@ -127,7 +127,7 @@ const handleSubmit = async (e) => {
     };
 
     const response = await fetch(
-      "http://localhost:5000/api/bookings",
+      "https://kalludevakunta-fpo-website.onrender.com/api/bookings",
       {
         method: "POST",
         headers: {
