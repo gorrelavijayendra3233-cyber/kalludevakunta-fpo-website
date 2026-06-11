@@ -12,7 +12,9 @@ import {
   Sun,
   Moon,
   Search,
-  RefreshCw
+  RefreshCw,
+  Lock,
+  LogOut
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -46,10 +48,18 @@ ChartJS.register(
 
 const API_BASE = "https://kalludevakunta-fpo-website.onrender.com/api";
 
-// ── Mock Data Seeding ──
+
 
 
 function Admin() {
+  // ── Authentication States ──
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem("fpo_admin_token")
+  );
+  const [usernameInput, setUsernameInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [authError, setAuthError] = useState("");
+
   // ── Core States ──
   const [contacts, setContacts] = useState([]);
   const [crops, setCrops] = useState([]);
@@ -82,14 +92,16 @@ function Admin() {
   }, [theme]);
 
   useEffect(() => {
-  fetchData();
+    if (isAuthenticated) {
+      fetchData();
 
-  const interval = setInterval(() => {
-    fetchData();
-  }, 30000);
+      const interval = setInterval(() => {
+        fetchData();
+      }, 30000);
 
-  return () => clearInterval(interval);
-}, []);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
 const fetchData = async () => {
   setLoading(true);
@@ -165,6 +177,41 @@ const handleDelete = async (type, id) => {
     alert("Failed to delete record.");
   }
 };
+
+  // ── Authentication Handlers ──
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`${API_BASE}/admin/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: usernameInput,
+          password: passwordInput,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem("fpo_admin_token", data.token);
+        setIsAuthenticated(true);
+        setAuthError("");
+      } else {
+        setAuthError(data.message || "Invalid credentials");
+      }
+    } catch (error) {
+      console.error(error);
+      setAuthError("Unable to connect to server.");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("fpo_admin_token");
+    setIsAuthenticated(false);
+  };
 
   // ── CSV Export Functionality ──
   const exportCSV = (type, dataList) => {
@@ -359,6 +406,61 @@ const handleDelete = async (type, id) => {
     );
   });
 
+  // ── 1. Protected Route check (Return Login Screen if not authenticated) ──
+  if (!isAuthenticated) {
+    return (
+      <div className="admin-login-overlay">
+        <div className="admin-login-card glass-panel">
+          <div className="admin-login-header">
+            <div className="admin-login-logo">
+              <Sprout size={32} />
+            </div>
+            <h2 className="admin-login-title">KDK FPC</h2>
+            <span className="admin-login-subtitle">FPO Admin Portal Login</span>
+          </div>
+
+          <form onSubmit={handleLoginSubmit} className="admin-login-form">
+            {authError && (
+              <div className="admin-login-error">
+                {authError}
+              </div>
+            )}
+
+            <div className="admin-login-input-group">
+              <label className="admin-login-label">Username</label>
+              <input 
+                type="text"
+                placeholder="Enter username"
+                className="admin-login-input"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="admin-login-input-group">
+              <label className="admin-login-label">Password</label>
+              <input 
+                type="password"
+                placeholder="Enter password"
+                className="admin-login-input"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                required
+              />
+            </div>
+
+            <button type="submit" className="admin-login-btn">
+              <Lock size={15} style={{ marginRight: "6px", verticalAlign: "middle" }} />
+              <span>Login to Dashboard</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 2. Render Dashboard UI if authenticated ──
   return (
     <div className="admin-container">
       {/* ── Sidebar ── */}
@@ -406,6 +508,11 @@ const handleDelete = async (type, id) => {
             <Tractor size={18} />
             <span>Equipment Bookings</span>
           </button>
+
+          <button className="nav-item logout-sidebar" onClick={handleLogout}>
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
         </nav>
 
         <div className="admin-sidebar-footer">
@@ -443,6 +550,16 @@ const handleDelete = async (type, id) => {
             >
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
+
+            <button 
+              className="logout-btn" 
+              title="Log out from session"
+              onClick={handleLogout}
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
+            </button>
+
             <div className="admin-profile">
               <div className="profile-avatar">A</div>
               <span className="profile-name">FPO Admin</span>
