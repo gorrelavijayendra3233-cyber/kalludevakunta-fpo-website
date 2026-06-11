@@ -28,6 +28,7 @@ function Footer() {
             <li><Link to="/products">Products &amp; Services</Link></li>
             <li><Link to="/gallery">Gallery</Link></li>
             <li><Link to="/contact">Contact</Link></li>
+            <li><Link to="/admin">Admin Portal</Link></li>
           </ul>
         </div>
 

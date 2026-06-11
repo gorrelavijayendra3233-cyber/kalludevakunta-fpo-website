@@ -10,7 +10,17 @@ const mongoose = require("mongoose");
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://kalludevakunta-fpo-website.vercel.app",
+      "https://kalludevakunta-fpo-website-git-main-fieldmind.vercel.app"
+    ],
+    methods: ["GET", "POST", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 app.use("/api/contact", contactRoutes);

@@ -7,6 +7,7 @@ import Gallery          from "../pages/Gallery";
 import Contact          from "../pages/Contact";
 import SellCrops        from "../pages/SellCrop";
 import EquipmentBooking from "../pages/EquipmentBooking";
+import Admin            from "../pages/Admin";
 
 function AppRoutes() {
   return (
@@ -18,6 +19,7 @@ function AppRoutes() {
       <Route path="/contact"           element={<Contact />}          />
       <Route path="/sell-crops"        element={<SellCrops />}        />
       <Route path="/equipment-booking" element={<EquipmentBooking />} />
+      <Route path="/admin"             element={<Admin />}            />
     </Routes>
   );
 }
