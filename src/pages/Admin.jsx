@@ -44,32 +44,10 @@ ChartJS.register(
   Filler
 );
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://kalludevakunta-fpo-website.onrender.com/api";
 
 // ── Mock Data Seeding ──
-const INITIAL_CONTACTS = [
-  { _id: "c1", fullName: "Venkata Raman", phone: "9014488562", email: "raman.v@gmail.com", village: "Kalludevakunta", inquiryType: "Fertilizers", message: "Inquiry about Urea availability for the upcoming Kharif season.", date: "2026-06-05", createdAt: "2026-06-05T10:00:00.000Z" },
-  { _id: "c2", fullName: "Yella Reddy", phone: "9848022338", email: "reddy.yella@yahoo.com", village: "Mantralayam", inquiryType: "Seeds", message: "Do you have CP 818 hybrid maize seeds in stock?", date: "2026-06-07", createdAt: "2026-06-07T11:00:00.000Z" },
-  { _id: "c3", fullName: "Shankaraiah Swamy", phone: "9154782290", email: "swamy.shankar@gmail.com", village: "Madhavaram", inquiryType: "Machinery", message: "Looking to rent the combined harvester for 3 days starting next week.", date: "2026-06-09", createdAt: "2026-06-09T12:00:00.000Z" },
-  { _id: "c4", fullName: "Hanumanthu Goud", phone: "8985642231", email: "hanuma.goud@outlook.com", village: "Kosigi", inquiryType: "Pesticides", message: "Need bio-pesticides for stem borer control in paddy.", date: "2026-06-10", createdAt: "2026-06-10T13:00:00.000Z" },
-  { _id: "c5", fullName: "Thimmappa", phone: "7093288114", email: "thimma.fpo@gmail.com", village: "Nandavaram", inquiryType: "Other", message: "Interested in joining the FPO as a new farmer shareholder.", date: "2026-06-11", createdAt: "2026-06-11T14:00:00.000Z" }
-];
 
-const INITIAL_CROPS = [
-  { _id: "cr1", farmerName: "Kurnool Chenna Reddy", cropName: "Paddy (Sona Masuri)", quantity: 50, price: 2300, phone: "9440523812", date: "2026-06-06", createdAt: "2026-06-06T10:00:00.000Z" },
-  { _id: "cr2", farmerName: "B. Venkateswarlu", cropName: "Maize (Hybrid)", quantity: 80, price: 1850, phone: "9603211547", date: "2026-06-08", createdAt: "2026-06-08T11:00:00.000Z" },
-  { _id: "cr3", farmerName: "M. Hanumanthu", cropName: "Red Gram", quantity: 30, price: 7200, phone: "8125433291", date: "2026-06-09", createdAt: "2026-06-09T12:00:00.000Z" },
-  { _id: "cr4", farmerName: "G. Raghavendra", cropName: "Cotton", quantity: 45, price: 6800, phone: "9000845321", date: "2026-06-10", createdAt: "2026-06-10T13:00:00.000Z" },
-  { _id: "cr5", farmerName: "K. Bheemaiah", cropName: "Groundnut", quantity: 60, price: 5400, phone: "7659982314", date: "2026-06-11", createdAt: "2026-06-11T14:00:00.000Z" }
-];
-
-const INITIAL_BOOKINGS = [
-  { _id: "b1", farmerName: "G. Anjaneyulu", equipmentName: "Tractor (John Deere)", bookingDate: "2026-06-06", duration: "2 Days", phone: "9866543210", status: "Confirmed", createdAt: "2026-06-06T10:00:00.000Z" },
-  { _id: "b2", farmerName: "V. Lingamurthy", equipmentName: "Combined Harvester", bookingDate: "2026-06-08", duration: "1 Day", phone: "9701234567", status: "Pending", createdAt: "2026-06-08T11:00:00.000Z" },
-  { _id: "b3", farmerName: "P. Veerendra", equipmentName: "Motorised Sprayer", bookingDate: "2026-06-09", duration: "4 Hours", phone: "9010892211", status: "Confirmed", createdAt: "2026-06-09T12:00:00.000Z" },
-  { _id: "b4", farmerName: "T. Narasimhulu", equipmentName: "Seed Drill", bookingDate: "2026-06-10", duration: "1 Day", phone: "8985123456", status: "Cancelled", createdAt: "2026-06-10T13:00:00.000Z" },
-  { _id: "b5", farmerName: "M. Rangaswamy", equipmentName: "Rotavator", bookingDate: "2026-06-11", duration: "3 Days", phone: "7382194857", status: "Pending", createdAt: "2026-06-11T14:00:00.000Z" }
-];
 
 function Admin() {
   // ── Core States ──
@@ -103,123 +81,90 @@ function Admin() {
     localStorage.setItem("fpo_admin_theme", theme);
   }, [theme]);
 
-  // Load Data on Mount
   useEffect(() => {
+  fetchData();
+
+  const interval = setInterval(() => {
     fetchData();
-  }, []);
+  }, 30000);
 
-  const fetchData = async () => {
-    setLoading(true);
-    
-    const savedContacts = localStorage.getItem("fpo_admin_contacts");
-    const savedCrops = localStorage.getItem("fpo_admin_crops");
-    const savedBookings = localStorage.getItem("fpo_admin_bookings");
+  return () => clearInterval(interval);
+}, []);
 
-    // Contact Requests
-    if (savedContacts) {
-      setContacts(JSON.parse(savedContacts));
-    } else {
-      try {
-        const res = await fetch(`${API_BASE}/contact`);
-        if (res.ok) {
-          const data = await res.json();
-          setContacts(data);
-          localStorage.setItem("fpo_admin_contacts", JSON.stringify(data));
-        } else {
-          setContacts(INITIAL_CONTACTS);
-          localStorage.setItem("fpo_admin_contacts", JSON.stringify(INITIAL_CONTACTS));
-        }
-      } catch (err) {
-        console.warn("Could not fetch contacts, using seed data:", err);
-        setContacts(INITIAL_CONTACTS);
-        localStorage.setItem("fpo_admin_contacts", JSON.stringify(INITIAL_CONTACTS));
-      }
+const fetchData = async () => {
+  setLoading(true);
+
+  try {
+    const [contactsRes, cropsRes, bookingsRes] =
+      await Promise.all([
+        fetch(`${API_BASE}/contact`),
+        fetch(`${API_BASE}/crops`),
+        fetch(`${API_BASE}/bookings`)
+      ]);
+
+    if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok) {
+      throw new Error("Failed to fetch data");
     }
 
-    // Crop Requests
-    if (savedCrops) {
-      setCrops(JSON.parse(savedCrops));
-    } else {
-      try {
-        const res = await fetch(`${API_BASE}/crops`);
-        if (res.ok) {
-          const data = await res.json();
-          setCrops(data);
-          localStorage.setItem("fpo_admin_crops", JSON.stringify(data));
-        } else {
-          setCrops(INITIAL_CROPS);
-          localStorage.setItem("fpo_admin_crops", JSON.stringify(INITIAL_CROPS));
-        }
-      } catch (err) {
-        console.warn("Could not fetch crops, using seed data:", err);
-        setCrops(INITIAL_CROPS);
-        localStorage.setItem("fpo_admin_crops", JSON.stringify(INITIAL_CROPS));
-      }
-    }
+    const contactsData = await contactsRes.json();
+    const cropsData = await cropsRes.json();
+    const bookingsData = await bookingsRes.json();
 
-    // Bookings
-    if (savedBookings) {
-      setBookings(JSON.parse(savedBookings));
-    } else {
-      try {
-        const res = await fetch(`${API_BASE}/bookings`);
-        if (res.ok) {
-          const data = await res.json();
-          setBookings(data);
-          localStorage.setItem("fpo_admin_bookings", JSON.stringify(data));
-        } else {
-          setBookings(INITIAL_BOOKINGS);
-          localStorage.setItem("fpo_admin_bookings", JSON.stringify(INITIAL_BOOKINGS));
-        }
-      } catch (err) {
-        console.warn("Could not fetch bookings, using seed data:", err);
-        setBookings(INITIAL_BOOKINGS);
-        localStorage.setItem("fpo_admin_bookings", JSON.stringify(INITIAL_BOOKINGS));
-      }
-    }
+    setContacts(contactsData);
+    setCrops(cropsData);
+    setBookings(bookingsData);
 
+  } catch (error) {
+    console.error("Database fetch error:", error);
+    alert("Unable to load dashboard data.");
+  } finally {
     setLoading(false);
-  };
+  }
+};
 
-  // ── DELETE Request Handlers ──
-  const handleDelete = async (type, id) => {
-    if (!window.confirm(`Are you sure you want to delete this ${type.slice(0, -1)}? This action will remove it permanently.`)) return;
+// ── DELETE Request Handlers ──
+const handleDelete = async (type, id) => {
+  if (
+    !window.confirm(
+      `Are you sure you want to delete this ${type.slice(
+        0,
+        -1
+      )}? This action cannot be undone.`
+    )
+  ) {
+    return;
+  }
 
-    const endpoint = type === "contacts" ? "contact" : type;
-    
-    try {
-      const response = await fetch(`${API_BASE}/${endpoint}/${id}`, {
-        method: "DELETE"
-      });
+  const endpoint = type === "contacts" ? "contact" : type;
 
-      if (response.ok) {
-        alert("Record deleted successfully from database.");
-      } else {
-        console.warn("Server DELETE call returned non-200, deleting from client state only.");
+  try {
+    const response = await fetch(
+      `${API_BASE}/${endpoint}/${id}`,
+      {
+        method: "DELETE",
       }
-    } catch (error) {
-      console.warn("API offline or server unreachable, deleting from local session state only:", error);
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Delete failed");
     }
 
-    // Always update local React state and localStorage cache for visual consistency
-    if (type === "contacts") {
-      const updated = contacts.filter(item => item._id !== id);
-      setContacts(updated);
-      localStorage.setItem("fpo_admin_contacts", JSON.stringify(updated));
-    } else if (type === "crops") {
-      const updated = crops.filter(item => item._id !== id);
-      setCrops(updated);
-      localStorage.setItem("fpo_admin_crops", JSON.stringify(updated));
-    } else if (type === "bookings") {
-      const updated = bookings.filter(item => item._id !== id);
-      setBookings(updated);
-      localStorage.setItem("fpo_admin_bookings", JSON.stringify(updated));
-    }
+    alert("Record deleted successfully.");
 
+    // Reload fresh data from MongoDB
+    fetchData();
+
+    // Close modal if deleted item was open
     if (selectedItem && selectedItem.data._id === id) {
       setSelectedItem(null);
     }
-  };
+  } catch (error) {
+    console.error("Delete Error:", error);
+    alert("Failed to delete record.");
+  }
+};
 
   // ── CSV Export Functionality ──
   const exportCSV = (type, dataList) => {
