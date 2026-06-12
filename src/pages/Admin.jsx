@@ -46,7 +46,9 @@ ChartJS.register(
   Filler
 );
 
-const API_BASE = "https://kalludevakunta-fpo-website.onrender.com/api";
+const API_BASE = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : "https://kalludevakunta-fpo-website.onrender.com/api";
 
 
 
@@ -107,12 +109,26 @@ const fetchData = async () => {
   setLoading(true);
 
   try {
+    const token = localStorage.getItem("fpo_admin_token");
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+
     const [contactsRes, cropsRes, bookingsRes] =
       await Promise.all([
-        fetch(`${API_BASE}/contact`),
-        fetch(`${API_BASE}/crops`),
-        fetch(`${API_BASE}/bookings`)
+        fetch(`${API_BASE}/contact`, { headers }),
+        fetch(`${API_BASE}/crops`, { headers }),
+        fetch(`${API_BASE}/bookings`, { headers })
       ]);
+
+    if (
+      contactsRes.status === 401 ||
+      cropsRes.status === 401 ||
+      bookingsRes.status === 401
+    ) {
+      handleUnauthorized();
+      return;
+    }
 
     if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok) {
       throw new Error("Failed to fetch data");
@@ -150,12 +166,21 @@ const handleDelete = async (type, id) => {
   const endpoint = type === "contacts" ? "contact" : type;
 
   try {
+    const token = localStorage.getItem("fpo_admin_token");
     const response = await fetch(
       `${API_BASE}/${endpoint}/${id}`,
       {
         method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
       }
     );
+
+    if (response.status === 401) {
+      handleUnauthorized();
+      return;
+    }
 
     const data = await response.json();
 
@@ -212,6 +237,13 @@ const handleDelete = async (type, id) => {
     localStorage.removeItem("fpo_admin_token");
     setIsAuthenticated(false);
   };
+
+  const handleUnauthorized = () => {
+    localStorage.removeItem("fpo_admin_token");
+    setIsAuthenticated(false);
+    setAuthError("Session expired. Please login again.");
+  };
+
 
   // ── CSV Export Functionality ──
   const exportCSV = (type, dataList) => {

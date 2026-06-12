@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
-
 const CropRequest = require("../models/CropRequest");
+const auth = require("../middleware/auth");
 
 router.post("/", async (req, res) => {
   try {
@@ -20,7 +20,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", auth, async (req, res) => {
   try {
     const crops = await CropRequest.find().sort({ createdAt: -1 });
     res.json(crops);
@@ -29,7 +29,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", auth, async (req, res) => {
   try {
     const crop = await CropRequest.findByIdAndDelete(req.params.id);
     if (!crop) {
