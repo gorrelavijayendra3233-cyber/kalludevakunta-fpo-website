@@ -8,6 +8,7 @@ const farmerRoutes = require("./routes/farmers");
 const productRoutes = require("./routes/products");
 const analyticsRoutes = require("./routes/analytics");
 const notificationRoutes = require("./routes/notifications");
+const productBookingRoutes = require("./routes/productBookings");
 
 const express = require("express");
 const cors = require("cors");
@@ -40,6 +41,7 @@ app.use("/api/farmers", farmerRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/product-bookings", productBookingRoutes);
 app.get("/", (req, res) => {
   res.send("Kalludevakunta FPO Backend Running");
 });

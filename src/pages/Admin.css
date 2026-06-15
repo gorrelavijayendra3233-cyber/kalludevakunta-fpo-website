@@ -620,7 +620,18 @@
   border: 1px solid rgba(211, 47, 47, 0.2);
 }
 
-.status-pill.out-of-stock,
+.status-pill.out-of-stock {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.status-pill.low-stock {
+  background: rgba(234, 179, 8, 0.1);
+  color: #eab308;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+
 .status-pill.inactive {
   background: rgba(255, 255, 255, 0.08);
   color: #a0a0a0;

@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import "./EquipmentBooking.css";
 
+const API_BASE = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : "https://kalludevakunta-fpo-website.onrender.com/api";
+
 // ── Constants ──────────────────────────────────────────────────
 const EQUIPMENT_LIST = [
   { id: "tractor",    icon: <Tractor size={24} />, name: "Tractor",    rateHour: 350,  rateDay: 2500 },
@@ -127,7 +131,7 @@ const handleSubmit = async (e) => {
     };
 
     const response = await fetch(
-      "https://kalludevakunta-fpo-website.onrender.com/api/bookings",
+      `${API_BASE}/bookings`,
       {
         method: "POST",
         headers: {

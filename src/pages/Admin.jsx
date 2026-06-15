@@ -21,7 +21,12 @@ import {
   FileText,
   Bell,
   Settings,
-  Send
+  Send,
+  Pencil,
+  AlertTriangle,
+  Coins,
+  ShoppingCart,
+  Clock
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { jsPDF } from "jspdf";
@@ -113,6 +118,26 @@ function Admin() {
     imageUrl: "",
     status: "In Stock"
   });
+  const [filterProductCategory, setFilterProductCategory] = useState("All");
+  const [filterProductStatus, setFilterProductStatus] = useState("All");
+  const [deletingProductItem, setDeletingProductItem] = useState(null);
+  const [productBookings, setProductBookings] = useState([]);
+  const [viewingProductBooking, setViewingProductBooking] = useState(null);
+  const [editingProductBooking, setEditingProductBooking] = useState(null);
+  const [searchProductBooking, setSearchProductBooking] = useState("");
+  const [deletingProductBookingItem, setDeletingProductBookingItem] = useState(null);
+
+  const getProductStatusText = (stock) => {
+    if (stock === 0) return "Out Of Stock";
+    if (stock <= 10) return "Low Stock";
+    return "In Stock";
+  };
+
+  const getProductStatusClass = (stock) => {
+    if (stock === 0) return "out-of-stock";
+    if (stock <= 10) return "low-stock";
+    return "in-stock";
+  };
 
   // ── Reports & Analytics States ──
   const [analyticsStats, setAnalyticsStats] = useState(null);
@@ -297,7 +322,7 @@ const fetchData = async () => {
   try {
     const signal = AbortSignal.timeout(10000);
 
-    const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes] =
+    const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes] =
       await Promise.all([
         fetch(`${API_BASE}/contact`, { headers: getAuthHeaders(), signal }),
         fetch(`${API_BASE}/crops`, { headers: getAuthHeaders(), signal }),
@@ -309,7 +334,8 @@ const fetchData = async () => {
         fetch(`${API_BASE}/analytics/categories`, { headers: getAuthHeaders(), signal }),
         fetch(`${API_BASE}/notifications`, { headers: getAuthHeaders(), signal }),
         fetch(`${API_BASE}/notifications/settings`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/notifications/telegram-status`, { headers: getAuthHeaders(), signal })
+        fetch(`${API_BASE}/notifications/telegram-status`, { headers: getAuthHeaders(), signal }),
+        fetch(`${API_BASE}/product-bookings`, { headers: getAuthHeaders(), signal })
       ]);
 
     if (
@@ -323,14 +349,15 @@ const fetchData = async () => {
       categoryRes.status === 401 ||
       notificationsRes.status === 401 ||
       settingsRes.status === 401 ||
-      telegramRes.status === 401
+      telegramRes.status === 401 ||
+      productBookingsRes.status === 401
     ) {
       setLoading(false);
       handleUnauthorized();
       return;
     }
 
-    if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok) {
+    if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok) {
       throw new Error("Failed to fetch data");
     }
 
@@ -345,6 +372,7 @@ const fetchData = async () => {
     const notificationsData = await notificationsRes.json();
     const settingsData = await settingsRes.json();
     const telegramData = await telegramRes.json();
+    const productBookingsData = await productBookingsRes.json();
 
     setContacts(contactsData);
     setCrops(cropsData);
@@ -360,6 +388,7 @@ const fetchData = async () => {
       telegramEnabled: settingsData.telegramEnabled
     });
     setTelegramStatus(telegramData);
+    setProductBookings(Array.isArray(productBookingsData) ? productBookingsData : (productBookingsData?.data || []));
 
   } catch (error) {
     console.error("Database fetch error:", error);
@@ -1310,6 +1339,18 @@ const handleDelete = async (type, id) => {
         item.status || "In Stock",
         item.createdAt ? item.createdAt.substring(0, 10) : ""
       ]);
+    } else if (type === "product-bookings") {
+      headers = ["Booking ID", "Farmer Name", "Product Name", "Quantity", "Total Price", "Phone Number", "Booking Date", "Status"];
+      rows = dataList.map(item => [
+        item.bookingId || "",
+        item.farmerName || "",
+        item.productName || "",
+        item.quantity || 0,
+        item.totalPrice || 0,
+        item.phone || "",
+        item.bookingDate || (item.createdAt ? item.createdAt.substring(0, 10) : ""),
+        item.status || "Pending"
+      ]);
     }
 
     const csvContent = [
@@ -1648,6 +1689,17 @@ const handleDelete = async (type, id) => {
     );
   });
 
+  const filteredProductBookings = (Array.isArray(productBookings) ? productBookings : []).filter(b => {
+    const term = searchProductBooking.toLowerCase();
+    return (
+      (b.bookingId || "").toLowerCase().includes(term) ||
+      (b.farmerName || "").toLowerCase().includes(term) ||
+      (b.productName || "").toLowerCase().includes(term) ||
+      (b.phone || "").includes(term) ||
+      (b.status || "").toLowerCase().includes(term)
+    );
+  });
+
   const filteredFarmers = farmers.filter(f => {
     const term = searchFarmer.toLowerCase();
     return (
@@ -1660,11 +1712,19 @@ const handleDelete = async (type, id) => {
 
   const filteredProducts = products.filter(p => {
     const term = searchProduct.toLowerCase();
-    return (
+    const matchesSearch = (
       (p.productId || "").toLowerCase().includes(term) ||
       (p.name || "").toLowerCase().includes(term) ||
       (p.category || "").toLowerCase().includes(term)
     );
+    const matchesCategory = filterProductCategory === "All" ||
+      (p.category || "").toLowerCase() === filterProductCategory.toLowerCase();
+    
+    const calculatedStatus = getProductStatusText(p.stock);
+    const matchesStatus = filterProductStatus === "All" ||
+      calculatedStatus.toLowerCase() === filterProductStatus.toLowerCase();
+
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   // ── Farmers Stats Calculations ──
@@ -1777,6 +1837,14 @@ const handleDelete = async (type, id) => {
           </button>
 
           <button 
+            className={`nav-item ${activeTab === "product-bookings" ? "active" : ""}`}
+            onClick={() => { setActiveTab("product-bookings"); setMobileMenuOpen(false); }}
+          >
+            <ShoppingCart size={18} />
+            <span>Product Bookings</span>
+          </button>
+
+          <button 
             className={`nav-item ${activeTab === "farmers" ? "active" : ""}`}
             onClick={() => { setActiveTab("farmers"); setMobileMenuOpen(false); }}
           >
@@ -1843,6 +1911,7 @@ const handleDelete = async (type, id) => {
               {activeTab === "contacts" && "Contact Inquiries"}
               {activeTab === "crops" && "Crop Selling Requests"}
               {activeTab === "bookings" && "Machinery Bookings"}
+              {activeTab === "product-bookings" && "Product Bookings & Orders"}
               {activeTab === "farmers" && "Farmer Management"}
               {activeTab === "products" && "Product Inventory"}
               {activeTab === "reports" && "Report Generator Dashboard"}
@@ -2384,6 +2453,153 @@ const handleDelete = async (type, id) => {
                 </div>
               )}
 
+              {/* Product Bookings Tab */}
+              {activeTab === "product-bookings" && (
+                <div className="tab-pane">
+                  {/* Stats Cards */}
+                  <div className="metrics-grid">
+                    <div className="metric-card glass-panel">
+                      <div className="card-top">
+                        <div className="icon-wrapper green">
+                          <ShoppingCart size={22} />
+                        </div>
+                        <span className="trend-badge positive">Bookings</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{productBookings.length}</h3>
+                        <p>Total Bookings</p>
+                      </div>
+                    </div>
+
+                    <div className="metric-card glass-panel">
+                      <div className="card-top">
+                        <div className="icon-wrapper orange">
+                          <Clock size={22} />
+                        </div>
+                        <span className="trend-badge warning">Pending</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{productBookings.filter(b => b.status === "Pending").length}</h3>
+                        <p>Pending Bookings</p>
+                      </div>
+                    </div>
+
+                    <div className="metric-card glass-panel">
+                      <div className="card-top">
+                        <div className="icon-wrapper green">
+                          <CheckCircle size={22} />
+                        </div>
+                        <span className="trend-badge positive">Confirmed</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{productBookings.filter(b => b.status === "Confirmed").length}</h3>
+                        <p>Confirmed Bookings</p>
+                      </div>
+                    </div>
+
+                    <div className="metric-card glass-panel">
+                      <div className="card-top">
+                        <div className="icon-wrapper green">
+                          <Coins size={22} />
+                        </div>
+                        <span className="trend-badge positive">INR</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>₹{productBookings.filter(b => b.status === "Confirmed").reduce((sum, b) => sum + (b.totalPrice || 0), 0).toLocaleString("en-IN")}</h3>
+                        <p>Total Confirmed Value</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pane-header-actions">
+                    <div className="search-bar-wrapper">
+                      <Search size={16} />
+                      <input 
+                        type="text" 
+                        placeholder="Search by booking details..." 
+                        value={searchProductBooking}
+                        onChange={(e) => setSearchProductBooking(e.target.value)}
+                      />
+                    </div>
+                    <button className="btn-action primary" onClick={() => exportCSV("product-bookings", filteredProductBookings)}>
+                      <Download size={15} />
+                      <span>Export to CSV</span>
+                    </button>
+                  </div>
+
+                  <div className="table-responsive-container glass-panel">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>Booking ID</th>
+                          <th>Farmer Name</th>
+                          <th>Product Name</th>
+                          <th>Qty</th>
+                          <th>Total Price</th>
+                          <th>Phone Number</th>
+                          <th>Booking Date</th>
+                          <th>Status</th>
+                          <th className="text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProductBookings.length === 0 ? (
+                          <tr>
+                            <td colSpan="9" className="empty-message">No product bookings match your search.</td>
+                          </tr>
+                        ) : (
+                          filteredProductBookings.map(b => {
+                            const dateStr = b.bookingDate || (b.createdAt ? b.createdAt.substring(0, 10) : "");
+                            const statusLower = (b.status || "pending").toLowerCase();
+                            return (
+                              <tr key={b._id}>
+                                <td className="font-semibold" data-label="Booking ID">{b.bookingId || "N/A"}</td>
+                                <td data-label="Farmer Name">{b.farmerName}</td>
+                                <td className="text-accent" data-label="Product Name">{b.productName}</td>
+                                <td data-label="Qty">{b.quantity}</td>
+                                <td data-label="Total Price">₹{(b.totalPrice || 0).toLocaleString("en-IN")}</td>
+                                <td data-label="Phone">{b.phone}</td>
+                                <td data-label="Booking Date">{dateStr}</td>
+                                <td data-label="Status">
+                                  <span className={`status-pill ${statusLower}`}>
+                                    {b.status || "Pending"}
+                                  </span>
+                                </td>
+                                <td className="text-right" data-label="Actions">
+                                  <div className="action-button-group">
+                                    <button 
+                                      className="action-btn view" 
+                                      title="Inspect Details"
+                                      onClick={() => setViewingProductBooking(b)}
+                                    >
+                                      <Eye size={15} />
+                                    </button>
+                                    <button 
+                                      className="action-btn edit" 
+                                      title="Edit Status"
+                                      onClick={() => setEditingProductBooking(b)}
+                                    >
+                                      <Pencil size={15} />
+                                    </button>
+                                    <button 
+                                      className="action-btn delete" 
+                                      title="Delete record"
+                                      onClick={() => handleDelete("product-bookings", b._id)}
+                                    >
+                                      <Trash2 size={15} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* 5. Farmers Tab */}
               {activeTab === "farmers" && (
                 <div className="tab-pane">
@@ -2557,47 +2773,60 @@ const handleDelete = async (type, id) => {
 
                     <div className="metric-card glass-panel">
                       <div className="card-top">
-                        <div className="icon-wrapper blue">
-                          <LayoutDashboard size={22} />
-                        </div>
-                        <span className="trend-badge positive">Categories</span>
-                      </div>
-                      <div className="card-bottom">
-                        <h3>{[...new Set(products.map(p => p.category?.trim()).filter(Boolean))].length}</h3>
-                        <p>Total Categories</p>
-                      </div>
-                    </div>
-
-                    <div className="metric-card glass-panel">
-                      <div className="card-top">
-                        <div className="icon-wrapper green">
+                        <div className="icon-wrapper green" style={{ background: "rgba(46, 125, 50, 0.15)", color: "var(--admin-accent-green)" }}>
                           <Sprout size={22} />
                         </div>
-                        <span className="trend-badge positive">In Stock</span>
+                        <span className="trend-badge positive">Normal</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>{products.filter(p => p.status === "In Stock").length}</h3>
+                        <h3>{products.filter(p => p.stock > 10).length}</h3>
                         <p>In Stock</p>
                       </div>
                     </div>
 
                     <div className="metric-card glass-panel">
                       <div className="card-top">
-                        <div className="icon-wrapper orange">
-                          <X size={22} />
+                        <div className="icon-wrapper orange" style={{ background: "rgba(249, 115, 22, 0.15)", color: "#f97316" }}>
+                          <AlertTriangle size={22} />
                         </div>
-                        <span className="trend-badge negative">Out Of Stock</span>
+                        <span className="trend-badge warning" style={{ background: "rgba(249, 115, 22, 0.1)", color: "#f97316", border: "1px solid rgba(249, 115, 22, 0.2)" }}>Low</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>{products.filter(p => p.status === "Out of Stock").length}</h3>
+                        <h3>{products.filter(p => p.stock <= 10 && p.stock > 0).length}</h3>
+                        <p>Low Stock</p>
+                      </div>
+                    </div>
+
+                    <div className="metric-card glass-panel">
+                      <div className="card-top">
+                        <div className="icon-wrapper red" style={{ background: "rgba(239, 68, 68, 0.15)", color: "#ef4444" }}>
+                          <X size={22} />
+                        </div>
+                        <span className="trend-badge negative">Out</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{products.filter(p => p.stock === 0).length}</h3>
                         <p>Out of Stock</p>
+                      </div>
+                    </div>
+
+                    <div className="metric-card glass-panel">
+                      <div className="card-top">
+                        <div className="icon-wrapper blue" style={{ background: "rgba(2, 136, 209, 0.15)", color: "var(--admin-accent-blue)" }}>
+                          <Coins size={22} />
+                        </div>
+                        <span className="trend-badge positive">Value</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>₹{products.reduce((sum, p) => sum + (p.price * p.stock), 0).toLocaleString('en-IN')}</h3>
+                        <p>Inventory Value</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Actions Toolbar */}
-                  <div className="pane-header-actions">
-                    <div className="search-bar-wrapper">
+                  <div className="pane-header-actions" style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center", justifyContent: "space-between" }}>
+                    <div className="search-bar-wrapper" style={{ flex: "1 1 300px", maxWidth: "360px" }}>
                       <Search size={16} />
                       <input 
                         type="text" 
@@ -2606,13 +2835,46 @@ const handleDelete = async (type, id) => {
                         onChange={(e) => setSearchProduct(e.target.value)}
                       />
                     </div>
+
+                    {/* Filters Group */}
+                    <div className="filter-group-wrapper" style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+                      <div className="filter-select-wrapper" style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--admin-panel-bg)", border: "1px solid var(--admin-panel-border)", borderRadius: "12px", padding: "0 12px", height: "44px" }}>
+                        <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", fontWeight: "600" }}>Category:</span>
+                        <select 
+                          value={filterProductCategory}
+                          onChange={(e) => setFilterProductCategory(e.target.value)}
+                          style={{ background: "transparent", border: "none", color: "var(--admin-text-primary)", fontWeight: "600", outline: "none", cursor: "pointer", fontSize: "13px" }}
+                        >
+                          <option value="All" style={{ background: "#07140a", color: "#fff" }}>All</option>
+                          <option value="Seeds" style={{ background: "#07140a", color: "#fff" }}>Seeds</option>
+                          <option value="Fertilizers" style={{ background: "#07140a", color: "#fff" }}>Fertilizers</option>
+                          <option value="Pesticides" style={{ background: "#07140a", color: "#fff" }}>Pesticides</option>
+                          <option value="Farm Tools" style={{ background: "#07140a", color: "#fff" }}>Farm Tools</option>
+                        </select>
+                      </div>
+
+                      <div className="filter-select-wrapper" style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--admin-panel-bg)", border: "1px solid var(--admin-panel-border)", borderRadius: "12px", padding: "0 12px", height: "44px" }}>
+                        <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", fontWeight: "600" }}>Status:</span>
+                        <select 
+                          value={filterProductStatus}
+                          onChange={(e) => setFilterProductStatus(e.target.value)}
+                          style={{ background: "transparent", border: "none", color: "var(--admin-text-primary)", fontWeight: "600", outline: "none", cursor: "pointer", fontSize: "13px" }}
+                        >
+                          <option value="All" style={{ background: "#07140a", color: "#fff" }}>All</option>
+                          <option value="In Stock" style={{ background: "#07140a", color: "#fff" }}>In Stock</option>
+                          <option value="Low Stock" style={{ background: "#07140a", color: "#fff" }}>Low Stock</option>
+                          <option value="Out Of Stock" style={{ background: "#07140a", color: "#fff" }}>Out Of Stock</option>
+                        </select>
+                      </div>
+                    </div>
+
                     <div className="button-actions-group" style={{ display: "flex", gap: "12px" }}>
                       <button className="btn-action primary" onClick={() => setShowProductModal(true)}>
                         <span>+ Add Product</span>
                       </button>
                       <button className="btn-action outline" onClick={() => exportCSV("products", filteredProducts)}>
                         <Download size={15} />
-                        <span>Export Products CSV</span>
+                        <span>Export CSV</span>
                       </button>
                     </div>
                   </div>
@@ -2629,18 +2891,21 @@ const handleDelete = async (type, id) => {
                           <th>Stock</th>
                           <th>Status</th>
                           <th>Created Date</th>
+                          <th>Last Updated</th>
                           <th className="text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredProducts.length === 0 ? (
                           <tr>
-                            <td colSpan="8" className="empty-message">No products match your search.</td>
+                            <td colSpan="9" className="empty-message">No products match your search.</td>
                           </tr>
                         ) : (
                           filteredProducts.map(p => {
                             const dateStr = p.createdAt ? p.createdAt.substring(0, 10) : "";
-                            const statusClass = String(p.status || "In Stock").toLowerCase().replace(/\s+/g, "-");
+                            const updatedStr = p.updatedAt ? `${p.updatedAt.substring(0, 10)} ${p.updatedAt.substring(11, 16)}` : "N/A";
+                            const statusClass = getProductStatusClass(p.stock);
+                            const statusText = getProductStatusText(p.stock);
                             return (
                               <tr key={p._id}>
                                 <td className="font-semibold" data-label="Product ID">{p.productId}</td>
@@ -2650,10 +2915,11 @@ const handleDelete = async (type, id) => {
                                 <td data-label="Stock">{p.stock} {p.unit || ""}</td>
                                 <td data-label="Status">
                                   <span className={`status-pill ${statusClass}`}>
-                                    {p.status || "In Stock"}
+                                    {statusText}
                                   </span>
                                 </td>
                                 <td data-label="Created Date">{dateStr}</td>
+                                <td data-label="Last Updated">{updatedStr}</td>
                                 <td className="text-right" data-label="Actions">
                                   <div className="action-button-group">
                                     <button 
@@ -2668,12 +2934,12 @@ const handleDelete = async (type, id) => {
                                       title="Edit Product"
                                       onClick={() => setEditingProduct(p)}
                                     >
-                                      <RefreshCw size={15} />
+                                      <Pencil size={15} />
                                     </button>
                                     <button 
                                       className="action-btn delete" 
                                       title="Delete Product"
-                                      onClick={() => handleProductDelete(p._id)}
+                                      onClick={() => setDeletingProductItem(p)}
                                     >
                                       <Trash2 size={15} />
                                     </button>
@@ -3728,14 +3994,19 @@ const handleDelete = async (type, id) => {
                 
                 <div className="admin-login-input-group">
                   <label className="admin-login-label">Category *</label>
-                  <input 
-                    type="text" 
+                  <select 
                     className="admin-login-input" 
-                    placeholder="e.g. Seeds, Fertilizers"
                     value={productForm.category}
                     onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                     required
-                  />
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="" disabled>Select Category</option>
+                    <option value="Seeds">Seeds</option>
+                    <option value="Fertilizers">Fertilizers</option>
+                    <option value="Pesticides">Pesticides</option>
+                    <option value="Farm Tools">Farm Tools</option>
+                  </select>
                 </div>
 
                 <div className="admin-login-input-group">
@@ -3753,6 +4024,8 @@ const handleDelete = async (type, id) => {
                   <label className="admin-login-label">Price (₹) *</label>
                   <input 
                     type="number" 
+                    min="0"
+                    step="any"
                     className="admin-login-input" 
                     placeholder="Price per unit"
                     value={productForm.price}
@@ -3765,6 +4038,7 @@ const handleDelete = async (type, id) => {
                   <label className="admin-login-label">Stock Quantity *</label>
                   <input 
                     type="number" 
+                    min="0"
                     className="admin-login-input" 
                     placeholder="Initial stock"
                     value={productForm.stock}
@@ -3782,19 +4056,6 @@ const handleDelete = async (type, id) => {
                     value={productForm.imageUrl}
                     onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
                   />
-                </div>
-
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">Status</label>
-                  <select 
-                    className="admin-login-input" 
-                    value={productForm.status}
-                    onChange={(e) => setProductForm({ ...productForm, status: e.target.value })}
-                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
-                  >
-                    <option value="In Stock">In Stock</option>
-                    <option value="Out of Stock">Out of Stock</option>
-                  </select>
                 </div>
 
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
@@ -3859,8 +4120,8 @@ const handleDelete = async (type, id) => {
                 </div>
                 <div className="detail-item">
                   <span className="label">Status:</span>
-                  <span className={`value status-pill ${viewingProduct.status === "In Stock" ? "active" : "inactive"}`}>
-                    {viewingProduct.status}
+                  <span className={`value status-pill ${getProductStatusClass(viewingProduct.stock)}`}>
+                    {getProductStatusText(viewingProduct.stock)}
                   </span>
                 </div>
                 <div className="detail-item full-width">
@@ -3891,35 +4152,39 @@ const handleDelete = async (type, id) => {
             <form onSubmit={handleProductUpdate}>
               <div className="modal-body form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "20px" }}>
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
-                  <label className="admin-login-label">Product Name * (Read-Only)</label>
+                  <label className="admin-login-label">Product Name *</label>
                   <input 
                     type="text" 
                     className="admin-login-input" 
                     value={editingProduct.name}
-                    disabled
-                    style={{ opacity: 0.6 }}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                    required
                   />
                 </div>
                 
                 <div className="admin-login-input-group">
                   <label className="admin-login-label">Category *</label>
-                  <input 
-                    type="text" 
+                  <select 
                     className="admin-login-input" 
                     value={editingProduct.category}
                     onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
                     required
-                  />
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="Seeds">Seeds</option>
+                    <option value="Fertilizers">Fertilizers</option>
+                    <option value="Pesticides">Pesticides</option>
+                    <option value="Farm Tools">Farm Tools</option>
+                  </select>
                 </div>
 
                 <div className="admin-login-input-group">
-                  <label className="admin-login-label">Unit (Read-Only)</label>
+                  <label className="admin-login-label">Unit</label>
                   <input 
                     type="text" 
                     className="admin-login-input" 
                     value={editingProduct.unit || ""}
-                    disabled
-                    style={{ opacity: 0.6 }}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, unit: e.target.value })}
                   />
                 </div>
 
@@ -3927,6 +4192,8 @@ const handleDelete = async (type, id) => {
                   <label className="admin-login-label">Price (₹) *</label>
                   <input 
                     type="number" 
+                    min="0"
+                    step="any"
                     className="admin-login-input" 
                     value={editingProduct.price}
                     onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
@@ -3938,6 +4205,7 @@ const handleDelete = async (type, id) => {
                   <label className="admin-login-label">Stock Quantity *</label>
                   <input 
                     type="number" 
+                    min="0"
                     className="admin-login-input" 
                     value={editingProduct.stock}
                     onChange={(e) => setEditingProduct({ ...editingProduct, stock: e.target.value })}
@@ -3945,17 +4213,14 @@ const handleDelete = async (type, id) => {
                   />
                 </div>
 
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">Status</label>
-                  <select 
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Image URL</label>
+                  <input 
+                    type="text" 
                     className="admin-login-input" 
-                    value={editingProduct.status}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value })}
-                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
-                  >
-                    <option value="In Stock">In Stock</option>
-                    <option value="Out of Stock">Out of Stock</option>
-                  </select>
+                    value={editingProduct.imageUrl || ""}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
+                  />
                 </div>
 
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
@@ -3974,6 +4239,173 @@ const handleDelete = async (type, id) => {
                 <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Update Product</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingProductItem && (
+        <div className="modal-overlay" onClick={() => setDeletingProductItem(null)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "400px" }}>
+            <div className="modal-header">
+              <h3>Confirm Deletion</h3>
+              <button className="modal-close-icon" onClick={() => setDeletingProductItem(null)}><X size={18} /></button>
+            </div>
+            <div className="modal-body" style={{ padding: "20px", textAlign: "center" }}>
+              <p style={{ color: "var(--admin-text-primary)", marginBottom: "16px" }}>
+                Are you sure you want to delete this product?
+              </p>
+              <div style={{ fontWeight: "600", color: "#ef4444", marginBottom: "8px" }}>
+                {deletingProductItem.name} ({deletingProductItem.productId})
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: "16px 20px", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button className="btn-modal-close" onClick={() => setDeletingProductItem(null)}>Cancel</button>
+              <button 
+                className="btn-action primary" 
+                style={{ height: "40px", padding: "0 20px", borderRadius: "8px", background: "linear-gradient(135deg, #ef4444, #dc2626)" }}
+                onClick={() => {
+                  handleProductDelete(deletingProductItem._id);
+                  setDeletingProductItem(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Product Booking Modal */}
+      {viewingProductBooking && (
+        <div className="modal-overlay" onClick={() => setViewingProductBooking(null)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px" }}>
+            <div className="modal-header">
+              <h3>Product Booking Details</h3>
+              <button className="modal-close-icon" onClick={() => setViewingProductBooking(null)}><X size={18} /></button>
+            </div>
+            <div className="modal-body" style={{ padding: "20px" }}>
+              <div className="details-container">
+                <div className="detail-item">
+                  <span className="label">Booking ID:</span>
+                  <span className="value font-semibold">{viewingProductBooking.bookingId || "N/A"}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Farmer Name:</span>
+                  <span className="value">{viewingProductBooking.farmerName}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Phone:</span>
+                  <span className="value">{viewingProductBooking.phone}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Product Name:</span>
+                  <span className="value text-accent">{viewingProductBooking.productName}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Quantity:</span>
+                  <span className="value">{viewingProductBooking.quantity}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Total Price:</span>
+                  <span className="value">₹{(viewingProductBooking.totalPrice || 0).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Booking Date:</span>
+                  <span className="value">{viewingProductBooking.bookingDate}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Status:</span>
+                  <span className={`value status-pill ${(viewingProductBooking.status || "pending").toLowerCase()}`}>
+                    {viewingProductBooking.status || "Pending"}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <span className="label">Submitted Date:</span>
+                  <span className="value">{viewingProductBooking.createdAt ? new Date(viewingProductBooking.createdAt).toLocaleString("en-IN") : "N/A"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: "16px 20px" }}>
+              <button className="btn-modal-close" onClick={() => setViewingProductBooking(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Booking Status Modal */}
+      {editingProductBooking && (
+        <div className="modal-overlay" onClick={() => setEditingProductBooking(null)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+            <div className="modal-header">
+              <h3>Update Booking Status</h3>
+              <button className="modal-close-icon" onClick={() => setEditingProductBooking(null)}><X size={18} /></button>
+            </div>
+            <div className="modal-body" style={{ padding: "20px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <span className="label" style={{ display: "block", marginBottom: "6px", color: "var(--admin-text-secondary)" }}>Booking ID:</span>
+                <span className="value font-semibold">{editingProductBooking.bookingId || "N/A"}</span>
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <span className="label" style={{ display: "block", marginBottom: "6px", color: "var(--admin-text-secondary)" }}>Farmer:</span>
+                <span className="value">{editingProductBooking.farmerName} ({editingProductBooking.phone})</span>
+              </div>
+              <div style={{ marginBottom: "20px" }}>
+                <span className="label" style={{ display: "block", marginBottom: "6px", color: "var(--admin-text-secondary)" }}>Product:</span>
+                <span className="value">{editingProductBooking.productName} (Qty: {editingProductBooking.quantity})</span>
+              </div>
+              
+              <div className="admin-login-input-group">
+                <label className="admin-login-label">Booking Status *</label>
+                <select 
+                  className="admin-login-input" 
+                  value={editingProductBooking.status || "Pending"}
+                  onChange={(e) => setEditingProductBooking({ ...editingProductBooking, status: e.target.value })}
+                  style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff", width: "100%", height: "42px", borderRadius: "8px", padding: "0 10px" }}
+                >
+                  <option value="Pending">Pending</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: "16px 20px", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+              <button className="btn-modal-close" onClick={() => setEditingProductBooking(null)}>Cancel</button>
+              <button 
+                className="btn-action primary" 
+                style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`${API_BASE}/product-bookings/${editingProductBooking._id}`, {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                        ...getAuthHeaders()
+                      },
+                      body: JSON.stringify({ status: editingProductBooking.status }),
+                      signal: AbortSignal.timeout(10000)
+                    });
+                    if (response.status === 401) {
+                      handleUnauthorized();
+                      return;
+                    }
+                    if (response.ok) {
+                      alert("Booking status updated successfully!");
+                      fetchData();
+                      setEditingProductBooking(null);
+                    } else {
+                      const data = await response.json();
+                      alert(data.message || "Failed to update status.");
+                    }
+                  } catch (err) {
+                    console.error("Failed to update booking status:", err);
+                    alert("Error updating status.");
+                  }
+                }}
+              >
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       )}

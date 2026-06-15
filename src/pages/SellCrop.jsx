@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 import "./SellCrop.css";
 
+const API_BASE = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : "https://kalludevakunta-fpo-website.onrender.com/api";
+
 // ── Constants ──────────────────────────────────────────────────
 const CROP_OPTIONS = [
   "Paddy (Rice)", "Maize", "Red Gram (Tur Dal)", "Groundnut",
@@ -121,7 +125,7 @@ const handleSubmit = async (e) => {
     };
 
     const response = await fetch(
-      "https://kalludevakunta-fpo-website.onrender.com/api/crops",
+      `${API_BASE}/crops`,
       {
         method: "POST",
         headers: {

@@ -82,7 +82,7 @@ router.get("/stats", auth, async (req, res) => {
 });
 
 // 2. Get All Products (with optional search query)
-router.get("/", auth, async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { search } = req.query;
     let query = {};
@@ -137,7 +137,7 @@ router.post("/", auth, async (req, res) => {
     if (product.stock === 0) {
       const telegramMsg = `🚨 Out Of Stock\n\nProduct: ${product.name}\n\nImmediate action required.`;
       const dashboardMsg = `Product ${product.name} is out of stock.`;
-      await createProductNotification(product, "Out of Stock", dashboardMsg, telegramMsg, "high");
+      await createProductNotification(product, "Out Of Stock Alert", dashboardMsg, telegramMsg, "high");
     } else if (product.stock <= 10) {
       const telegramMsg = `⚠️ Low Stock Alert\n\nProduct: ${product.name}\n\nRemaining Stock: ${product.stock}`;
       const dashboardMsg = `Product ${product.name} is running low on stock (${product.stock} left).`;
@@ -154,7 +154,7 @@ router.post("/", auth, async (req, res) => {
 });
 
 // 4. Get Single Product
-router.get("/:id", auth, async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
@@ -208,7 +208,7 @@ router.put("/:id", auth, async (req, res) => {
     if (product.stock === 0) {
       const telegramMsg = `🚨 Out Of Stock\n\nProduct: ${product.name}\n\nImmediate action required.`;
       const dashboardMsg = `Product ${product.name} is out of stock.`;
-      await createProductNotification(product, "Out of Stock", dashboardMsg, telegramMsg, "high");
+      await createProductNotification(product, "Out Of Stock Alert", dashboardMsg, telegramMsg, "high");
     } else if (product.stock <= 10) {
       const telegramMsg = `⚠️ Low Stock Alert\n\nProduct: ${product.name}\n\nRemaining Stock: ${product.stock}`;
       const dashboardMsg = `Product ${product.name} is running low on stock (${product.stock} left).`;

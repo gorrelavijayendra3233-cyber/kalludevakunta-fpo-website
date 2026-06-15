@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Store, 
@@ -13,6 +13,10 @@ import {
   Wheat
 } from "lucide-react";
 import "./Products.css";
+
+const API_BASE = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : "https://kalludevakunta-fpo-website.onrender.com/api";
 
 // ── Icon Mapping ────────────────────────────────────────────────
 export const ICON_MAP = {
@@ -58,42 +62,112 @@ const CATEGORIES = [
 
 // ── Helpers ─────────────────────────────────────────────────────
 function categorySlug(cat) {
-  const map = { Fertilizer: "fertilizer", Pesticide: "pesticide", Seeds: "seeds", "Farm Tools": "farmtools" };
-  return map[cat] || "fertilizer";
+  const norm = (cat || "").toLowerCase();
+  if (norm.startsWith("fertilizer")) return "fertilizer";
+  if (norm.startsWith("pesticide")) return "pesticide";
+  if (norm.includes("seed")) return "seeds";
+  if (norm.includes("tool")) return "farmtools";
+  return "fertilizer";
+}
+
+function getProductIcon(category) {
+  const norm = (category || "").toLowerCase();
+  if (norm.startsWith("fertilizer")) return <FlaskConical size={20} />;
+  if (norm.startsWith("pesticide")) return <Droplet size={20} />;
+  if (norm.includes("seed")) return <Sprout size={20} />;
+  if (norm.includes("tool")) return <Settings size={20} />;
+  return <Store size={20} />;
+}
+
+function matchesCategoryKey(catName, filterKey) {
+  if (filterKey === "All") return true;
+  const c = (catName || "").toLowerCase();
+  const f = filterKey.toLowerCase();
+  if (f === "fertilizer") return c.startsWith("fertilizer");
+  if (f === "pesticide") return c.startsWith("pesticide");
+  if (f === "seeds") return c.includes("seed");
+  if (f === "farm tools") return c.includes("tool");
+  return c === f;
 }
 
 function catCount(products, key) {
   if (key === "All") return products.length;
-  return products.filter((p) => p.category === key).length;
+  return products.filter((p) => matchesCategoryKey(p.category, key)).length;
 }
 
-// ── Enquiry Modal ──────────────────────────────────────────────
-const ENQUIRY_INIT = { name: "", phone: "", message: "" };
-
-function EnquiryModal({ product, onClose }) {
-  const [form, setForm]         = useState(ENQUIRY_INIT);
-  const [loading, setLoading]   = useState(false);
+// ── Product Booking Modal ───────────────────────────────────────
+function BookingModal({ product, onClose }) {
+  const [form, setForm] = useState({
+    farmerName: "",
+    phone: "",
+    quantity: 1,
+    bookingDate: new Date().toISOString().substring(0, 10)
+  });
+  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [bookingDetails, setBookingDetails] = useState(null);
 
   const handleChange = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.farmerName || !form.phone || !form.bookingDate || !form.quantity) {
+      alert("All fields are required.");
+      return;
+    }
+    if (Number(form.quantity) <= 0) {
+      alert("Quantity must be at least 1.");
+      return;
+    }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    setSubmitted(true);
+    try {
+      const response = await fetch(`${API_BASE}/product-bookings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          farmerName: form.farmerName,
+          phone: form.phone,
+          productId: product._id,
+          quantity: Number(form.quantity),
+          bookingDate: form.bookingDate
+        })
+      });
+      const resData = await response.json();
+      if (response.ok) {
+        setBookingDetails(resData.data);
+        setSubmitted(true);
+      } else {
+        alert(resData.message || "Failed to submit booking.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Unable to connect to the server.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const totalPrice = (product.price || 0) * Number(form.quantity || 0);
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal-card glass-panel">
+      <div className="modal-card glass-panel" style={{ maxWidth: "450px" }}>
         <div className="modal-header">
           <div>
-            <div className="modal-header-title">Product Enquiry</div>
+            <div className="modal-header-title">Product Booking</div>
             <div className="modal-header-product">
-              <span className="modal-product-icon">{product.icon}</span> 
+              <span className="modal-product-icon">
+                {product.imageUrl ? (
+                  <img 
+                    src={product.imageUrl} 
+                    alt={product.name} 
+                    style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover", verticalAlign: "middle" }} 
+                  />
+                ) : (
+                  getProductIcon(product.category)
+                )}
+              </span> 
               <span>{product.name}</span>
             </div>
           </div>
@@ -104,41 +178,40 @@ function EnquiryModal({ product, onClose }) {
 
         <div className="modal-body">
           {submitted ? (
-            <div className="modal-success">
-              <div className="modal-success-icon"><CheckCircle size={40} className="text-leaf-light" /></div>
-              <h3>Enquiry Sent!</h3>
-              <p>
-                We've received your enquiry for <strong>{product.name}</strong>. Our team
-                will call you within <strong>24 hours</strong> to confirm availability and
-                pricing.
+            <div className="modal-success" style={{ textAlign: "center", padding: "10px" }}>
+              <div className="modal-success-icon" style={{ marginBottom: "16px" }}><CheckCircle size={40} className="text-leaf-light" /></div>
+              <h3>Booking Confirmed!</h3>
+              <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginBottom: "20px", lineHeight: "1.6" }}>
+                We've received your booking for <strong>{product.name}</strong>.<br/>
+                Booking ID: <strong>{bookingDetails?.bookingId}</strong><br/>
+                Total Price: <strong>₹{totalPrice.toLocaleString("en-IN")}</strong><br/><br/>
+                Our team will call you at <strong>{form.phone}</strong> within 24 hours to coordinate.
               </p>
-              <button className="form-submit" style={{ marginTop: "1rem" }} onClick={onClose}>
+              <button className="form-submit" onClick={onClose}>
                 Close
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate>
               <div className="form-group">
-                <label className="form-label" htmlFor="enq-name">
+                <label className="form-label">
                   Your Name <span className="req">*</span>
                 </label>
                 <input
-                  id="enq-name"
                   className="form-input"
                   type="text"
-                  name="name"
-                  value={form.name}
+                  name="farmerName"
+                  value={form.farmerName}
                   onChange={handleChange}
                   placeholder="Full name"
                   required
                 />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="enq-phone">
+                <label className="form-label">
                   Mobile Number <span className="req">*</span>
                 </label>
                 <input
-                  id="enq-phone"
                   className="form-input"
                   type="tel"
                   name="phone"
@@ -150,22 +223,41 @@ function EnquiryModal({ product, onClose }) {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label" htmlFor="enq-message">
-                  Message / Quantity needed
-                </label>
-                <textarea
-                  id="enq-message"
-                  className="form-textarea"
-                  name="message"
-                  value={form.message}
-                  onChange={handleChange}
-                  placeholder={`Enquiring about: ${product.name}. I need…`}
-                  rows={3}
-                />
+              <div className="form-group" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label className="form-label">
+                    Quantity <span className="req">*</span>
+                  </label>
+                  <input
+                    className="form-input"
+                    type="number"
+                    name="quantity"
+                    value={form.quantity}
+                    onChange={handleChange}
+                    min="1"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="form-label">
+                    Booking Date <span className="req">*</span>
+                  </label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    name="bookingDate"
+                    value={form.bookingDate}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ margin: "16px 0", padding: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "14px", color: "var(--text-secondary)", fontWeight: "600" }}>Total Price:</span>
+                <span style={{ fontSize: "18px", color: "var(--harvest-lt || #16a34a)", fontWeight: "700" }}>₹{totalPrice.toLocaleString("en-IN")}</span>
               </div>
               <button className="form-submit" type="submit" disabled={loading}>
-                {loading ? "Sending…" : <><Phone size={16} /> Send Enquiry</>}
+                {loading ? "Submitting Booking…" : "Confirm Booking"}
               </button>
             </form>
           )}
@@ -177,44 +269,59 @@ function EnquiryModal({ product, onClose }) {
 
 // ── Main Component ─────────────────────────────────────────────
 function Products() {
-  const [products] = useState(() => {
-    const saved = localStorage.getItem("fpo_products");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Error parsing products:", e);
-      }
-    }
-    localStorage.setItem("fpo_products", JSON.stringify(DEFAULT_PRODUCTS));
-    return DEFAULT_PRODUCTS;
-  });
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [errorProducts, setErrorProducts] = useState(null);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery]       = useState("");
   const [enquiryProduct, setEnquiryProduct] = useState(null);
 
+  useEffect(() => {
+    const fetchProducts = async (isInitial = false) => {
+      try {
+        if (isInitial) setLoadingProducts(true);
+        const response = await fetch(`${API_BASE}/products`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch products");
+        }
+        const data = await response.json();
+        setProducts(data);
+      } catch (err) {
+        console.error("Error loading products:", err);
+        if (isInitial) setErrorProducts(err.message);
+      } finally {
+        if (isInitial) setLoadingProducts(false);
+      }
+    };
+
+    fetchProducts(true);
+
+    const interval = setInterval(() => fetchProducts(false), 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const filtered = useMemo(() => {
     let list = products;
     if (activeCategory !== "All") {
-      list = list.filter((p) => p.category === activeCategory);
+      list = list.filter((p) => matchesCategoryKey(p.category, activeCategory));
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(
         (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q) ||
-          p.desc.toLowerCase().includes(q)
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.category || "").toLowerCase().includes(q) ||
+          (p.description || p.desc || "").toLowerCase().includes(q)
       );
     }
     return list;
-  }, [activeCategory, searchQuery]);
+  }, [products, activeCategory, searchQuery]);
 
   return (
     <main>
-      {/* Enquiry modal */}
+      {/* Booking modal */}
       {enquiryProduct && (
-        <EnquiryModal
+        <BookingModal
           product={enquiryProduct}
           onClose={() => setEnquiryProduct(null)}
         />
@@ -272,7 +379,16 @@ function Products() {
         </p>
 
         <div className="products-page__grid">
-          {filtered.length === 0 ? (
+          {loadingProducts ? (
+            <div className="products-page__empty glass-panel fade-up">
+              <p>Loading products from database...</p>
+            </div>
+          ) : errorProducts ? (
+            <div className="products-page__empty glass-panel fade-up">
+              <X size={32} className="products-page__empty-icon" style={{ color: "#ff5252" }} />
+              <p>Error loading products: {errorProducts}</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="products-page__empty glass-panel fade-up">
               <Search size={32} className="products-page__empty-icon" />
               <p>No products found. Try a different search or category.</p>
@@ -280,11 +396,20 @@ function Products() {
           ) : (
             filtered.map((product, idx) => {
               const slug = categorySlug(product.category);
+              const hasStock = product.stock > 0;
               return (
-                <div className="product-card-item glass-panel fade-up" key={product.id} style={{ animationDelay: `${idx * 0.05}s` }}>
+                <div className="product-card-item glass-panel fade-up" key={product._id || product.id} style={{ animationDelay: `${idx * 0.05}s` }}>
                   <div className={`product-card-item__stripe stripe--${slug}`} />
                   <div className={`product-card-item__img img-bg--${slug}`}>
-                    <span className="prod-icon-wrap">{ICON_MAP[product.iconName] || <Store size={20} />}</span>
+                    {product.imageUrl ? (
+                      <img 
+                        src={product.imageUrl} 
+                        alt={product.name} 
+                        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "10px 10px 0 0" }} 
+                      />
+                    ) : (
+                      <span className="prod-icon-wrap">{getProductIcon(product.category)}</span>
+                    )}
                     <div className="product-card-item__badge-wrap">
                       <span className={`product-card-item__cat-badge cat-badge--${slug}`}>
                         {product.category}
@@ -293,24 +418,24 @@ function Products() {
                   </div>
                   <div className="product-card-item__info">
                     <h3 className="product-card-item__name">{product.name}</h3>
-                    <p className="product-card-item__desc">{product.desc}</p>
+                    <p className="product-card-item__desc">{product.description || product.desc}</p>
                     <div className="product-card-item__meta">
                       <div>
-                        <span className="product-card-item__price">₹{product.price.toLocaleString("en-IN")}</span>
-                        <span className="product-card-item__unit">{product.unit}</span>
+                        <span className="product-card-item__price">₹{(product.price || 0).toLocaleString("en-IN")}</span>
+                        <span className="product-card-item__unit">{product.unit ? ` / ${product.unit}` : ""}</span>
                       </div>
-                      <div className={`product-card-item__stock ${product.inStock ? "in" : "out"}`}>
+                      <div className={`product-card-item__stock ${hasStock ? "in" : "out"}`}>
                         <span className="stock-dot" />
-                        {product.inStock ? "In Stock" : "Out of Stock"}
+                        {hasStock ? "In Stock" : "Out of Stock"}
                       </div>
                     </div>
                     <button
                       className="product-card-item__enquire"
-                      disabled={!product.inStock}
+                      disabled={!hasStock}
                       onClick={() => setEnquiryProduct(product)}
-                      style={!product.inStock ? { background: "rgba(255, 255, 255, 0.03)", color: "var(--text-muted)", border: "1px solid rgba(255, 255, 255, 0.03)", cursor: "not-allowed" } : {}}
+                      style={!hasStock ? { background: "rgba(255, 255, 255, 0.03)", color: "var(--text-muted)", border: "1px solid rgba(255, 255, 255, 0.03)", cursor: "not-allowed" } : {}}
                     >
-                      {product.inStock ? <><Phone size={14} /> Enquire Now</> : "Out of Stock"}
+                      {hasStock ? <><Phone size={14} /> Book Now</> : "Out of Stock"}
                     </button>
                   </div>
                 </div>

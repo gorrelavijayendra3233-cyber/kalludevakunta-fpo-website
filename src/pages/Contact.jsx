@@ -2,6 +2,10 @@ import { useState } from "react";
 import { MapPin, Phone, Mail, CheckCircle, MessageCircle, AlertTriangle } from "lucide-react";
 import "./Contact.css";
 
+const API_BASE = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : "https://kalludevakunta-fpo-website.onrender.com/api";
+
 const VILLAGE_OPTIONS = [
   "Kalludevakunta", "Mantralayam", "Madhavaram", "Kosigi",
   "Nandavaram", "Emmiganur", "Adoni", "Yemmiganur",
@@ -106,7 +110,7 @@ const handleSubmit = async (e) => {
 
   try {
     const response = await fetch(
-      "https://kalludevakunta-fpo-website.onrender.com/api/contact",
+      `${API_BASE}/contact`,
       {
         method: "POST",
         headers: {
