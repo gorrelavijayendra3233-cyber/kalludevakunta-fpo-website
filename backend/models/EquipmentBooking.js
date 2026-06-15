@@ -5,6 +5,11 @@ const EquipmentBookingSchema = new mongoose.Schema({
   equipmentName: String,
   bookingDate: String,
   phone: String,
+  duration: String,
+  status: {
+    type: String,
+    default: "Pending",
+  },
   createdAt: {
     type: Date,
     default: Date.now,

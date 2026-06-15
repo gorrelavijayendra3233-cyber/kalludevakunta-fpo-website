@@ -24,6 +24,18 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
+    try {
+      const Notification = require("../models/Notification");
+      await Notification.create({
+        title: "Admin Login",
+        message: `Admin '${username}' logged in successfully.`,
+        type: "system",
+        priority: "medium"
+      });
+    } catch (err) {
+      console.error("Failed to create admin login notification:", err);
+    }
+
     res.json({ token });
   } catch (error) {
   console.error(error);

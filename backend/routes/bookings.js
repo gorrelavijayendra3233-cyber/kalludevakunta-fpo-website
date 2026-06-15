@@ -2,11 +2,30 @@ const express = require("express");
 const router = express.Router();
 const EquipmentBooking = require("../models/EquipmentBooking");
 const auth = require("../middleware/auth");
+const Notification = require("../models/Notification");
 
 router.post("/", async (req, res) => {
   try {
     const booking = new EquipmentBooking(req.body);
     await booking.save();
+
+    // Auto generate notification
+    try {
+      const dateStr = booking.bookingDate ? new Date(booking.bookingDate).toLocaleDateString("en-IN") : new Date().toLocaleDateString("en-IN");
+      const telegramMsg = `🚜 New Equipment Booking\n\nFarmer: ${booking.farmerName}\nEquipment: ${booking.equipmentName}\n\nBooking Date: ${dateStr}`;
+      const dashboardMsg = `Equipment booking for ${booking.equipmentName} submitted by ${booking.farmerName}.`;
+
+      const { triggerNotification } = require("../services/notificationService");
+      await triggerNotification({
+        title: "New Equipment Booking Received",
+        dashboardMessage: dashboardMsg,
+        telegramMessage: telegramMsg,
+        type: "booking",
+        priority: "low"
+      });
+    } catch (err) {
+      console.error("Failed to create booking notification:", err);
+    }
 
     res.status(201).json({
       success: true,

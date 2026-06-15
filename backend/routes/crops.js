@@ -2,11 +2,29 @@ const express = require("express");
 const router = express.Router();
 const CropRequest = require("../models/CropRequest");
 const auth = require("../middleware/auth");
+const Notification = require("../models/Notification");
 
 router.post("/", async (req, res) => {
   try {
     const crop = new CropRequest(req.body);
     await crop.save();
+
+    // Auto generate notification
+    try {
+      const telegramMsg = `🌾 New Crop Request\n\nFarmer: ${crop.farmerName}\nCrop: ${crop.cropName}\nQuantity: ${crop.quantity}`;
+      const dashboardMsg = `Crop request for ${crop.cropName} submitted by ${crop.farmerName}.`;
+
+      const { triggerNotification } = require("../services/notificationService");
+      await triggerNotification({
+        title: "New Crop Request Received",
+        dashboardMessage: dashboardMsg,
+        telegramMessage: telegramMsg,
+        type: "crop",
+        priority: "low"
+      });
+    } catch (err) {
+      console.error("Failed to create crop request notification:", err);
+    }
 
     res.status(201).json({
       success: true,
