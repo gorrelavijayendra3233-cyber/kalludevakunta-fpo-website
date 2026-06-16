@@ -26,9 +26,11 @@ import {
   AlertTriangle,
   Coins,
   ShoppingCart,
-  Clock
+  Clock,
+  CheckCircle
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import toast from "react-hot-toast";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
@@ -66,8 +68,22 @@ const API_BASE = import.meta.env.DEV
   ? "http://localhost:5000/api"
   : "https://kalludevakunta-fpo-website.onrender.com/api";
 
-
-
+const EmptyState = ({ icon: Icon, title, message, ctaText, onCtaClick }) => {
+  return (
+    <div className="empty-state-container glass-panel">
+      <div className="empty-state-icon">
+        <Icon size={36} />
+      </div>
+      <h4 className="empty-state-title">{title}</h4>
+      <p className="empty-state-message">{message}</p>
+      {ctaText && (
+        <button className="btn-action primary" onClick={onCtaClick} style={{ minWidth: "140px", height: "40px", padding: "0 20px" }}>
+          <span>{ctaText}</span>
+        </button>
+      )}
+    </div>
+  );
+};
 
 function Admin() {
   // ── Authentication States ──
@@ -77,6 +93,7 @@ function Admin() {
   const [usernameInput, setUsernameInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
   const [authError, setAuthError] = useState("");
+  const [isOffline, setIsOffline] = useState(false);
 
   // ── Core States ──
   const [contacts, setContacts] = useState([]);
@@ -160,6 +177,105 @@ function Admin() {
   const [searchCrop, setSearchCrop] = useState("");
   const [searchBooking, setSearchBooking] = useState("");
 
+  const [searchFarmerInput, setSearchFarmerInput] = useState("");
+  const [searchProductInput, setSearchProductInput] = useState("");
+  const [searchProductBookingInput, setSearchProductBookingInput] = useState("");
+  const [searchContactInput, setSearchContactInput] = useState("");
+  const [searchCropInput, setSearchCropInput] = useState("");
+  const [searchBookingInput, setSearchBookingInput] = useState("");
+  const [notificationSearchInput, setNotificationSearchInput] = useState("");
+
+  // ── Pagination States ──
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // ── Helper: getStatusBadgeClass ──
+  const getStatusBadgeClass = (status) => {
+    const s = String(status || "").toLowerCase().trim();
+    if (["active", "confirmed", "in stock", "sent", "success", "completed", "approved"].includes(s)) {
+      return "badge-status success";
+    }
+    if (["pending", "low stock", "warning"].includes(s)) {
+      return "badge-status warning";
+    }
+    if (["cancelled", "out of stock", "failed", "danger", "rejected", "inactive"].includes(s)) {
+      return "badge-status danger";
+    }
+    return "badge-status info";
+  };
+
+  // ── Helper: renderPagination ──
+  const renderPagination = (totalItems) => {
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
+
+    return (
+      <div className="pagination-container">
+        <div className="pagination-left">
+          <span>Rows per page:</span>
+          <select 
+            className="pagination-page-select" 
+            value={pageSize} 
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span style={{ marginLeft: "12px" }}>
+            Showing {startItem}-{endItem} of {totalItems}
+          </span>
+        </div>
+        <div className="pagination-right">
+          <button 
+            className="btn-pagination" 
+            disabled={currentPage === 1} 
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            aria-label="Previous Page"
+          >
+            &lt;
+          </button>
+          <span className="pagination-info">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button 
+            className="btn-pagination" 
+            disabled={currentPage >= totalPages} 
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            aria-label="Next Page"
+          >
+            &gt;
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Escape Key Modal Dismissal ──
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setSelectedItem(null);
+        setShowFarmerModal(false);
+        setEditingFarmer(null);
+        setViewingFarmer(null);
+        setShowProductModal(false);
+        setEditingProduct(null);
+        setViewingProduct(null);
+        setViewingProductBooking(null);
+        setEditingProductBooking(null);
+        setDeletingProductItem(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // ── Notification States ──
   const [notifications, setNotifications] = useState([]);
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
@@ -183,6 +299,13 @@ function Admin() {
     localStorage.setItem("fpo_admin_theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    document.title = "Kalludevakunta FPO Admin Portal";
+    return () => {
+      document.title = "Kalludevakunta Farmers Producer Company Limited";
+    };
+  }, []);
+
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${localStorage.getItem("fpo_admin_token")}`
   });
@@ -196,6 +319,89 @@ function Admin() {
       return "";
     }
   };
+
+  async function fetchData() {
+    setLoading(true);
+
+    try {
+      const signal = AbortSignal.timeout(30000);
+
+      const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes] =
+        await Promise.all([
+          fetch(`${API_BASE}/contact`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/crops`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/bookings`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/farmers`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/products`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/analytics?timeframe=${analyticsTimeframe}`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/analytics/monthly`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/analytics/categories`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/notifications`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/notifications/settings`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/notifications/telegram-status`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/product-bookings`, { headers: getAuthHeaders(), signal })
+        ]);
+
+      if (
+        contactsRes.status === 401 ||
+        cropsRes.status === 401 ||
+        bookingsRes.status === 401 ||
+        farmersRes.status === 401 ||
+        productsRes.status === 401 ||
+        analyticsRes.status === 401 ||
+        monthlyRes.status === 401 ||
+        categoryRes.status === 401 ||
+        notificationsRes.status === 401 ||
+        settingsRes.status === 401 ||
+        telegramRes.status === 401 ||
+        productBookingsRes.status === 401
+      ) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+
+      if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok) {
+        throw new Error("Failed to fetch data");
+      }
+
+      const contactsData = await contactsRes.json();
+      const cropsData = await cropsRes.json();
+      const bookingsData = await bookingsRes.json();
+      const farmersData = await farmersRes.json();
+      const productsData = await productsRes.json();
+      const analyticsData = await analyticsRes.json();
+      const monthlyData = await monthlyRes.json();
+      const categoryData = await categoryRes.json();
+      const notificationsData = await notificationsRes.json();
+      const settingsData = await settingsRes.json();
+      const telegramData = await telegramRes.json();
+      const productBookingsData = await productBookingsRes.json();
+
+      setContacts(contactsData);
+      setCrops(cropsData);
+      setBookings(bookingsData);
+      setFarmers(farmersData.data || farmersData);
+      setProducts(productsData.data || productsData);
+      setAnalyticsStats(analyticsData);
+      setMonthlyAnalytics(monthlyData);
+      setCategoryAnalytics(categoryData);
+      setNotifications(notificationsData);
+      setSettingsForm({
+        dashboardEnabled: settingsData.dashboardEnabled,
+        telegramEnabled: settingsData.telegramEnabled
+      });
+      setTelegramStatus(telegramData);
+      setProductBookings(Array.isArray(productBookingsData) ? productBookingsData : (productBookingsData?.data || []));
+      setIsOffline(false);
+    } catch (error) {
+      console.error("Database fetch error:", error);
+      setIsOffline(true);
+      toast.error("Unable to load dashboard data. Connection failed.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const triggerSystemNotification = async (title, message, priority = "medium") => {
     try {
@@ -264,14 +470,14 @@ function Admin() {
         return;
       }
       if (response.ok) {
-        alert("Notification settings updated successfully!");
+        toast.success("Notification settings updated successfully!");
         fetchData();
       } else {
-        alert("Failed to save notification settings.");
+        toast.error("Failed to save notification settings.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error connecting to server to save settings.");
+      toast.error("Error connecting to server to save settings.");
     } finally {
       setSavingSettings(false);
     }
@@ -291,14 +497,14 @@ function Admin() {
       }
       const data = await response.json();
       if (response.ok && data.success) {
-        alert("Test telegram message sent successfully!");
+        toast.success("Test telegram message sent successfully!");
         fetchData();
       } else {
-        alert(data.message || "Failed to send test telegram message.");
+        toast.error(data.message || "Failed to send test telegram message.");
       }
     } catch (err) {
       console.error(err);
-      alert("Error connecting to server to send test message.");
+      toast.error("Error connecting to server to send test message.");
     } finally {
       setSendingTest(false);
     }
@@ -316,87 +522,74 @@ function Admin() {
     }
   }, [isAuthenticated, analyticsTimeframe]);
 
-const fetchData = async () => {
-  setLoading(true);
+  // ── Debounce Search Inputs & Reset Page ──
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchFarmer(searchFarmerInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchFarmerInput]);
 
-  try {
-    const signal = AbortSignal.timeout(10000);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchProduct(searchProductInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchProductInput]);
 
-    const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes] =
-      await Promise.all([
-        fetch(`${API_BASE}/contact`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/crops`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/bookings`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/farmers`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/products`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/analytics?timeframe=${analyticsTimeframe}`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/analytics/monthly`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/analytics/categories`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/notifications`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/notifications/settings`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/notifications/telegram-status`, { headers: getAuthHeaders(), signal }),
-        fetch(`${API_BASE}/product-bookings`, { headers: getAuthHeaders(), signal })
-      ]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchProductBooking(searchProductBookingInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchProductBookingInput]);
 
-    if (
-      contactsRes.status === 401 ||
-      cropsRes.status === 401 ||
-      bookingsRes.status === 401 ||
-      farmersRes.status === 401 ||
-      productsRes.status === 401 ||
-      analyticsRes.status === 401 ||
-      monthlyRes.status === 401 ||
-      categoryRes.status === 401 ||
-      notificationsRes.status === 401 ||
-      settingsRes.status === 401 ||
-      telegramRes.status === 401 ||
-      productBookingsRes.status === 401
-    ) {
-      setLoading(false);
-      handleUnauthorized();
-      return;
-    }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchContact(searchContactInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchContactInput]);
 
-    if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok) {
-      throw new Error("Failed to fetch data");
-    }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchCrop(searchCropInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchCropInput]);
 
-    const contactsData = await contactsRes.json();
-    const cropsData = await cropsRes.json();
-    const bookingsData = await bookingsRes.json();
-    const farmersData = await farmersRes.json();
-    const productsData = await productsRes.json();
-    const analyticsData = await analyticsRes.json();
-    const monthlyData = await monthlyRes.json();
-    const categoryData = await categoryRes.json();
-    const notificationsData = await notificationsRes.json();
-    const settingsData = await settingsRes.json();
-    const telegramData = await telegramRes.json();
-    const productBookingsData = await productBookingsRes.json();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchBooking(searchBookingInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchBookingInput]);
 
-    setContacts(contactsData);
-    setCrops(cropsData);
-    setBookings(bookingsData);
-    setFarmers(farmersData.data || farmersData);
-    setProducts(productsData.data || productsData);
-    setAnalyticsStats(analyticsData);
-    setMonthlyAnalytics(monthlyData);
-    setCategoryAnalytics(categoryData);
-    setNotifications(notificationsData);
-    setSettingsForm({
-      dashboardEnabled: settingsData.dashboardEnabled,
-      telegramEnabled: settingsData.telegramEnabled
-    });
-    setTelegramStatus(telegramData);
-    setProductBookings(Array.isArray(productBookingsData) ? productBookingsData : (productBookingsData?.data || []));
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setNotificationSearch(notificationSearchInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [notificationSearchInput]);
 
-  } catch (error) {
-    console.error("Database fetch error:", error);
-    alert("Unable to load dashboard data.");
-  } finally {
-    setLoading(false);
-  }
-};
+  // Reset pagination & clear search inputs on tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSearchFarmerInput("");
+    setSearchProductInput("");
+    setSearchProductBookingInput("");
+    setSearchContactInput("");
+    setSearchCropInput("");
+    setSearchBookingInput("");
+    setNotificationSearchInput("");
+  }, [activeTab]);
 
 // ── DELETE Request Handlers ──
 const handleDelete = async (type, id) => {
@@ -435,7 +628,7 @@ const handleDelete = async (type, id) => {
       throw new Error(data.message || "Delete failed");
     }
 
-    alert("Record deleted successfully.");
+    toast.success("Record deleted successfully.");
 
     // Reload fresh data from MongoDB
     fetchData();
@@ -446,7 +639,7 @@ const handleDelete = async (type, id) => {
     }
   } catch (error) {
     console.error("Delete Error:", error);
-    alert("Failed to delete record.");
+    toast.error("Failed to delete record.");
   }
 };
 
@@ -454,15 +647,15 @@ const handleDelete = async (type, id) => {
   const handleFarmerSubmit = async (e) => {
     e.preventDefault();
     if (!farmerForm.name || !farmerForm.phone || !farmerForm.village) {
-      alert("Name, Phone, and Village are required.");
+      toast.error("Name, Phone, and Village are required.");
       return;
     }
     if (!/^\d{10}$/.test(farmerForm.phone)) {
-      alert("Phone number must be exactly 10 digits.");
+      toast.error("Phone number must be exactly 10 digits.");
       return;
     }
     if (farmerForm.landHolding && Number(farmerForm.landHolding) < 0) {
-      alert("Land holding must be a positive number.");
+      toast.error("Land holding must be a positive number.");
       return;
     }
 
@@ -485,7 +678,7 @@ const handleDelete = async (type, id) => {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Farmer added successfully!");
+        toast.success("Farmer added successfully!");
         setShowFarmerModal(false);
         setFarmerForm({
           name: "",
@@ -501,26 +694,26 @@ const handleDelete = async (type, id) => {
         });
         fetchData();
       } else {
-        alert(data.message || "Failed to add farmer.");
+        toast.error(data.message || "Failed to add farmer.");
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server.");
+      toast.error("Unable to connect to server.");
     }
   };
 
   const handleFarmerUpdate = async (e) => {
     e.preventDefault();
     if (!editingFarmer.name || !editingFarmer.phone || !editingFarmer.village) {
-      alert("Name, Phone, and Village are required.");
+      toast.error("Name, Phone, and Village are required.");
       return;
     }
     if (!/^\d{10}$/.test(editingFarmer.phone)) {
-      alert("Phone number must be exactly 10 digits.");
+      toast.error("Phone number must be exactly 10 digits.");
       return;
     }
     if (editingFarmer.landHolding && Number(editingFarmer.landHolding) < 0) {
-      alert("Land holding must be a positive number.");
+      toast.error("Land holding must be a positive number.");
       return;
     }
 
@@ -543,15 +736,15 @@ const handleDelete = async (type, id) => {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Farmer updated successfully!");
+        toast.success("Farmer updated successfully!");
         setEditingFarmer(null);
         fetchData();
       } else {
-        alert(data.message || "Failed to update farmer.");
+        toast.error(data.message || "Failed to update farmer.");
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server.");
+      toast.error("Unable to connect to server.");
     }
   };
 
@@ -575,14 +768,14 @@ const handleDelete = async (type, id) => {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Farmer deleted successfully.");
+        toast.success("Farmer deleted successfully.");
         fetchData();
       } else {
-        alert(data.message || "Failed to delete farmer.");
+        toast.error(data.message || "Failed to delete farmer.");
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server.");
+      toast.error("Unable to connect to server.");
     }
   };
 
@@ -590,11 +783,11 @@ const handleDelete = async (type, id) => {
   const handleProductSubmit = async (e) => {
     e.preventDefault();
     if (!productForm.name || !productForm.category || productForm.price === "" || productForm.stock === "") {
-      alert("Product Name, Category, Price, and Stock Quantity are required.");
+      toast.error("Product Name, Category, Price, and Stock Quantity are required.");
       return;
     }
     if (Number(productForm.price) < 0 || Number(productForm.stock) < 0) {
-      alert("Price and Stock must be non-negative numbers.");
+      toast.error("Price and Stock must be non-negative numbers.");
       return;
     }
 
@@ -617,7 +810,7 @@ const handleDelete = async (type, id) => {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Product added successfully!");
+        toast.success("Product added successfully!");
         setShowProductModal(false);
         setProductForm({
           name: "",
@@ -631,22 +824,22 @@ const handleDelete = async (type, id) => {
         });
         fetchData();
       } else {
-        alert(data.message || "Failed to add product.");
+        toast.error(data.message || "Failed to add product.");
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server.");
+      toast.error("Unable to connect to server.");
     }
   };
 
   const handleProductUpdate = async (e) => {
     e.preventDefault();
     if (!editingProduct.name || !editingProduct.category || editingProduct.price === "" || editingProduct.stock === "") {
-      alert("Product Name, Category, Price, and Stock Quantity are required.");
+      toast.error("Product Name, Category, Price, and Stock Quantity are required.");
       return;
     }
     if (Number(editingProduct.price) < 0 || Number(editingProduct.stock) < 0) {
-      alert("Price and Stock must be non-negative numbers.");
+      toast.error("Price and Stock must be non-negative numbers.");
       return;
     }
 
@@ -669,15 +862,15 @@ const handleDelete = async (type, id) => {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Product updated successfully!");
+        toast.success("Product updated successfully!");
         setEditingProduct(null);
         fetchData();
       } else {
-        alert(data.message || "Failed to update product.");
+        toast.error(data.message || "Failed to update product.");
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server.");
+      toast.error("Unable to connect to server.");
     }
   };
 
@@ -701,14 +894,14 @@ const handleDelete = async (type, id) => {
 
       const data = await response.json();
       if (response.ok) {
-        alert("Product deleted successfully.");
+        toast.success("Product deleted successfully.");
         fetchData();
       } else {
-        alert(data.message || "Failed to delete product.");
+        toast.error(data.message || "Failed to delete product.");
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server.");
+      toast.error("Unable to connect to server.");
     }
   };
 
@@ -722,10 +915,10 @@ const handleDelete = async (type, id) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: usernameInput,
+          username: usernameInput.trim().toLowerCase(),
           password: passwordInput,
         }),
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(60000)
       });
 
       const data = await response.json();
@@ -748,12 +941,12 @@ const handleDelete = async (type, id) => {
     setIsAuthenticated(false);
   };
 
-  const handleUnauthorized = () => {
+  function handleUnauthorized() {
     localStorage.removeItem("fpo_admin_token");
     setIsAuthenticated(false);
     setLoading(false);
     setAuthError("Session expired. Please login again.");
-  };
+  }
 
   const filterByTimeframe = (data, timeframe) => {
     if (!data || !Array.isArray(data)) return [];
@@ -1727,6 +1920,14 @@ const handleDelete = async (type, id) => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  // ── Paginated Computations ──
+  const paginatedContacts = filteredContacts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedCrops = filteredCrops.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedBookings = filteredBookings.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedProductBookings = filteredProductBookings.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedFarmers = filteredFarmers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   // ── Farmers Stats Calculations ──
   const totalFarmersCount = farmers.length;
   const uniqueVillagesCount = [...new Set(farmers.map(f => f.village?.trim()).filter(Boolean))].length;
@@ -2098,16 +2299,70 @@ const handleDelete = async (type, id) => {
 
         {/* ── Content Grid ── */}
         <div className="admin-content-viewport">
-          {loading ? (
-            <div className="loader-container">
-              <div className="loader"></div>
-              <p>Fetching data from FPO database...</p>
+          {isOffline ? (
+            <div className="api-offline-container glass-panel">
+              <div className="offline-icon-wrapper">
+                <AlertTriangle size={40} className="pulse-slow" />
+              </div>
+              <h2>Unable to connect to server</h2>
+              <p>Please check your internet connection or verify if the backend server is running.</p>
+              <button className="btn-action primary" onClick={fetchData}>
+                <RefreshCw size={15} style={{ marginRight: "6px", verticalAlign: "middle" }} />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          ) : loading ? (
+            <div className="skeleton-wrapper">
+              <div className="skeleton-table-header skeleton-pulse" style={{ height: "40px", width: "30%", marginBottom: "10px" }}></div>
+              <div className="skeleton-table-header skeleton-pulse" style={{ height: "20px", width: "50%", marginBottom: "30px" }}></div>
+              {activeTab === "dashboard" && (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem", width: "100%", marginBottom: "2rem" }}>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+                    <div className="skeleton-chart skeleton-pulse"></div>
+                    <div className="skeleton-chart skeleton-pulse"></div>
+                  </div>
+                </>
+              )}
+              {activeTab === "reports" && (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.5rem", width: "100%", marginBottom: "2rem" }}>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                    <div className="skeleton-card skeleton-pulse"></div>
+                  </div>
+                  <div className="skeleton-chart skeleton-pulse"></div>
+                </>
+              )}
+              {["farmers", "products", "product-bookings", "contacts", "crops", "bookings", "notifications"].includes(activeTab) && (
+                <>
+                  <div className="skeleton-table-header skeleton-pulse" style={{ marginBottom: "20px" }}></div>
+                  <div className="skeleton-table-row skeleton-pulse" style={{ marginBottom: "12px" }}></div>
+                  <div className="skeleton-table-row skeleton-pulse" style={{ marginBottom: "12px" }}></div>
+                  <div className="skeleton-table-row skeleton-pulse" style={{ marginBottom: "12px" }}></div>
+                  <div className="skeleton-table-row skeleton-pulse" style={{ marginBottom: "12px" }}></div>
+                  <div className="skeleton-table-row skeleton-pulse" style={{ marginBottom: "12px" }}></div>
+                </>
+              )}
+              {activeTab === "settings" && (
+                <div className="skeleton-chart skeleton-pulse" style={{ height: "300px" }}></div>
+              )}
             </div>
           ) : (
             <>
               {/* 1. Dashboard Tab */}
               {activeTab === "dashboard" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Dashboard Overview</h2>
+                    <p className="module-description">Real-time analytics, critical metrics, and system activity status.</p>
+                  </div>
                   {/* Overview Grid */}
                   <div className="metrics-grid">
                     <div className="metric-card glass-panel" onClick={() => setActiveTab("contacts")}>
@@ -2221,241 +2476,301 @@ const handleDelete = async (type, id) => {
               {/* 2. Contacts Tab */}
               {activeTab === "contacts" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Contact Inquiries</h2>
+                    <p className="module-description">Manage and respond to feedback and queries from farmers and customers.</p>
+                  </div>
                   <div className="pane-header-actions">
                     <div className="search-bar-wrapper">
                       <Search size={16} />
                       <input 
                         type="text" 
                         placeholder="Search by name, phone, type..." 
-                        value={searchContact}
-                        onChange={(e) => setSearchContact(e.target.value)}
+                        value={searchContactInput}
+                        onChange={(e) => setSearchContactInput(e.target.value)}
                       />
                     </div>
-                    <button className="btn-action primary" onClick={() => exportCSV("contacts", filteredContacts)}>
+                    <button 
+                      className="btn-action primary" 
+                      onClick={() => exportCSV("contacts", filteredContacts)}
+                      disabled={filteredContacts.length === 0}
+                    >
                       <Download size={15} />
                       <span>Export to CSV</span>
                     </button>
                   </div>
 
-                  <div className="table-responsive-container glass-panel">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Phone</th>
-                          <th>Email</th>
-                          <th>Village</th>
-                          <th>Inquiry Type</th>
-                          <th>Date</th>
-                          <th className="text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredContacts.length === 0 ? (
-                          <tr>
-                            <td colSpan="7" className="empty-message">No contact inquiries match your search.</td>
-                          </tr>
-                        ) : (
-                          filteredContacts.map(c => {
-                            const dateStr = c.date || (c.createdAt ? c.createdAt.substring(0, 10) : "");
-                            return (
-                              <tr key={c._id}>
-                                <td className="font-semibold" data-label="Name">{c.fullName}</td>
-                                <td data-label="Phone">{c.phone}</td>
-                                <td className="text-dim" data-label="Email">{c.email || "N/A"}</td>
-                                <td data-label="Village">{c.village}</td>
-                                <td data-label="Inquiry Type">
-                                  <span className="badge-tag info">{c.inquiryType}</span>
-                                </td>
-                                <td data-label="Date">{dateStr}</td>
-                                <td className="text-right" data-label="Actions">
-                                  <div className="action-button-group">
-                                    <button 
-                                      className="action-btn view" 
-                                      title="Inspect Details"
-                                      onClick={() => setSelectedItem({ type: "contact", data: c })}
-                                    >
-                                      <Eye size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn delete" 
-                                      title="Delete record"
-                                      onClick={() => handleDelete("contacts", c._id)}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  {filteredContacts.length === 0 ? (
+                    <EmptyState 
+                      icon={MessageSquare} 
+                      title="No Contact Inquiries" 
+                      message={searchContactInput ? "No inquiries match your search criteria. Try a different query." : "There are no customer inquiries submitted yet."} 
+                      ctaText={searchContactInput ? "Clear Search" : null}
+                      onCtaClick={searchContactInput ? () => setSearchContactInput("") : null}
+                    />
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Phone</th>
+                              <th>Email</th>
+                              <th>Village</th>
+                              <th>Inquiry Type</th>
+                              <th>Date</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedContacts.map(c => {
+                              const dateStr = c.date || (c.createdAt ? c.createdAt.substring(0, 10) : "");
+                              return (
+                                <tr key={c._id}>
+                                  <td className="font-semibold" data-label="Name">{c.fullName}</td>
+                                  <td data-label="Phone">{c.phone}</td>
+                                  <td className="text-dim" data-label="Email">{c.email || "N/A"}</td>
+                                  <td data-label="Village">{c.village}</td>
+                                  <td data-label="Inquiry Type">
+                                    <span className={getStatusBadgeClass(c.inquiryType)}>{c.inquiryType}</span>
+                                  </td>
+                                  <td data-label="Date">{dateStr}</td>
+                                  <td className="text-right" data-label="Actions">
+                                    <div className="action-button-group">
+                                      <button 
+                                        className="action-btn view" 
+                                        title="Inspect Details"
+                                        onClick={() => setSelectedItem({ type: "contact", data: c })}
+                                        tabIndex={0}
+                                        aria-label="Inspect Details"
+                                      >
+                                        <Eye size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete record"
+                                        onClick={() => handleDelete("contacts", c._id)}
+                                        tabIndex={0}
+                                        aria-label="Delete record"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredContacts.length)}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* 3. Crops Tab */}
               {activeTab === "crops" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Crop Sales Requests</h2>
+                    <p className="module-description">Review crop selling proposals submitted by farmers for purchase approval.</p>
+                  </div>
                   <div className="pane-header-actions">
                     <div className="search-bar-wrapper">
                       <Search size={16} />
                       <input 
                         type="text" 
                         placeholder="Search by farmer, crop, phone..." 
-                        value={searchCrop}
-                        onChange={(e) => setSearchCrop(e.target.value)}
+                        value={searchCropInput}
+                        onChange={(e) => setSearchCropInput(e.target.value)}
                       />
                     </div>
-                    <button className="btn-action primary" onClick={() => exportCSV("crops", filteredCrops)}>
+                    <button 
+                      className="btn-action primary" 
+                      onClick={() => exportCSV("crops", filteredCrops)}
+                      disabled={filteredCrops.length === 0}
+                    >
                       <Download size={15} />
                       <span>Export to CSV</span>
                     </button>
                   </div>
 
-                  <div className="table-responsive-container glass-panel">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Farmer Name</th>
-                          <th>Crop Name</th>
-                          <th>Quantity (Qtls)</th>
-                          <th>Expected Price</th>
-                          <th>Phone Number</th>
-                          <th>Date</th>
-                          <th className="text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredCrops.length === 0 ? (
-                          <tr>
-                            <td colSpan="7" className="empty-message">No crop requests match your search.</td>
-                          </tr>
-                        ) : (
-                          filteredCrops.map(cr => {
-                            const dateStr = cr.date || (cr.createdAt ? cr.createdAt.substring(0, 10) : "");
-                            return (
-                              <tr key={cr._id}>
-                                <td className="font-semibold" data-label="Farmer Name">{cr.farmerName}</td>
-                                <td className="text-accent" data-label="Crop Name">{cr.cropName}</td>
-                                <td data-label="Quantity">{cr.quantity}</td>
-                                <td data-label="Price">₹{cr.price} / Qtl</td>
-                                <td data-label="Phone">{cr.phone}</td>
-                                <td data-label="Date">{dateStr}</td>
-                                <td className="text-right" data-label="Actions">
-                                  <div className="action-button-group">
-                                    <button 
-                                      className="action-btn view" 
-                                      title="Inspect Details"
-                                      onClick={() => setSelectedItem({ type: "crop", data: cr })}
-                                    >
-                                      <Eye size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn delete" 
-                                      title="Delete record"
-                                      onClick={() => handleDelete("crops", cr._id)}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  {filteredCrops.length === 0 ? (
+                    <EmptyState 
+                      icon={Sprout} 
+                      title="No Crop Requests" 
+                      message={searchCropInput ? "No crop requests match your search criteria. Try a different query." : "No crop sales requests have been submitted yet."} 
+                      ctaText={searchCropInput ? "Clear Search" : null}
+                      onCtaClick={searchCropInput ? () => setSearchCropInput("") : null}
+                    />
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Farmer Name</th>
+                              <th>Crop Name</th>
+                              <th>Quantity (Qtls)</th>
+                              <th>Expected Price</th>
+                              <th>Phone Number</th>
+                              <th>Date</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedCrops.map(cr => {
+                              const dateStr = cr.date || (cr.createdAt ? cr.createdAt.substring(0, 10) : "");
+                              return (
+                                <tr key={cr._id}>
+                                  <td className="font-semibold" data-label="Farmer Name">{cr.farmerName}</td>
+                                  <td className="text-accent" data-label="Crop Name">{cr.cropName}</td>
+                                  <td data-label="Quantity">{cr.quantity}</td>
+                                  <td data-label="Price">₹{cr.price} / Qtl</td>
+                                  <td data-label="Phone">{cr.phone}</td>
+                                  <td data-label="Date">{dateStr}</td>
+                                  <td className="text-right" data-label="Actions">
+                                    <div className="action-button-group">
+                                      <button 
+                                        className="action-btn view" 
+                                        title="Inspect Details"
+                                        onClick={() => setSelectedItem({ type: "crop", data: cr })}
+                                        tabIndex={0}
+                                        aria-label="Inspect Details"
+                                      >
+                                        <Eye size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete record"
+                                        onClick={() => handleDelete("crops", cr._id)}
+                                        tabIndex={0}
+                                        aria-label="Delete record"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredCrops.length)}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* 4. Bookings Tab */}
               {activeTab === "bookings" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Machinery Hire Bookings</h2>
+                    <p className="module-description">Approve, schedule, and manage agricultural equipment bookings.</p>
+                  </div>
                   <div className="pane-header-actions">
                     <div className="search-bar-wrapper">
                       <Search size={16} />
                       <input 
                         type="text" 
                         placeholder="Search by booking details..." 
-                        value={searchBooking}
-                        onChange={(e) => setSearchBooking(e.target.value)}
+                        value={searchBookingInput}
+                        onChange={(e) => setSearchBookingInput(e.target.value)}
                       />
                     </div>
-                    <button className="btn-action primary" onClick={() => exportCSV("bookings", filteredBookings)}>
+                    <button 
+                      className="btn-action primary" 
+                      onClick={() => exportCSV("bookings", filteredBookings)}
+                      disabled={filteredBookings.length === 0}
+                    >
                       <Download size={15} />
                       <span>Export to CSV</span>
                     </button>
                   </div>
 
-                  <div className="table-responsive-container glass-panel">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Farmer Name</th>
-                          <th>Equipment Name</th>
-                          <th>Booking Date</th>
-                          <th>Duration</th>
-                          <th>Phone Number</th>
-                          <th>Status</th>
-                          <th className="text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredBookings.length === 0 ? (
-                          <tr>
-                            <td colSpan="7" className="empty-message">No equipment bookings match your search.</td>
-                          </tr>
-                        ) : (
-                          filteredBookings.map(b => {
-                            const dateStr = b.bookingDate || (b.createdAt ? b.createdAt.substring(0, 10) : "");
-                            const statusLower = (b.status || "pending").toLowerCase();
-                            return (
-                              <tr key={b._id}>
-                                <td className="font-semibold" data-label="Farmer Name">{b.farmerName}</td>
-                                <td className="text-accent" data-label="Equipment Name">{b.equipmentName}</td>
-                                <td data-label="Booking Date">{dateStr}</td>
-                                <td data-label="Duration">{b.duration || "1 Day"}</td>
-                                <td data-label="Phone">{b.phone}</td>
-                                <td data-label="Status">
-                                  <span className={`status-pill ${statusLower}`}>
-                                    {b.status || "Pending"}
-                                  </span>
-                                </td>
-                                <td className="text-right" data-label="Actions">
-                                  <div className="action-button-group">
-                                    <button 
-                                      className="action-btn view" 
-                                      title="Inspect Details"
-                                      onClick={() => setSelectedItem({ type: "booking", data: b })}
-                                    >
-                                      <Eye size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn delete" 
-                                      title="Delete record"
-                                      onClick={() => handleDelete("bookings", b._id)}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  {filteredBookings.length === 0 ? (
+                    <EmptyState 
+                      icon={Tractor} 
+                      title="No Equipment Bookings" 
+                      message={searchBookingInput ? "No equipment bookings match your search criteria. Try a different query." : "No equipment hire requests have been booked yet."} 
+                      ctaText={searchBookingInput ? "Clear Search" : null}
+                      onCtaClick={searchBookingInput ? () => setSearchBookingInput("") : null}
+                    />
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Farmer Name</th>
+                              <th>Equipment Name</th>
+                              <th>Booking Date</th>
+                              <th>Duration</th>
+                              <th>Phone Number</th>
+                              <th>Status</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedBookings.map(b => {
+                              const dateStr = b.bookingDate || (b.createdAt ? b.createdAt.substring(0, 10) : "");
+                              return (
+                                <tr key={b._id}>
+                                  <td className="font-semibold" data-label="Farmer Name">{b.farmerName}</td>
+                                  <td className="text-accent" data-label="Equipment Name">{b.equipmentName}</td>
+                                  <td data-label="Booking Date">{dateStr}</td>
+                                  <td data-label="Duration">{b.duration || "1 Day"}</td>
+                                  <td data-label="Phone">{b.phone}</td>
+                                  <td data-label="Status">
+                                    <span className={getStatusBadgeClass(b.status || "Pending")}>
+                                      {b.status || "Pending"}
+                                    </span>
+                                  </td>
+                                  <td className="text-right" data-label="Actions">
+                                    <div className="action-button-group">
+                                      <button 
+                                        className="action-btn view" 
+                                        title="Inspect Details"
+                                        onClick={() => setSelectedItem({ type: "booking", data: b })}
+                                        tabIndex={0}
+                                        aria-label="Inspect Details"
+                                      >
+                                        <Eye size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete record"
+                                        onClick={() => handleDelete("bookings", b._id)}
+                                        tabIndex={0}
+                                        aria-label="Delete record"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredBookings.length)}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Product Bookings Tab */}
               {activeTab === "product-bookings" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Product Bookings & Orders</h2>
+                    <p className="module-description">Track client booking requests for seeds, fertilizers, and tools. Adjust quantities to update stock.</p>
+                  </div>
                   {/* Stats Cards */}
                   <div className="metrics-grid">
                     <div className="metric-card glass-panel">
@@ -2517,92 +2832,112 @@ const handleDelete = async (type, id) => {
                       <input 
                         type="text" 
                         placeholder="Search by booking details..." 
-                        value={searchProductBooking}
-                        onChange={(e) => setSearchProductBooking(e.target.value)}
+                        value={searchProductBookingInput}
+                        onChange={(e) => setSearchProductBookingInput(e.target.value)}
                       />
                     </div>
-                    <button className="btn-action primary" onClick={() => exportCSV("product-bookings", filteredProductBookings)}>
+                    <button 
+                      className="btn-action primary" 
+                      onClick={() => exportCSV("product-bookings", filteredProductBookings)}
+                      disabled={filteredProductBookings.length === 0}
+                    >
                       <Download size={15} />
                       <span>Export to CSV</span>
                     </button>
                   </div>
 
-                  <div className="table-responsive-container glass-panel">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Booking ID</th>
-                          <th>Farmer Name</th>
-                          <th>Product Name</th>
-                          <th>Qty</th>
-                          <th>Total Price</th>
-                          <th>Phone Number</th>
-                          <th>Booking Date</th>
-                          <th>Status</th>
-                          <th className="text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredProductBookings.length === 0 ? (
-                          <tr>
-                            <td colSpan="9" className="empty-message">No product bookings match your search.</td>
-                          </tr>
-                        ) : (
-                          filteredProductBookings.map(b => {
-                            const dateStr = b.bookingDate || (b.createdAt ? b.createdAt.substring(0, 10) : "");
-                            const statusLower = (b.status || "pending").toLowerCase();
-                            return (
-                              <tr key={b._id}>
-                                <td className="font-semibold" data-label="Booking ID">{b.bookingId || "N/A"}</td>
-                                <td data-label="Farmer Name">{b.farmerName}</td>
-                                <td className="text-accent" data-label="Product Name">{b.productName}</td>
-                                <td data-label="Qty">{b.quantity}</td>
-                                <td data-label="Total Price">₹{(b.totalPrice || 0).toLocaleString("en-IN")}</td>
-                                <td data-label="Phone">{b.phone}</td>
-                                <td data-label="Booking Date">{dateStr}</td>
-                                <td data-label="Status">
-                                  <span className={`status-pill ${statusLower}`}>
-                                    {b.status || "Pending"}
-                                  </span>
-                                </td>
-                                <td className="text-right" data-label="Actions">
-                                  <div className="action-button-group">
-                                    <button 
-                                      className="action-btn view" 
-                                      title="Inspect Details"
-                                      onClick={() => setViewingProductBooking(b)}
-                                    >
-                                      <Eye size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn edit" 
-                                      title="Edit Status"
-                                      onClick={() => setEditingProductBooking(b)}
-                                    >
-                                      <Pencil size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn delete" 
-                                      title="Delete record"
-                                      onClick={() => handleDelete("product-bookings", b._id)}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  {filteredProductBookings.length === 0 ? (
+                    <EmptyState 
+                      icon={ShoppingCart} 
+                      title="No Product Bookings" 
+                      message={searchProductBookingInput ? "No product orders match your search criteria. Try a different query." : "No agricultural product orders have been booked yet."} 
+                      ctaText={searchProductBookingInput ? "Clear Search" : null}
+                      onCtaClick={searchProductBookingInput ? () => setSearchProductBookingInput("") : null}
+                    />
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Booking ID</th>
+                              <th>Farmer Name</th>
+                              <th>Product Name</th>
+                              <th>Qty</th>
+                              <th>Total Price</th>
+                              <th>Phone Number</th>
+                              <th>Booking Date</th>
+                              <th>Status</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedProductBookings.map(b => {
+                              const dateStr = b.bookingDate || (b.createdAt ? b.createdAt.substring(0, 10) : "");
+                              return (
+                                <tr key={b._id}>
+                                  <td className="font-semibold" data-label="Booking ID">{b.bookingId || "N/A"}</td>
+                                  <td data-label="Farmer Name">{b.farmerName}</td>
+                                  <td className="text-accent" data-label="Product Name">{b.productName}</td>
+                                  <td data-label="Qty">{b.quantity}</td>
+                                  <td data-label="Total Price">₹{(b.totalPrice || 0).toLocaleString("en-IN")}</td>
+                                  <td data-label="Phone">{b.phone}</td>
+                                  <td data-label="Booking Date">{dateStr}</td>
+                                  <td data-label="Status">
+                                    <span className={getStatusBadgeClass(b.status || "Pending")}>
+                                      {b.status || "Pending"}
+                                    </span>
+                                  </td>
+                                  <td className="text-right" data-label="Actions">
+                                    <div className="action-button-group">
+                                      <button 
+                                        className="action-btn view" 
+                                        title="Inspect Details"
+                                        onClick={() => setViewingProductBooking(b)}
+                                        tabIndex={0}
+                                        aria-label="Inspect Details"
+                                      >
+                                        <Eye size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn edit" 
+                                        title="Edit Status"
+                                        onClick={() => setEditingProductBooking(b)}
+                                        tabIndex={0}
+                                        aria-label="Edit Status"
+                                      >
+                                        <Pencil size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete record"
+                                        onClick={() => handleDelete("product-bookings", b._id)}
+                                        tabIndex={0}
+                                        aria-label="Delete record"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredProductBookings.length)}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* 5. Farmers Tab */}
               {activeTab === "farmers" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Farmer Directory</h2>
+                    <p className="module-description">Register and manage records, land holdings, and active status for cooperative farmers.</p>
+                  </div>
                   {/* Farmer Stats Cards */}
                   <div className="metrics-grid">
                     <div className="metric-card glass-panel">
@@ -2665,97 +3000,117 @@ const handleDelete = async (type, id) => {
                       <input 
                         type="text" 
                         placeholder="Search Farmer by Name, Phone, Village or ID..." 
-                        value={searchFarmer}
-                        onChange={(e) => setSearchFarmer(e.target.value)}
+                        value={searchFarmerInput}
+                        onChange={(e) => setSearchFarmerInput(e.target.value)}
                       />
                     </div>
                     <div className="button-actions-group" style={{ display: "flex", gap: "12px" }}>
                       <button className="btn-action primary" onClick={() => setShowFarmerModal(true)}>
                         <span>+ Add Farmer</span>
                       </button>
-                      <button className="btn-action outline" onClick={() => exportCSV("farmers", filteredFarmers)}>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportCSV("farmers", filteredFarmers)}
+                        disabled={filteredFarmers.length === 0}
+                      >
                         <Download size={15} />
                         <span>Export Farmers CSV</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Farmers Table */}
-                  <div className="table-responsive-container glass-panel">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Farmer ID</th>
-                          <th>Name</th>
-                          <th>Phone</th>
-                          <th>Village</th>
-                          <th>Crop Type</th>
-                          <th>Land Holding</th>
-                          <th>Status</th>
-                          <th>Joined Date</th>
-                          <th className="text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredFarmers.length === 0 ? (
-                          <tr>
-                            <td colSpan="9" className="empty-message">No farmers match your search criteria.</td>
-                          </tr>
-                        ) : (
-                          filteredFarmers.map(f => {
-                            const dateStr = f.joinedDate ? f.joinedDate.substring(0, 10) : (f.createdAt ? f.createdAt.substring(0, 10) : "");
-                            return (
-                              <tr key={f._id}>
-                                <td className="font-semibold" data-label="Farmer ID">{f.farmerId}</td>
-                                <td data-label="Name">{f.name}</td>
-                                <td data-label="Phone">{f.phone}</td>
-                                <td data-label="Village">{f.village}</td>
-                                <td data-label="Crop Type">{f.cropType || "N/A"}</td>
-                                <td data-label="Land Holding">{f.landHolding ? `${f.landHolding} Acres` : "N/A"}</td>
-                                <td data-label="Status">
-                                  <span className={`status-pill ${String(f.status || "Active").toLowerCase()}`}>
-                                    {f.status || "Active"}
-                                  </span>
-                                </td>
-                                <td data-label="Joined Date">{dateStr}</td>
-                                <td className="text-right" data-label="Actions">
-                                  <div className="action-button-group">
-                                    <button 
-                                      className="action-btn view" 
-                                      title="View Details"
-                                      onClick={() => setViewingFarmer(f)}
-                                    >
-                                      <Eye size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn edit" 
-                                      title="Edit Record"
-                                      onClick={() => setEditingFarmer(f)}
-                                    >
-                                      <RefreshCw size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn delete" 
-                                      title="Delete Farmer"
-                                      onClick={() => handleFarmerDelete(f._id)}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  {filteredFarmers.length === 0 ? (
+                    <EmptyState 
+                      icon={Users} 
+                      title="No Farmers Found" 
+                      message={searchFarmerInput ? "No farmers match your search criteria. Try a different query." : "No farmers have been registered in the system yet."} 
+                      ctaText={searchFarmerInput ? "Clear Search" : "Add Farmer"}
+                      onCtaClick={searchFarmerInput ? () => setSearchFarmerInput("") : () => setShowFarmerModal(true)}
+                    />
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Farmer ID</th>
+                              <th>Name</th>
+                              <th>Phone</th>
+                              <th>Village</th>
+                              <th>Crop Type</th>
+                              <th>Land Holding</th>
+                              <th>Status</th>
+                              <th>Joined Date</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedFarmers.map(f => {
+                              const dateStr = f.joinedDate ? f.joinedDate.substring(0, 10) : (f.createdAt ? f.createdAt.substring(0, 10) : "");
+                              return (
+                                <tr key={f._id}>
+                                  <td className="font-semibold" data-label="Farmer ID">{f.farmerId}</td>
+                                  <td data-label="Name">{f.name}</td>
+                                  <td data-label="Phone">{f.phone}</td>
+                                  <td data-label="Village">{f.village}</td>
+                                  <td data-label="Crop Type">{f.cropType || "N/A"}</td>
+                                  <td data-label="Land Holding">{f.landHolding ? `${f.landHolding} Acres` : "N/A"}</td>
+                                  <td data-label="Status">
+                                    <span className={getStatusBadgeClass(f.status || "Active")}>
+                                      {f.status || "Active"}
+                                    </span>
+                                  </td>
+                                  <td data-label="Joined Date">{dateStr}</td>
+                                  <td className="text-right" data-label="Actions">
+                                    <div className="action-button-group">
+                                      <button 
+                                        className="action-btn view" 
+                                        title="View Details"
+                                        onClick={() => setViewingFarmer(f)}
+                                        tabIndex={0}
+                                        aria-label="View Details"
+                                      >
+                                        <Eye size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn edit" 
+                                        title="Edit Record"
+                                        onClick={() => setEditingFarmer(f)}
+                                        tabIndex={0}
+                                        aria-label="Edit Record"
+                                      >
+                                        <RefreshCw size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete Farmer"
+                                        onClick={() => handleFarmerDelete(f._id)}
+                                        tabIndex={0}
+                                        aria-label="Delete Farmer"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredFarmers.length)}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* 6. Products Tab */}
               {activeTab === "products" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Product Inventory</h2>
+                    <p className="module-description">Monitor agricultural stock items, category classifications, and retail prices.</p>
+                  </div>
                   {/* Product Stats Cards */}
                   <div className="metrics-grid">
                     <div className="metric-card glass-panel">
@@ -2776,7 +3131,7 @@ const handleDelete = async (type, id) => {
                         <div className="icon-wrapper green" style={{ background: "rgba(46, 125, 50, 0.15)", color: "var(--admin-accent-green)" }}>
                           <Sprout size={22} />
                         </div>
-                        <span className="trend-badge positive">Normal</span>
+                        <span className="trend-badge positive">In Stock</span>
                       </div>
                       <div className="card-bottom">
                         <h3>{products.filter(p => p.stock > 10).length}</h3>
@@ -2831,8 +3186,8 @@ const handleDelete = async (type, id) => {
                       <input 
                         type="text" 
                         placeholder="Search products by name, category or ID..." 
-                        value={searchProduct}
-                        onChange={(e) => setSearchProduct(e.target.value)}
+                        value={searchProductInput}
+                        onChange={(e) => setSearchProductInput(e.target.value)}
                       />
                     </div>
 
@@ -2872,92 +3227,111 @@ const handleDelete = async (type, id) => {
                       <button className="btn-action primary" onClick={() => setShowProductModal(true)}>
                         <span>+ Add Product</span>
                       </button>
-                      <button className="btn-action outline" onClick={() => exportCSV("products", filteredProducts)}>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportCSV("products", filteredProducts)}
+                        disabled={filteredProducts.length === 0}
+                      >
                         <Download size={15} />
                         <span>Export CSV</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Products Table */}
-                  <div className="table-responsive-container glass-panel">
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th>Product ID</th>
-                          <th>Product Name</th>
-                          <th>Category</th>
-                          <th>Price</th>
-                          <th>Stock</th>
-                          <th>Status</th>
-                          <th>Created Date</th>
-                          <th>Last Updated</th>
-                          <th className="text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredProducts.length === 0 ? (
-                          <tr>
-                            <td colSpan="9" className="empty-message">No products match your search.</td>
-                          </tr>
-                        ) : (
-                          filteredProducts.map(p => {
-                            const dateStr = p.createdAt ? p.createdAt.substring(0, 10) : "";
-                            const updatedStr = p.updatedAt ? `${p.updatedAt.substring(0, 10)} ${p.updatedAt.substring(11, 16)}` : "N/A";
-                            const statusClass = getProductStatusClass(p.stock);
-                            const statusText = getProductStatusText(p.stock);
-                            return (
-                              <tr key={p._id}>
-                                <td className="font-semibold" data-label="Product ID">{p.productId}</td>
-                                <td data-label="Product Name">{p.name}</td>
-                                <td data-label="Category">{p.category}</td>
-                                <td data-label="Price">₹{p.price}</td>
-                                <td data-label="Stock">{p.stock} {p.unit || ""}</td>
-                                <td data-label="Status">
-                                  <span className={`status-pill ${statusClass}`}>
-                                    {statusText}
-                                  </span>
-                                </td>
-                                <td data-label="Created Date">{dateStr}</td>
-                                <td data-label="Last Updated">{updatedStr}</td>
-                                <td className="text-right" data-label="Actions">
-                                  <div className="action-button-group">
-                                    <button 
-                                      className="action-btn view" 
-                                      title="View Product Details"
-                                      onClick={() => setViewingProduct(p)}
-                                    >
-                                      <Eye size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn edit" 
-                                      title="Edit Product"
-                                      onClick={() => setEditingProduct(p)}
-                                    >
-                                      <Pencil size={15} />
-                                    </button>
-                                    <button 
-                                      className="action-btn delete" 
-                                      title="Delete Product"
-                                      onClick={() => setDeletingProductItem(p)}
-                                    >
-                                      <Trash2 size={15} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                  {filteredProducts.length === 0 ? (
+                    <EmptyState 
+                      icon={Package} 
+                      title="No Products Found" 
+                      message={searchProductInput ? "No products match your search criteria. Try checking your filters." : "No products have been added to the inventory yet."} 
+                      ctaText={searchProductInput ? "Clear Search" : "Add Product"}
+                      onCtaClick={searchProductInput ? () => { setSearchProductInput(""); setFilterProductCategory("All"); setFilterProductStatus("All"); } : () => setShowProductModal(true)}
+                    />
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Product ID</th>
+                              <th>Product Name</th>
+                              <th>Category</th>
+                              <th>Price</th>
+                              <th>Stock</th>
+                              <th>Status</th>
+                              <th>Created Date</th>
+                              <th>Last Updated</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedProducts.map(p => {
+                              const dateStr = p.createdAt ? p.createdAt.substring(0, 10) : "";
+                              const updatedStr = p.updatedAt ? `${p.updatedAt.substring(0, 10)} ${p.updatedAt.substring(11, 16)}` : "N/A";
+                              const statusText = getProductStatusText(p.stock);
+                              return (
+                                <tr key={p._id}>
+                                  <td className="font-semibold" data-label="Product ID">{p.productId}</td>
+                                  <td data-label="Product Name">{p.name}</td>
+                                  <td data-label="Category">{p.category}</td>
+                                  <td data-label="Price">₹{p.price}</td>
+                                  <td data-label="Stock">{p.stock} {p.unit || ""}</td>
+                                  <td data-label="Status">
+                                    <span className={getStatusBadgeClass(statusText)}>
+                                      {statusText}
+                                    </span>
+                                  </td>
+                                  <td data-label="Created Date">{dateStr}</td>
+                                  <td data-label="Last Updated">{updatedStr}</td>
+                                  <td className="text-right" data-label="Actions">
+                                    <div className="action-button-group">
+                                      <button 
+                                        className="action-btn view" 
+                                        title="View Product Details"
+                                        onClick={() => setViewingProduct(p)}
+                                        tabIndex={0}
+                                        aria-label="View Product Details"
+                                      >
+                                        <Eye size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn edit" 
+                                        title="Edit Product"
+                                        onClick={() => setEditingProduct(p)}
+                                        tabIndex={0}
+                                        aria-label="Edit Product"
+                                      >
+                                        <Pencil size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete Product"
+                                        onClick={() => setDeletingProductItem(p)}
+                                        tabIndex={0}
+                                        aria-label="Delete Product"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredProducts.length)}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* 7. Reports & Analytics Tab */}
               {activeTab === "reports" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Report Generator Dashboard</h2>
+                    <p className="module-description">Export data files and download official PDF/Excel reports of FPC activities.</p>
+                  </div>
                   {/* Toolbar with Timeframe Filter */}
                   <div className="pane-header-actions" style={{ marginBottom: "20px" }}>
                     <div className="search-bar-wrapper" style={{ minWidth: "220px" }}>
@@ -3245,6 +3619,10 @@ const handleDelete = async (type, id) => {
               {/* 8. Notification Center Tab */}
               {activeTab === "notifications" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Notification Center</h2>
+                    <p className="module-description">Browse recent activity alerts, system warning logs, and dispatch alerts.</p>
+                  </div>
                   {/* Notification Counters */}
                   <div className="metrics-grid" style={{ marginBottom: "24px" }}>
                     <div className="metric-card glass-panel">
@@ -3309,8 +3687,8 @@ const handleDelete = async (type, id) => {
                           type="text"
                           placeholder="Search notification text..."
                           className="search-input"
-                          value={notificationSearch}
-                          onChange={(e) => setNotificationSearch(e.target.value)}
+                          value={notificationSearchInput}
+                          onChange={(e) => setNotificationSearchInput(e.target.value)}
                         />
                       </div>
                       
@@ -3422,8 +3800,11 @@ const handleDelete = async (type, id) => {
               {/* 9. Settings Tab */}
               {activeTab === "settings" && (
                 <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">System Settings</h2>
+                    <p className="module-description">Configure dashboard behaviors, SMS notifications, and Telegram channel bots.</p>
+                  </div>
                   <div className="settings-container glass-panel" style={{ padding: "30px", borderRadius: "16px" }}>
-                    <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "20px", color: "var(--admin-text-primary)" }}>System Settings</h2>
                     
                     <div className="settings-section" style={{ borderBottom: "1px solid var(--admin-border-color)", paddingBottom: "24px", marginBottom: "24px" }}>
                       <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "var(--admin-accent-orange)" }}>Notification Preferences</h3>
@@ -3580,7 +3961,7 @@ const handleDelete = async (type, id) => {
                   </div>
                   <div className="detail-item">
                     <span className="label">Inquiry Topic:</span>
-                    <span className="value badge-tag info">{selectedItem.data.inquiryType}</span>
+                    <span className={`value ${getStatusBadgeClass(selectedItem.data.inquiryType)}`}>{selectedItem.data.inquiryType}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Submission Date:</span>
@@ -3646,7 +4027,7 @@ const handleDelete = async (type, id) => {
                   </div>
                   <div className="detail-item">
                     <span className="label">Approval Status:</span>
-                    <span className={`value status-pill ${(selectedItem.data.status || "pending").toLowerCase()}`}>
+                    <span className={`value ${getStatusBadgeClass(selectedItem.data.status || "Pending")}`}>
                       {selectedItem.data.status || "Pending"}
                     </span>
                   </div>
@@ -3846,7 +4227,7 @@ const handleDelete = async (type, id) => {
                 </div>
                 <div className="detail-item">
                   <span className="label">Member Status:</span>
-                  <span className={`value status-pill ${String(viewingFarmer.status || "Active").toLowerCase()}`}>
+                  <span className={`value ${getStatusBadgeClass(viewingFarmer.status || "Active")}`}>
                     {viewingFarmer.status || "Active"}
                   </span>
                 </div>
@@ -4108,7 +4489,7 @@ const handleDelete = async (type, id) => {
                 </div>
                 <div className="detail-item">
                   <span className="label">Category:</span>
-                  <span className="value badge-tag info">{viewingProduct.category}</span>
+                  <span className={`value ${getStatusBadgeClass("info")}`}>{viewingProduct.category}</span>
                 </div>
                 <div className="detail-item">
                   <span className="label">Price:</span>
@@ -4120,7 +4501,7 @@ const handleDelete = async (type, id) => {
                 </div>
                 <div className="detail-item">
                   <span className="label">Status:</span>
-                  <span className={`value status-pill ${getProductStatusClass(viewingProduct.stock)}`}>
+                  <span className={`value ${getStatusBadgeClass(getProductStatusText(viewingProduct.stock))}`}>
                     {getProductStatusText(viewingProduct.stock)}
                   </span>
                 </div>
@@ -4316,7 +4697,7 @@ const handleDelete = async (type, id) => {
                 </div>
                 <div className="detail-item">
                   <span className="label">Status:</span>
-                  <span className={`value status-pill ${(viewingProductBooking.status || "pending").toLowerCase()}`}>
+                  <span className={`value ${getStatusBadgeClass(viewingProductBooking.status || "Pending")}`}>
                     {viewingProductBooking.status || "Pending"}
                   </span>
                 </div>
@@ -4390,16 +4771,16 @@ const handleDelete = async (type, id) => {
                       return;
                     }
                     if (response.ok) {
-                      alert("Booking status updated successfully!");
+                      toast.success("Booking status updated successfully!");
                       fetchData();
                       setEditingProductBooking(null);
                     } else {
                       const data = await response.json();
-                      alert(data.message || "Failed to update status.");
+                      toast.error(data.message || "Failed to update status.");
                     }
                   } catch (err) {
                     console.error("Failed to update booking status:", err);
-                    alert("Error updating status.");
+                    toast.error("Error updating status.");
                   }
                 }}
               >

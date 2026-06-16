@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { 
   Tractor, 
   Settings, 
@@ -148,12 +149,13 @@ const handleSubmit = async (e) => {
     if (response.ok) {
       setSubmitted(true);
       setForm(INITIAL_FORM);
+      toast.success("Equipment booking submitted successfully!");
     } else {
-      alert(data.message || "Failed to submit booking request");
+      toast.error(data.message || "Failed to submit booking request");
     }
   } catch (error) {
     console.error(error);
-    alert("Server connection failed");
+    toast.error("Server connection failed");
   } finally {
     setLoading(false);
   }

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { 
   Store, 
@@ -113,11 +114,11 @@ function BookingModal({ product, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.farmerName || !form.phone || !form.bookingDate || !form.quantity) {
-      alert("All fields are required.");
+      toast.error("All fields are required.");
       return;
     }
     if (Number(form.quantity) <= 0) {
-      alert("Quantity must be at least 1.");
+      toast.error("Quantity must be at least 1.");
       return;
     }
     setLoading(true);
@@ -137,12 +138,13 @@ function BookingModal({ product, onClose }) {
       if (response.ok) {
         setBookingDetails(resData.data);
         setSubmitted(true);
+        toast.success("Booking submitted successfully!");
       } else {
-        alert(resData.message || "Failed to submit booking.");
+        toast.error(resData.message || "Failed to submit booking.");
       }
     } catch (err) {
       console.error(err);
-      alert("Unable to connect to the server.");
+      toast.error("Unable to connect to the server.");
     } finally {
       setLoading(false);
     }

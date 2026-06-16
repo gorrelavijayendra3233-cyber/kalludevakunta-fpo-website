@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MapPin, Phone, Mail, CheckCircle, MessageCircle, AlertTriangle } from "lucide-react";
+import toast from "react-hot-toast";
 import "./Contact.css";
 
 const API_BASE = import.meta.env.DEV
@@ -128,12 +129,13 @@ const handleSubmit = async (e) => {
       setSubmitted(true);
       setForm(INITIAL_FORM);
       setErrors(INITIAL_ERRORS);
+      toast.success("Message sent successfully!");
     } else {
-      alert(data.message || "Failed to send message");
+      toast.error(data.message || "Failed to send message");
     }
   } catch (error) {
     console.error(error);
-    alert("Server connection failed");
+    toast.error("Server connection failed");
   }
 
   setLoading(false);

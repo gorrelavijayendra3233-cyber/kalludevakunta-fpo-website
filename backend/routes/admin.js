@@ -8,7 +8,12 @@ router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    const admin = await Admin.findOne({ username });
+    if (!username || !password) {
+      return res.status(400).json({ message: "Username and password are required" });
+    }
+
+    const normalizedUsername = username.trim().toLowerCase();
+    const admin = await Admin.findOne({ username: normalizedUsername });
     if (!admin) {
       return res.status(401).json({ message: "Invalid credentials" });
     }

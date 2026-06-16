@@ -93,15 +93,93 @@ router.put("/:id", auth, async (req, res) => {
       return res.status(400).json({ success: false, message: "Status is required." });
     }
 
-    const booking = await ProductBooking.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    );
-
+    const booking = await ProductBooking.findById(req.params.id);
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found." });
     }
+
+    const oldStatus = booking.status;
+    const newStatus = status;
+
+    if (oldStatus !== newStatus) {
+      // Find the product related to this booking by its productId
+      const product = await Product.findOne({ productId: booking.productId });
+      
+      if (product) {
+        // Transition 1: Not Confirmed -> Confirmed
+        if (oldStatus !== "Confirmed" && newStatus === "Confirmed") {
+          if (product.stock < booking.quantity) {
+            return res.status(400).json({
+              success: false,
+              message: `Insufficient stock of ${product.name} to confirm this booking. Available: ${product.stock}, Required: ${booking.quantity}`
+            });
+          }
+          product.stock -= booking.quantity;
+        }
+        // Transition 2: Confirmed -> Not Confirmed (Pending or Cancelled)
+        else if (oldStatus === "Confirmed" && newStatus !== "Confirmed") {
+          product.stock += booking.quantity;
+        }
+
+        // Auto determine product status
+        if (product.stock === 0) {
+          product.status = "Out of Stock";
+        } else {
+          product.status = "In Stock";
+        }
+
+        await product.save();
+
+        // Trigger notifications if stock levels become low/out-of-stock
+        try {
+          const Notification = require("../models/Notification");
+          if (product.stock === 0) {
+            const telegramMsg = `🚨 Out Of Stock\n\nProduct: ${product.name}\n\nImmediate action required.`;
+            const dashboardMsg = `Product ${product.name} is out of stock.`;
+            
+            const NotificationSettings = require("../models/NotificationSettings");
+            let settings = await NotificationSettings.findOne() || { dashboardEnabled: true, telegramEnabled: true };
+            
+            if (settings.dashboardEnabled) {
+              await Notification.create({
+                title: "Out Of Stock Alert",
+                message: dashboardMsg,
+                type: "inventory",
+                priority: "high"
+              });
+            }
+            if (settings.telegramEnabled) {
+              const { sendTelegramMessage } = require("../services/telegram");
+              await sendTelegramMessage(telegramMsg, "inventory");
+            }
+          } else if (product.stock <= 10 && oldStatus !== "Confirmed" && newStatus === "Confirmed") {
+            const telegramMsg = `⚠️ Low Stock Alert\n\nProduct: ${product.name}\n\nRemaining Stock: ${product.stock}`;
+            const dashboardMsg = `Product ${product.name} is running low on stock (${product.stock} left).`;
+            
+            const NotificationSettings = require("../models/NotificationSettings");
+            let settings = await NotificationSettings.findOne() || { dashboardEnabled: true, telegramEnabled: true };
+            
+            if (settings.dashboardEnabled) {
+              await Notification.create({
+                title: "Low Stock Alert",
+                message: dashboardMsg,
+                type: "inventory",
+                priority: "medium"
+              });
+            }
+            if (settings.telegramEnabled) {
+              const { sendTelegramMessage } = require("../services/telegram");
+              await sendTelegramMessage(telegramMsg, "inventory");
+            }
+          }
+        } catch (err) {
+          console.error("Failed to create product alert notification on status update:", err);
+        }
+      }
+    }
+
+    booking.status = newStatus;
+    await booking.save();
 
     res.json({
       success: true,
@@ -120,6 +198,23 @@ router.delete("/:id", auth, async (req, res) => {
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found." });
     }
+
+    // Restore stock if the deleted booking was Confirmed
+    if (booking.status === "Confirmed") {
+      try {
+        const product = await Product.findOne({ productId: booking.productId });
+        if (product) {
+          product.stock += booking.quantity;
+          if (product.stock > 0) {
+            product.status = "In Stock";
+          }
+          await product.save();
+        }
+      } catch (err) {
+        console.error("Failed to restore product stock on booking deletion:", err);
+      }
+    }
+
     res.json({
       success: true,
       message: "Booking deleted successfully."

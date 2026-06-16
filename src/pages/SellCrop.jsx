@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { 
   Sprout, 
   CheckCircle, 
@@ -143,12 +144,13 @@ const handleSubmit = async (e) => {
       setSubmitted(true);
       setForm(INITIAL_FORM);
       setErrors(INITIAL_ERRORS);
+      toast.success("Crop sale offer submitted successfully!");
     } else {
-      alert(data.message || "Failed to submit crop request");
+      toast.error(data.message || "Failed to submit crop request");
     }
   } catch (error) {
     console.error(error);
-    alert("Server connection failed");
+    toast.error("Server connection failed");
   } finally {
     setLoading(false);
   }
