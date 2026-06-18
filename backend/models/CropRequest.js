@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const CropRequestSchema = new mongoose.Schema({
+  farmerId: String,
   farmerName: String,
   cropName: String,
   quantity: Number,

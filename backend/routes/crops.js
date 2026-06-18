@@ -6,7 +6,23 @@ const Notification = require("../models/Notification");
 
 router.post("/", async (req, res) => {
   try {
-    const crop = new CropRequest(req.body);
+    const { cropName, quantity, price, farmerName, phone } = req.body;
+
+    if (!cropName || !quantity || !price || !farmerName || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Crop Name, Quantity, Price, Farmer Name, and Phone are required fields."
+      });
+    }
+
+    const crop = new CropRequest({
+      farmerId: "PUBLIC",
+      farmerName,
+      phone,
+      cropName,
+      quantity,
+      price
+    });
     await crop.save();
 
     // Auto generate notification

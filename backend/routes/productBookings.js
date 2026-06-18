@@ -16,12 +16,12 @@ const handleError = (res, error) => {
 // 1. Submit product booking (Public)
 router.post("/", async (req, res) => {
   try {
-    const { farmerName, phone, productId, quantity, bookingDate } = req.body;
+    const { productId, quantity, bookingDate, farmerName, phone } = req.body;
 
-    if (!farmerName || !phone || !productId || !quantity || !bookingDate) {
+    if (!productId || !quantity || !bookingDate || !farmerName || !phone) {
       return res.status(400).json({
         success: false,
-        message: "Farmer Name, Phone, Product ID, Quantity, and Booking Date are required."
+        message: "Product ID, Quantity, Booking Date, Farmer Name, and Phone are required."
       });
     }
 
@@ -37,6 +37,7 @@ router.post("/", async (req, res) => {
     const totalPrice = product.price * Number(quantity);
 
     const booking = new ProductBooking({
+      farmerId: "PUBLIC",
       farmerName,
       phone,
       productId: product.productId,

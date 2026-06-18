@@ -9,6 +9,9 @@ const productRoutes = require("./routes/products");
 const analyticsRoutes = require("./routes/analytics");
 const notificationRoutes = require("./routes/notifications");
 const productBookingRoutes = require("./routes/productBookings");
+const equipmentRatesRoutes = require("./routes/equipments");
+const farmerAuthRoutes = require("./routes/farmerAuth");
+const farmerDashboardRoutes = require("./routes/farmer");
 
 const express = require("express");
 const cors = require("cors");
@@ -29,19 +32,8 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like curl, mobile apps, or local routing)
-      if (!origin) return callback(null, true);
-      
-      // Allow any localhost port in development
-      if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
-        return callback(null, true);
-      }
-      
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        return callback(new Error("Not allowed by CORS"));
-      }
+      // Allow all origins to prevent CORS blockages on custom preview URLs, alternative ports, and local network IPs
+      return callback(null, true);
     },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -58,6 +50,9 @@ app.use("/api/products", productRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/product-bookings", productBookingRoutes);
+app.use("/api/equipments", equipmentRatesRoutes);
+app.use("/api/farmer-auth", farmerAuthRoutes);
+app.use("/api/farmer", farmerDashboardRoutes);
 app.get("/", (req, res) => {
   res.send("Kalludevakunta FPO Backend Running");
 });
@@ -220,6 +215,72 @@ const seedSettings = async () => {
   }
 };
 
+const seedEquipments = async () => {
+  try {
+    const Equipment = require("./models/Equipment");
+    const count = await Equipment.countDocuments();
+    if (count === 0) {
+      const defaultEquipments = [
+        {
+          equipmentId: "tractor",
+          name: "Tractor",
+          description: "Heavy-duty tractor for ploughing, tilling, and transport. Available with operator.",
+          rateHour: 350,
+          rateDay: 2500,
+          available: true
+        },
+        {
+          equipmentId: "harvester",
+          name: "Harvester",
+          description: "Combined harvester for paddy and wheat. Reduces harvest time significantly.",
+          rateHour: 600,
+          rateDay: 4000,
+          available: true
+        },
+        {
+          equipmentId: "sprayer",
+          name: "Sprayer",
+          description: "Motorised boom sprayer for large-area pesticide and fertiliser application.",
+          rateHour: 150,
+          rateDay: 900,
+          available: true
+        },
+        {
+          equipmentId: "seeddrill",
+          name: "Seed Drill",
+          description: "Precision seed drill for uniform row sowing. Saves seeds and improves yield.",
+          rateHour: 300,
+          rateDay: 2000,
+          available: true
+        },
+        {
+          equipmentId: "rotavator",
+          name: "Rotavator",
+          description: "Rotary tiller attachment for deep soil mixing and seedbed preparation.",
+          rateHour: 250,
+          rateDay: 1800,
+          available: true
+        },
+        {
+          equipmentId: "cultivator",
+          name: "Cultivator",
+          description: "Inter-row cultivator for weed control and aeration. Lightweight and effective.",
+          rateHour: 200,
+          rateDay: 1400,
+          available: false
+        }
+      ];
+
+      for (const eq of defaultEquipments) {
+        await Equipment.create(eq);
+      }
+      console.log("Default equipments seeded successfully");
+    }
+  } catch (err) {
+    console.error("Error seeding default equipments:", err);
+  }
+};
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
@@ -228,6 +289,7 @@ mongoose
     await seedFarmers();
     await seedProducts();
     await seedSettings();
+    await seedEquipments();
 
     try {
       const Notification = require("./models/Notification");

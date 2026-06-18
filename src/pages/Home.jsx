@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
   Handshake, 
@@ -17,6 +17,30 @@ import {
   Award
 } from "lucide-react";
 import "./Home.css";
+
+const API_BASE = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : "https://kalludevakunta-fpo-website.onrender.com/api";
+
+const getEquipmentIcon = (id, size = 32) => {
+  const normalizedId = String(id || "").toLowerCase();
+  switch (normalizedId) {
+    case "tractor":
+      return <Tractor size={size} />;
+    case "harvester":
+      return <Wheat size={size} />;
+    case "sprayer":
+      return <Droplet size={size} />;
+    case "cultivator":
+      return <Sprout size={size} />;
+    case "rotavator":
+    case "seeddrill":
+    case "seed drill":
+      return <Settings size={size} />;
+    default:
+      return <Tractor size={size} />;
+  }
+};
 
 /* ── Static Data with Lucide Icons ─────────────────────────── */
 
@@ -55,21 +79,47 @@ const FARMER_STATS = [
   { icon: <MapPin size={28} />,  num: "15",    suffix: "+", label: "Villages",       sub: "Served in Andhra Pradesh"  },
 ];
 
-const EQUIPMENT_SHOWCASE = [
-  { icon: <Tractor size={32} />, name: "Tractor",    desc: "Heavy-duty tractor for ploughing, tilling, and transport. Available with operator.", rateHour: 350,  rateDay: 2500,  available: true  },
-  { icon: <Wheat size={32} />, name: "Harvester",  desc: "Combined harvester for paddy and wheat. Reduces harvest time significantly.",        rateHour: 600,  rateDay: 4000,  available: true  },
-  { icon: <Droplet size={32} />, name: "Sprayer",    desc: "Motorised boom sprayer for large-area pesticide and fertiliser application.",       rateHour: 150,  rateDay: 900,   available: true  },
-  { icon: <Settings size={32} />, name: "Seed Drill", desc: "Precision seed drill for uniform row sowing. Saves seeds and improves yield.",      rateHour: 300,  rateDay: 2000,  available: true  },
-  { icon: <Settings size={32} />,  name: "Rotavator", desc: "Rotary tiller attachment for deep soil mixing and seedbed preparation.",            rateHour: 250,  rateDay: 1800,  available: true  },
-  { icon: <Sprout size={32} />, name: "Cultivator", desc: "Inter-row cultivator for weed control and aeration. Lightweight and effective.",    rateHour: 200,  rateDay: 1400,  available: false },
+const DEFAULT_EQUIPMENT_SHOWCASE = [
+  { equipmentId: "tractor",    name: "Tractor",    desc: "Heavy-duty tractor for ploughing, tilling, and transport. Available with operator.", rateHour: 350,  rateDay: 2500,  available: true  },
+  { equipmentId: "harvester",  name: "Harvester",  desc: "Combined harvester for paddy and wheat. Reduces harvest time significantly.",        rateHour: 600,  rateDay: 4000,  available: true  },
+  { equipmentId: "sprayer",    name: "Sprayer",    desc: "Motorised boom sprayer for large-area pesticide and fertiliser application.",       rateHour: 150,  rateDay: 900,   available: true  },
+  { equipmentId: "seeddrill",  name: "Seed Drill", desc: "Precision seed drill for uniform row sowing. Saves seeds and improves yield.",      rateHour: 300,  rateDay: 2000,  available: true  },
+  { equipmentId: "rotavator",  name: "Rotavator",  desc: "Rotary tiller attachment for deep soil mixing and seedbed preparation.",            rateHour: 250,  rateDay: 1800,  available: true  },
+  { equipmentId: "cultivator", name: "Cultivator", desc: "Inter-row cultivator for weed control and aeration. Lightweight and effective.",    rateHour: 200,  rateDay: 1400,  available: false },
 ];
 
 /* ── Component ─────────────────────────────────────────────── */
 
 function Home() {
+  const [showcase, setShowcase] = useState(DEFAULT_EQUIPMENT_SHOWCASE);
   const [announcement] = useState(() => {
     return localStorage.getItem("fpo_announcement") || "Kharif 2026 begins — Fresh seeds and fertilizers now available for the upcoming season.";
   });
+
+  useEffect(() => {
+    const fetchShowcase = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/equipments`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const formatted = data.map(eq => ({
+              equipmentId: eq.equipmentId,
+              name: eq.name,
+              desc: eq.description || "",
+              rateHour: eq.rateHour,
+              rateDay: eq.rateDay,
+              available: eq.available
+            }));
+            setShowcase(formatted);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch showcase equipment rates:", err);
+      }
+    };
+    fetchShowcase();
+  }, []);
 
   return (
     <main>
@@ -226,11 +276,11 @@ function Home() {
         </div>
         
         <div className="equip-showcase__grid">
-          {EQUIPMENT_SHOWCASE.map((eq, index) => (
+          {showcase.map((eq, index) => (
             <div className={`equip-showcase-card glass-panel fade-up-${index % 3 + 1}`} key={eq.name}>
               <div className="equip-showcase-card__img">
                 <div className="equip-showcase-card__overlay" />
-                <span className="equip-showcase-card__icon-wrap">{eq.icon}</span>
+                <span className="equip-showcase-card__icon-wrap">{getEquipmentIcon(eq.equipmentId)}</span>
                 <span
                   className="equip-showcase-card__avail"
                   style={!eq.available ? { background: "rgba(230, 81, 0, 0.2)", color: "var(--harvest-lt)", borderColor: "rgba(230, 81, 0, 0.4)" } : {}}
@@ -244,7 +294,7 @@ function Home() {
                 <p className="equip-showcase-card__desc">{eq.desc}</p>
                 <div className="equip-showcase-card__rates">
                   <span className="rate-pill"><strong>₹{eq.rateHour}</strong>/hr</span>
-                  <span className="rate-pill"><strong>₹{eq.rateDay.toLocaleString("en-IN")}</strong>/day</span>
+                  <span className="rate-pill"><strong>₹{Number(eq.rateDay).toLocaleString("en-IN")}</strong>/day</span>
                 </div>
                 <Link to="/equipment-booking" style={{ display: "block" }}>
                   <button

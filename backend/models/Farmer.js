@@ -44,6 +44,9 @@ const farmerSchema = new mongoose.Schema(
       type: String,
       default: "Active",
     },
+    lastLogin: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

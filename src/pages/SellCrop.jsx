@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import { 
   Sprout, 
   CheckCircle, 
@@ -10,7 +11,8 @@ import {
   FileText,
   User,
   MapPin,
-  TrendingUp
+  TrendingUp,
+  Lock
 } from "lucide-react";
 import "./SellCrop.css";
 
@@ -95,8 +97,31 @@ function SellCrops() {
   const [errors, setErrors]     = useState(INITIAL_ERRORS);
   const [loading, setLoading]   = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const navigate = useNavigate();
+  const token = localStorage.getItem("farmer_token");
 
   const today = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    if (token) {
+      const infoStr = localStorage.getItem("farmer_info");
+      if (infoStr) {
+        try {
+          const info = JSON.parse(infoStr);
+          const isOption = VILLAGE_OPTIONS.includes(info.village);
+          setForm((prev) => ({
+            ...prev,
+            farmerName: info.name || "",
+            mobileNumber: info.phone || "",
+            village: isOption ? (info.village || "") : (info.village ? "Other" : ""),
+            otherVillage: isOption ? "" : (info.village || ""),
+          }));
+        } catch (e) {
+          console.error("Failed to parse farmer info:", e);
+        }
+      }
+    }
+  }, [token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -125,16 +150,30 @@ const handleSubmit = async (e) => {
       phone: form.mobileNumber,
     };
 
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(
       `${API_BASE}/crops`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(payload),
       }
     );
+
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem("farmer_token");
+      localStorage.removeItem("farmer_info");
+      window.dispatchEvent(new Event("storage"));
+      toast.error("Session expired. Please log in again.");
+      navigate("/farmer-login");
+      return;
+    }
 
     const data = await response.json();
 
@@ -223,7 +262,7 @@ const handleSubmit = async (e) => {
                 <div className="form-group--row">
                   <div className="form-group">
                     <label className="form-label" htmlFor="farmerName">
-                      Farmer Name <span className="form-label-telugu">/ రైతు పేరు</span>
+                      Farmer Name <span className="form-label-telugu">/ ఋతు పేరు</span>
                       <span className="req">*</span>
                     </label>
                     <input

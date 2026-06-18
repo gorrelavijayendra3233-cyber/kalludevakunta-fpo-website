@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Navbar    from "./components/Navbar/Navbar";
 import Footer    from "./components/Footer/Footer";
 import AppRoutes from "./routes/AppRoutes";
@@ -8,6 +9,65 @@ import "./index.css";
 function App() {
   const location = useLocation();
   const isAdminPage = location.pathname.startsWith("/admin");
+
+  useEffect(() => {
+    // Scroll to top on page change
+    window.scrollTo(0, 0);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("in-view");
+            observer.unobserve(entry.target); // Stop observing once animated
+          }
+        });
+      },
+      {
+        threshold: 0.05,
+        rootMargin: "0px 0px -50px 0px"
+      }
+    );
+
+    const selector = ".fade-up, .fade-up-1, .fade-up-2, .fade-up-3, .fade-up-4, .fade-up-5, .fade-up-6, .fade-in, .scale-in";
+
+    // Function to search and observe elements
+    const observeElements = (root = document) => {
+      if (root.nodeType === Node.ELEMENT_NODE && root.matches && root.matches(selector)) {
+        observer.observe(root);
+      }
+      if (root.querySelectorAll) {
+        const animatedElements = root.querySelectorAll(selector);
+        animatedElements.forEach((el) => {
+          observer.observe(el);
+        });
+      }
+    };
+
+    // Initial sweep of already rendered elements
+    observeElements();
+
+    // Observe future dynamic DOM mutations (for lists loaded via API)
+    const mutationObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            observeElements(node);
+          }
+        });
+      });
+    });
+
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [location.pathname]);
 
   return (
     <>

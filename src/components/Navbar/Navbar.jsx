@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { Sprout, Menu, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { Sprout, Menu, X, ChevronDown } from "lucide-react";
+import toast from "react-hot-toast";
 import "./Navbar.css";
 
 const NAV_LINKS = [
@@ -14,7 +15,30 @@ const NAV_LINKS = [
 
 function Navbar() {
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const [isFarmerLoggedIn, setIsFarmerLoggedIn] = useState(!!localStorage.getItem("farmer_token"));
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const close = () => {
+    setOpen(false);
+    setDropdownOpen(false);
+  };
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkLoginStatus = () => {
+      setIsFarmerLoggedIn(!!localStorage.getItem("farmer_token"));
+    };
+    window.addEventListener("storage", checkLoginStatus);
+    return () => window.removeEventListener("storage", checkLoginStatus);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("farmer_token");
+    localStorage.removeItem("farmer_info");
+    setIsFarmerLoggedIn(false);
+    window.dispatchEvent(new Event("storage"));
+    toast.success("Logged out successfully");
+    navigate("/farmer-login");
+  };
 
   return (
     <nav className="navbar">
@@ -50,6 +74,7 @@ function Navbar() {
             </NavLink>
           </li>
         ))}
+
         {/* CTA — Contact */}
         <li>
           <NavLink

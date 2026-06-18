@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import Home             from "../pages/Home";
 import About            from "../pages/About";
@@ -8,6 +8,9 @@ import Contact          from "../pages/Contact";
 import SellCrops        from "../pages/SellCrop";
 import EquipmentBooking from "../pages/EquipmentBooking";
 import Admin            from "../pages/Admin";
+import FarmerLogin     from "../pages/FarmerLogin";
+import FarmerDashboard from "../pages/FarmerDashboard";
+import ProtectedRoute from "../components/ProtectedRoute";
 
 function AppRoutes() {
   return (
@@ -20,6 +23,18 @@ function AppRoutes() {
       <Route path="/sell-crops"        element={<SellCrops />}        />
       <Route path="/equipment-booking" element={<EquipmentBooking />} />
       <Route path="/admin"             element={<Admin />}            />
+      
+      {/* Farmer Auth & Portal Routes (Disabled) */}
+      <Route path="/farmer-login"      element={<Navigate to="/" replace />} />
+      <Route path="/farmer-dashboard"  element={<Navigate to="/" replace />} />
+
+      {/* Legacy/Redirect protection routes */}
+      <Route path="/crop-request"      element={<Navigate to="/sell-crops" replace />} />
+      <Route path="/product-order"     element={<Navigate to="/products" replace />}   />
+      <Route path="/my-crop-requests"  element={<Navigate to="/farmer-dashboard" replace />} />
+      <Route path="/my-bookings"       element={<Navigate to="/farmer-dashboard" replace />} />
+      <Route path="/my-orders"         element={<Navigate to="/farmer-dashboard" replace />} />
+      <Route path="/my-profile"        element={<Navigate to="/farmer-dashboard" replace />} />
     </Routes>
   );
 }

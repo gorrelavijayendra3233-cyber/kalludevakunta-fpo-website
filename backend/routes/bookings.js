@@ -6,7 +6,23 @@ const Notification = require("../models/Notification");
 
 router.post("/", async (req, res) => {
   try {
-    const booking = new EquipmentBooking(req.body);
+    const { equipmentName, bookingDate, duration, farmerName, phone } = req.body;
+
+    if (!equipmentName || !bookingDate || !farmerName || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "Equipment Name, Booking Date, Farmer Name, and Phone are required fields."
+      });
+    }
+
+    const booking = new EquipmentBooking({
+      farmerId: "PUBLIC",
+      farmerName,
+      phone,
+      equipmentName,
+      bookingDate,
+      duration
+    });
     await booking.save();
 
     // Auto generate notification

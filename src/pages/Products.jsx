@@ -108,6 +108,27 @@ function BookingModal({ product, onClose }) {
   const [submitted, setSubmitted] = useState(false);
   const [bookingDetails, setBookingDetails] = useState(null);
 
+  const navigate = useNavigate();
+  const token = localStorage.getItem("farmer_token");
+
+  useEffect(() => {
+    if (token) {
+      const infoStr = localStorage.getItem("farmer_info");
+      if (infoStr) {
+        try {
+          const info = JSON.parse(infoStr);
+          setForm((prev) => ({
+            ...prev,
+            farmerName: info.name || "",
+            phone: info.phone || "",
+          }));
+        } catch (e) {
+          console.error("Failed to parse farmer info:", e);
+        }
+      }
+    }
+  }, [token]);
+
   const handleChange = (e) =>
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -123,9 +144,16 @@ function BookingModal({ product, onClose }) {
     }
     setLoading(true);
     try {
+      const headers = { 
+        "Content-Type": "application/json" 
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_BASE}/product-bookings`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           farmerName: form.farmerName,
           phone: form.phone,
@@ -134,6 +162,17 @@ function BookingModal({ product, onClose }) {
           bookingDate: form.bookingDate
         })
       });
+
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem("farmer_token");
+        localStorage.removeItem("farmer_info");
+        window.dispatchEvent(new Event("storage"));
+        toast.error("Session expired. Please log in again.");
+        navigate("/farmer-login");
+        onClose();
+        return;
+      }
+
       const resData = await response.json();
       if (response.ok) {
         setBookingDetails(resData.data);

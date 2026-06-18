@@ -5,6 +5,9 @@ const productBookingSchema = new mongoose.Schema({
     type: String,
     unique: true
   },
+  farmerId: {
+    type: String
+  },
   farmerName: {
     type: String,
     required: true

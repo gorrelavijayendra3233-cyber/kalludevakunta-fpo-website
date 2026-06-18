@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { 
   Tractor, 
@@ -82,9 +83,33 @@ function EquipmentBooking() {
   const [loading, setLoading]         = useState(false);
   const [submitted, setSubmitted]     = useState(false);
   const [equipError, setEquipError]   = useState(false);
+  const navigate = useNavigate();
+  const token = localStorage.getItem("farmer_token");
 
   const today = new Date().toISOString().split("T")[0];
   const selectedEquipment = EQUIPMENT_LIST.find((e) => e.id === selectedId) || null;
+
+  // Auto-fill from localStorage if logged in
+  useEffect(() => {
+    if (token) {
+      const infoStr = localStorage.getItem("farmer_info");
+      if (infoStr) {
+        try {
+          const info = JSON.parse(infoStr);
+          const isOption = VILLAGE_OPTIONS.includes(info.village);
+          setForm((prev) => ({
+            ...prev,
+            farmerName: info.name || "",
+            mobileNumber: info.phone || "",
+            village: isOption ? (info.village || "") : (info.village ? "Other" : ""),
+            otherVillage: isOption ? "" : (info.village || ""),
+          }));
+        } catch (e) {
+          console.error("Failed to parse farmer info:", e);
+        }
+      }
+    }
+  }, [token]);
 
   // Estimated cost
   const rate = selectedEquipment
@@ -131,16 +156,30 @@ const handleSubmit = async (e) => {
       phone: form.mobileNumber,
     };
 
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(
       `${API_BASE}/bookings`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(payload),
       }
     );
+
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem("farmer_token");
+      localStorage.removeItem("farmer_info");
+      window.dispatchEvent(new Event("storage"));
+      toast.error("Session expired. Please log in again.");
+      navigate("/farmer-login");
+      return;
+    }
 
     const data = await response.json();
 

@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const EquipmentBookingSchema = new mongoose.Schema({
+  farmerId: String,
   farmerName: String,
   equipmentName: String,
   bookingDate: String,

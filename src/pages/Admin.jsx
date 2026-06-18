@@ -144,6 +144,20 @@ function Admin() {
   const [searchProductBooking, setSearchProductBooking] = useState("");
   const [deletingProductBookingItem, setDeletingProductBookingItem] = useState(null);
 
+  // ── Equipments Rates States ──
+  const [equipments, setEquipments] = useState([]);
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState(null);
+  const [searchEquipment, setSearchEquipment] = useState("");
+  const [equipmentForm, setEquipmentForm] = useState({
+    name: "",
+    description: "",
+    rateHour: "",
+    rateDay: "",
+    available: true,
+    equipmentId: ""
+  });
+
   const getProductStatusText = (stock) => {
     if (stock === 0) return "Out Of Stock";
     if (stock <= 10) return "Low Stock";
@@ -184,6 +198,7 @@ function Admin() {
   const [searchCropInput, setSearchCropInput] = useState("");
   const [searchBookingInput, setSearchBookingInput] = useState("");
   const [notificationSearchInput, setNotificationSearchInput] = useState("");
+  const [searchEquipmentInput, setSearchEquipmentInput] = useState("");
 
   // ── Pagination States ──
   const [currentPage, setCurrentPage] = useState(1);
@@ -326,7 +341,7 @@ function Admin() {
     try {
       const signal = AbortSignal.timeout(30000);
 
-      const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes] =
+      const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes, equipmentsRes] =
         await Promise.all([
           fetch(`${API_BASE}/contact`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/crops`, { headers: getAuthHeaders(), signal }),
@@ -339,7 +354,8 @@ function Admin() {
           fetch(`${API_BASE}/notifications`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/notifications/settings`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/notifications/telegram-status`, { headers: getAuthHeaders(), signal }),
-          fetch(`${API_BASE}/product-bookings`, { headers: getAuthHeaders(), signal })
+          fetch(`${API_BASE}/product-bookings`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/equipments`, { headers: getAuthHeaders(), signal })
         ]);
 
       if (
@@ -354,14 +370,15 @@ function Admin() {
         notificationsRes.status === 401 ||
         settingsRes.status === 401 ||
         telegramRes.status === 401 ||
-        productBookingsRes.status === 401
+        productBookingsRes.status === 401 ||
+        equipmentsRes.status === 401
       ) {
         setLoading(false);
         handleUnauthorized();
         return;
       }
 
-      if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok) {
+      if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok || !equipmentsRes.ok) {
         throw new Error("Failed to fetch data");
       }
 
@@ -377,6 +394,7 @@ function Admin() {
       const settingsData = await settingsRes.json();
       const telegramData = await telegramRes.json();
       const productBookingsData = await productBookingsRes.json();
+      const equipmentsData = await equipmentsRes.json();
 
       setContacts(contactsData);
       setCrops(cropsData);
@@ -393,6 +411,7 @@ function Admin() {
       });
       setTelegramStatus(telegramData);
       setProductBookings(Array.isArray(productBookingsData) ? productBookingsData : (productBookingsData?.data || []));
+      setEquipments(equipmentsData);
       setIsOffline(false);
     } catch (error) {
       console.error("Database fetch error:", error);
@@ -579,6 +598,14 @@ function Admin() {
     return () => clearTimeout(timer);
   }, [notificationSearchInput]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchEquipment(searchEquipmentInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchEquipmentInput]);
+
   // Reset pagination & clear search inputs on tab changes
   useEffect(() => {
     setCurrentPage(1);
@@ -589,6 +616,7 @@ function Admin() {
     setSearchCropInput("");
     setSearchBookingInput("");
     setNotificationSearchInput("");
+    setSearchEquipmentInput("");
   }, [activeTab]);
 
 // ── DELETE Request Handlers ──
@@ -660,13 +688,17 @@ const handleDelete = async (type, id) => {
     }
 
     try {
+      const payload = { ...farmerForm };
+      if (payload.landHolding === "") {
+        payload.landHolding = null;
+      }
       const response = await fetch(`${API_BASE}/farmers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders()
         },
-        body: JSON.stringify(farmerForm),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(10000)
       });
 
@@ -718,13 +750,17 @@ const handleDelete = async (type, id) => {
     }
 
     try {
+      const payload = { ...editingFarmer };
+      if (payload.landHolding === "") {
+        payload.landHolding = null;
+      }
       const response = await fetch(`${API_BASE}/farmers/${editingFarmer._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders()
         },
-        body: JSON.stringify(editingFarmer),
+        body: JSON.stringify(payload),
         signal: AbortSignal.timeout(10000)
       });
 
@@ -898,6 +934,132 @@ const handleDelete = async (type, id) => {
         fetchData();
       } else {
         toast.error(data.message || "Failed to delete product.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  // ── Equipment Rates CRUD Handlers ──
+  const handleEquipmentSubmit = async (e) => {
+    e.preventDefault();
+    if (!equipmentForm.name || equipmentForm.rateHour === "" || equipmentForm.rateDay === "") {
+      toast.error("Equipment Name, Hourly Rate, and Daily Rate are required.");
+      return;
+    }
+
+    if (Number(equipmentForm.rateHour) < 0 || Number(equipmentForm.rateDay) < 0) {
+      toast.error("Rates must be non-negative numbers.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/equipments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(equipmentForm),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Equipment rate added successfully!");
+        setShowEquipmentModal(false);
+        setEquipmentForm({
+          name: "",
+          description: "",
+          rateHour: "",
+          rateDay: "",
+          available: true,
+          equipmentId: ""
+        });
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to add equipment rate.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  const handleEquipmentEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingEquipment.name || editingEquipment.rateHour === "" || editingEquipment.rateDay === "") {
+      toast.error("Equipment Name, Hourly Rate, and Daily Rate are required.");
+      return;
+    }
+
+    if (Number(editingEquipment.rateHour) < 0 || Number(editingEquipment.rateDay) < 0) {
+      toast.error("Rates must be non-negative numbers.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/equipments/${editingEquipment._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(editingEquipment),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Equipment rate updated successfully!");
+        setEditingEquipment(null);
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to update equipment rate.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  const handleEquipmentDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this equipment rate?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/equipments/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Equipment rate deleted successfully.");
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to delete equipment rate.");
       }
     } catch (error) {
       console.error(error);
@@ -1544,6 +1706,16 @@ const handleDelete = async (type, id) => {
         item.bookingDate || (item.createdAt ? item.createdAt.substring(0, 10) : ""),
         item.status || "Pending"
       ]);
+    } else if (type === "equipments") {
+      headers = ["Equipment ID", "Equipment Name", "Hourly Rate (₹)", "Daily Rate (₹)", "Availability", "Description"];
+      rows = dataList.map(item => [
+        item.equipmentId || "",
+        item.name || "",
+        item.rateHour || 0,
+        item.rateDay || 0,
+        item.available ? "Available" : "Unavailable",
+        item.description || ""
+      ]);
     }
 
     const csvContent = [
@@ -1920,6 +2092,15 @@ const handleDelete = async (type, id) => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  const filteredEquipments = equipments.filter(eq => {
+    const term = searchEquipment.toLowerCase();
+    return (
+      (eq.equipmentId || "").toLowerCase().includes(term) ||
+      (eq.name || "").toLowerCase().includes(term) ||
+      (eq.description || "").toLowerCase().includes(term)
+    );
+  });
+
   // ── Paginated Computations ──
   const paginatedContacts = filteredContacts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const paginatedCrops = filteredCrops.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -1927,6 +2108,7 @@ const handleDelete = async (type, id) => {
   const paginatedProductBookings = filteredProductBookings.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const paginatedFarmers = filteredFarmers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedEquipments = filteredEquipments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // ── Farmers Stats Calculations ──
   const totalFarmersCount = farmers.length;
@@ -2038,6 +2220,14 @@ const handleDelete = async (type, id) => {
           </button>
 
           <button 
+            className={`nav-item ${activeTab === "equipments" ? "active" : ""}`}
+            onClick={() => { setActiveTab("equipments"); setMobileMenuOpen(false); }}
+          >
+            <Coins size={18} />
+            <span>Equipment Rates</span>
+          </button>
+
+          <button 
             className={`nav-item ${activeTab === "product-bookings" ? "active" : ""}`}
             onClick={() => { setActiveTab("product-bookings"); setMobileMenuOpen(false); }}
           >
@@ -2112,6 +2302,7 @@ const handleDelete = async (type, id) => {
               {activeTab === "contacts" && "Contact Inquiries"}
               {activeTab === "crops" && "Crop Selling Requests"}
               {activeTab === "bookings" && "Machinery Bookings"}
+              {activeTab === "equipments" && "Equipment Rates Management"}
               {activeTab === "product-bookings" && "Product Bookings & Orders"}
               {activeTab === "farmers" && "Farmer Management"}
               {activeTab === "products" && "Product Inventory"}
@@ -2340,7 +2531,7 @@ const handleDelete = async (type, id) => {
                   <div className="skeleton-chart skeleton-pulse"></div>
                 </>
               )}
-              {["farmers", "products", "product-bookings", "contacts", "crops", "bookings", "notifications"].includes(activeTab) && (
+              {["farmers", "products", "product-bookings", "contacts", "crops", "bookings", "notifications", "equipments"].includes(activeTab) && (
                 <>
                   <div className="skeleton-table-header skeleton-pulse" style={{ marginBottom: "20px" }}></div>
                   <div className="skeleton-table-row skeleton-pulse" style={{ marginBottom: "12px" }}></div>
@@ -3041,12 +3232,14 @@ const handleDelete = async (type, id) => {
                               <th>Land Holding</th>
                               <th>Status</th>
                               <th>Joined Date</th>
+                              <th>Last Login</th>
                               <th className="text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             {paginatedFarmers.map(f => {
                               const dateStr = f.joinedDate ? f.joinedDate.substring(0, 10) : (f.createdAt ? f.createdAt.substring(0, 10) : "");
+                              const lastLoginStr = f.lastLogin ? new Date(f.lastLogin).toLocaleString("en-IN") : "Never";
                               return (
                                 <tr key={f._id}>
                                   <td className="font-semibold" data-label="Farmer ID">{f.farmerId}</td>
@@ -3061,6 +3254,7 @@ const handleDelete = async (type, id) => {
                                     </span>
                                   </td>
                                   <td data-label="Joined Date">{dateStr}</td>
+                                  <td data-label="Last Login">{lastLoginStr}</td>
                                   <td className="text-right" data-label="Actions">
                                     <div className="action-button-group">
                                       <button 
@@ -3079,7 +3273,7 @@ const handleDelete = async (type, id) => {
                                         tabIndex={0}
                                         aria-label="Edit Record"
                                       >
-                                        <RefreshCw size={15} />
+                                        <Pencil size={15} />
                                       </button>
                                       <button 
                                         className="action-btn delete" 
@@ -3320,6 +3514,120 @@ const handleDelete = async (type, id) => {
                         </table>
                       </div>
                       {renderPagination(filteredProducts.length)}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Equipment Rates Tab */}
+              {activeTab === "equipments" && (
+                <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Equipment Rates Management</h2>
+                    <p className="module-description">Manage machinery hire charges, description details, and availability parameters.</p>
+                  </div>
+                  {/* Toolbar */}
+                  <div className="pane-header-actions" style={{ marginBottom: "20px" }}>
+                    <div className="search-bar-wrapper">
+                      <Search className="search-icon" size={18} />
+                      <input 
+                        type="text" 
+                        className="search-input" 
+                        placeholder="Search by name, ID, or description..."
+                        value={searchEquipmentInput}
+                        onChange={(e) => setSearchEquipmentInput(e.target.value)}
+                      />
+                      {searchEquipmentInput && (
+                        <button className="clear-search-btn" onClick={() => setSearchEquipmentInput("")}><X size={14} /></button>
+                      )}
+                    </div>
+                    <div className="pane-actions">
+                      <button 
+                        className="action-btn csv-export" 
+                        onClick={() => exportCSV("equipments", filteredEquipments)}
+                        disabled={filteredEquipments.length === 0}
+                      >
+                        <Download size={15} /> Export CSV
+                      </button>
+                      <button className="action-btn add-new" onClick={() => setShowEquipmentModal(true)}>
+                        + Add Equipment
+                      </button>
+                    </div>
+                  </div>
+
+                  {filteredEquipments.length === 0 ? (
+                    <div className="empty-state glass-panel">
+                      <div className="empty-state-icon">
+                        <Tractor size={48} style={{ opacity: 0.5 }} />
+                      </div>
+                      <h3>No equipment found</h3>
+                      <p>Try searching for a different name, ID, or add a new equipment rate.</p>
+                      {searchEquipment && (
+                        <button className="admin-btn primary" onClick={() => setSearchEquipmentInput("")} style={{ marginTop: "15px" }}>
+                          Clear Search
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="table-responsive-wrapper">
+                      <div className="table-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Equipment ID</th>
+                              <th>Name</th>
+                              <th>Description</th>
+                              <th>Rate / Hour</th>
+                              <th>Rate / Day</th>
+                              <th>Status</th>
+                              <th style={{ textAlign: "right" }}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedEquipments.map((eq) => {
+                              return (
+                                <tr key={eq._id}>
+                                  <td className="font-semibold text-primary">{eq.equipmentId}</td>
+                                  <td className="font-semibold">{eq.name}</td>
+                                  <td style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={eq.description}>
+                                    {eq.description || "-"}
+                                  </td>
+                                  <td>₹{eq.rateHour}</td>
+                                  <td>₹{eq.rateDay}</td>
+                                  <td>
+                                    <span className={getStatusBadgeClass(eq.available ? "active" : "inactive")}>
+                                      {eq.available ? "Available" : "Unavailable"}
+                                    </span>
+                                  </td>
+                                  <td style={{ textAlign: "right" }}>
+                                    <div className="action-group" style={{ justifyContent: "flex-end" }}>
+                                      <button 
+                                        className="action-btn edit" 
+                                        title="Edit Equipment"
+                                        onClick={() => setEditingEquipment(eq)}
+                                        tabIndex={0}
+                                        aria-label="Edit Equipment"
+                                      >
+                                        <Pencil size={15} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete Equipment"
+                                        onClick={() => handleEquipmentDelete(eq._id)}
+                                        tabIndex={0}
+                                        aria-label="Delete Equipment"
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredEquipments.length)}
                     </div>
                   )}
                 </div>
@@ -4255,13 +4563,13 @@ const handleDelete = async (type, id) => {
             <form onSubmit={handleFarmerUpdate}>
               <div className="modal-body form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "20px" }}>
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
-                  <label className="admin-login-label">Farmer Name * (Read-Only)</label>
+                  <label className="admin-login-label">Farmer Name *</label>
                   <input 
                     type="text" 
                     className="admin-login-input" 
-                    value={editingFarmer.name}
-                    disabled
-                    style={{ opacity: 0.6 }}
+                    value={editingFarmer.name || ""}
+                    onChange={(e) => setEditingFarmer({ ...editingFarmer, name: e.target.value })}
+                    required
                   />
                 </div>
                 
@@ -4277,15 +4585,16 @@ const handleDelete = async (type, id) => {
                 </div>
 
                 <div className="admin-login-input-group">
-                  <label className="admin-login-label">Status</label>
+                  <label className="admin-login-label">Gender</label>
                   <select 
                     className="admin-login-input" 
-                    value={editingFarmer.status || "Active"}
-                    onChange={(e) => setEditingFarmer({ ...editingFarmer, status: e.target.value })}
+                    value={editingFarmer.gender || "Male"}
+                    onChange={(e) => setEditingFarmer({ ...editingFarmer, gender: e.target.value })}
                     style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
                   >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
@@ -4340,11 +4649,130 @@ const handleDelete = async (type, id) => {
                     onChange={(e) => setEditingFarmer({ ...editingFarmer, landHolding: e.target.value })}
                   />
                 </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Aadhaar (Last 4 Digits)</label>
+                  <input 
+                    type="text" 
+                    maxLength="4"
+                    className="admin-login-input" 
+                    placeholder="Last 4 digits only"
+                    value={editingFarmer.aadhaarLast4 || ""}
+                    onChange={(e) => setEditingFarmer({ ...editingFarmer, aadhaarLast4: e.target.value })}
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Status</label>
+                  <select 
+                    className="admin-login-input" 
+                    value={editingFarmer.status || "Active"}
+                    onChange={(e) => setEditingFarmer({ ...editingFarmer, status: e.target.value })}
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
               </div>
               
               <div className="modal-footer" style={{ padding: "16px 20px" }}>
                 <button type="button" className="btn-modal-close" onClick={() => setEditingFarmer(null)}>Cancel</button>
                 <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Update Farmer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Equipment Modal */}
+      {showEquipmentModal && (
+        <div className="modal-overlay" onClick={() => setShowEquipmentModal(false)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "550px" }}>
+            <div className="modal-header">
+              <h3>+ Add New Equipment Rate</h3>
+              <button className="modal-close-icon" onClick={() => setShowEquipmentModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleEquipmentSubmit}>
+              <div className="modal-body form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "20px" }}>
+                
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Equipment Code / ID (Optional)</label>
+                  <input 
+                    type="text" 
+                    className="admin-login-input" 
+                    placeholder="e.g. tractor, rotavator, or leave blank to auto-generate"
+                    value={equipmentForm.equipmentId}
+                    onChange={(e) => setEquipmentForm({ ...equipmentForm, equipmentId: e.target.value })}
+                  />
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Equipment Name *</label>
+                  <input 
+                    type="text" 
+                    className="admin-login-input" 
+                    placeholder="Enter equipment name"
+                    value={equipmentForm.name}
+                    onChange={(e) => setEquipmentForm({ ...equipmentForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Hourly Rate (₹) *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    className="admin-login-input" 
+                    placeholder="Rate per hour"
+                    value={equipmentForm.rateHour}
+                    onChange={(e) => setEquipmentForm({ ...equipmentForm, rateHour: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Daily Rate (₹) *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    className="admin-login-input" 
+                    placeholder="Rate per day"
+                    value={equipmentForm.rateDay}
+                    onChange={(e) => setEquipmentForm({ ...equipmentForm, rateDay: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Availability Status</label>
+                  <select 
+                    className="admin-login-input"
+                    value={equipmentForm.available ? "true" : "false"}
+                    onChange={(e) => setEquipmentForm({ ...equipmentForm, available: e.target.value === "true" })}
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="true">Available</option>
+                    <option value="false">Unavailable</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Description</label>
+                  <textarea 
+                    className="admin-login-input" 
+                    placeholder="Enter equipment details/specification..."
+                    value={equipmentForm.description}
+                    onChange={(e) => setEquipmentForm({ ...equipmentForm, description: e.target.value })}
+                    style={{ minHeight: "80px", resize: "vertical" }}
+                  />
+                </div>
+              </div>
+              
+              <div className="modal-footer" style={{ padding: "16px 20px" }}>
+                <button type="button" className="btn-modal-close" onClick={() => setShowEquipmentModal(false)}>Cancel</button>
+                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Save Equipment</button>
               </div>
             </form>
           </div>
@@ -4518,6 +4946,89 @@ const handleDelete = async (type, id) => {
             <div className="modal-footer" style={{ padding: "16px 20px" }}>
               <button className="btn-modal-close" onClick={() => setViewingProduct(null)}>Close</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Equipment Modal */}
+      {editingEquipment && (
+        <div className="modal-overlay" onClick={() => setEditingEquipment(null)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "550px" }}>
+            <div className="modal-header">
+              <h3>Edit Equipment: {editingEquipment.equipmentId}</h3>
+              <button className="modal-close-icon" onClick={() => setEditingEquipment(null)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleEquipmentEditSubmit}>
+              <div className="modal-body form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "20px" }}>
+                
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Equipment Name *</label>
+                  <input 
+                    type="text" 
+                    className="admin-login-input" 
+                    placeholder="Enter equipment name"
+                    value={editingEquipment.name}
+                    onChange={(e) => setEditingEquipment({ ...editingEquipment, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Hourly Rate (₹) *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    className="admin-login-input" 
+                    placeholder="Rate per hour"
+                    value={editingEquipment.rateHour}
+                    onChange={(e) => setEditingEquipment({ ...editingEquipment, rateHour: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Daily Rate (₹) *</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    className="admin-login-input" 
+                    placeholder="Rate per day"
+                    value={editingEquipment.rateDay}
+                    onChange={(e) => setEditingEquipment({ ...editingEquipment, rateDay: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Availability Status</label>
+                  <select 
+                    className="admin-login-input"
+                    value={editingEquipment.available ? "true" : "false"}
+                    onChange={(e) => setEditingEquipment({ ...editingEquipment, available: e.target.value === "true" })}
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="true">Available</option>
+                    <option value="false">Unavailable</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Description</label>
+                  <textarea 
+                    className="admin-login-input" 
+                    placeholder="Enter equipment details/specification..."
+                    value={editingEquipment.description || ""}
+                    onChange={(e) => setEditingEquipment({ ...editingEquipment, description: e.target.value })}
+                    style={{ minHeight: "80px", resize: "vertical" }}
+                  />
+                </div>
+              </div>
+              
+              <div className="modal-footer" style={{ padding: "16px 20px" }}>
+                <button type="button" className="btn-modal-close" onClick={() => setEditingEquipment(null)}>Cancel</button>
+                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Update Equipment</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
