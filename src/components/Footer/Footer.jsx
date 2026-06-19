@@ -36,8 +36,8 @@ function Footer() {
         <div>
           <div className="footer__col-title">Contact</div>
           <ul className="footer__links">
-            <li><a href="#">Kalludevakunta (V), Mantralayam (M)</a></li>
-            <li><a href="#">Kurnool Dist, Andhra Pradesh – 518345</a></li>
+            <li><a href="https://maps.app.goo.gl/e4b7P6B5o8okTJcX7" target="_blank" rel="noopener noreferrer">Kalludevakunta (V), Mantralayam (M)</a></li>
+            <li><a href="https://maps.app.goo.gl/e4b7P6B5o8okTJcX7" target="_blank" rel="noopener noreferrer">Kurnool Dist, Andhra Pradesh – 518345</a></li>
             <li><a href="mailto:kdkfpc9@gmail.com">kdkfpc9@gmail.com</a></li>
             <li><a href="tel:+919014488562">+91 9014488562</a></li>
           </ul>

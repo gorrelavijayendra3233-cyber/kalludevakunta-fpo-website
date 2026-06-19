@@ -9,7 +9,9 @@ import SellCrops        from "../pages/SellCrop";
 import EquipmentBooking from "../pages/EquipmentBooking";
 import Admin            from "../pages/Admin";
 import FarmerLogin     from "../pages/FarmerLogin";
+import FarmerRegister  from "../pages/FarmerRegister";
 import FarmerDashboard from "../pages/FarmerDashboard";
+import FarmerProfile   from "../pages/FarmerProfile";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 function AppRoutes() {
@@ -24,9 +26,11 @@ function AppRoutes() {
       <Route path="/equipment-booking" element={<EquipmentBooking />} />
       <Route path="/admin"             element={<Admin />}            />
       
-      {/* Farmer Auth & Portal Routes (Disabled) */}
-      <Route path="/farmer-login"      element={<Navigate to="/" replace />} />
-      <Route path="/farmer-dashboard"  element={<Navigate to="/" replace />} />
+      {/* Farmer Auth & Portal Routes */}
+      <Route path="/farmer-login"      element={<FarmerLogin />} />
+      <Route path="/farmer-register"   element={<FarmerRegister />} />
+      <Route path="/farmer-dashboard"  element={<ProtectedRoute><FarmerDashboard /></ProtectedRoute>} />
+      <Route path="/farmer-profile"    element={<ProtectedRoute><FarmerProfile /></ProtectedRoute>} />
 
       {/* Legacy/Redirect protection routes */}
       <Route path="/crop-request"      element={<Navigate to="/sell-crops" replace />} />

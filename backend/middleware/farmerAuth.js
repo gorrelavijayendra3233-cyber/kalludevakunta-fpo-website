@@ -24,7 +24,7 @@ const farmerAuth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Check if the farmer exists in the database
-    const farmer = await Farmer.findById(decoded.id);
+    const farmer = await Farmer.findById(decoded.id || decoded.farmerId);
     if (!farmer) {
       return res.status(401).json({
         success: false,

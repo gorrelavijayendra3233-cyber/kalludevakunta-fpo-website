@@ -13,15 +13,17 @@ const handleError = (res, error) => {
   });
 };
 
-// 1. Submit product booking (Public)
-router.post("/", async (req, res) => {
-  try {
-    const { productId, quantity, bookingDate, farmerName, phone } = req.body;
+const farmerAuth = require("../middleware/farmerAuth");
 
-    if (!productId || !quantity || !bookingDate || !farmerName || !phone) {
+// 1. Submit product booking (Protected)
+router.post("/", farmerAuth, async (req, res) => {
+  try {
+    const { productId, quantity, bookingDate } = req.body;
+
+    if (!productId || !quantity || !bookingDate) {
       return res.status(400).json({
         success: false,
-        message: "Product ID, Quantity, Booking Date, Farmer Name, and Phone are required."
+        message: "Product ID, Quantity, and Booking Date are required."
       });
     }
 
@@ -37,9 +39,9 @@ router.post("/", async (req, res) => {
     const totalPrice = product.price * Number(quantity);
 
     const booking = new ProductBooking({
-      farmerId: "PUBLIC",
-      farmerName,
-      phone,
+      farmerId: req.farmer.farmerId,
+      farmerName: req.farmer.name,
+      phone: req.farmer.phone,
       productId: product.productId,
       productName: product.name,
       quantity: Number(quantity),

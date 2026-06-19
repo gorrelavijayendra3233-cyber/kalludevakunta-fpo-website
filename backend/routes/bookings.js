@@ -3,22 +3,23 @@ const router = express.Router();
 const EquipmentBooking = require("../models/EquipmentBooking");
 const auth = require("../middleware/auth");
 const Notification = require("../models/Notification");
+const farmerAuth = require("../middleware/farmerAuth");
 
-router.post("/", async (req, res) => {
+router.post("/", farmerAuth, async (req, res) => {
   try {
-    const { equipmentName, bookingDate, duration, farmerName, phone } = req.body;
+    const { equipmentName, bookingDate, duration } = req.body;
 
-    if (!equipmentName || !bookingDate || !farmerName || !phone) {
+    if (!equipmentName || !bookingDate) {
       return res.status(400).json({
         success: false,
-        message: "Equipment Name, Booking Date, Farmer Name, and Phone are required fields."
+        message: "Equipment Name and Booking Date are required fields."
       });
     }
 
     const booking = new EquipmentBooking({
-      farmerId: "PUBLIC",
-      farmerName,
-      phone,
+      farmerId: req.farmer.farmerId,
+      farmerName: req.farmer.name,
+      phone: req.farmer.phone,
       equipmentName,
       bookingDate,
       duration

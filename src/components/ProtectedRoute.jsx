@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 
 function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("farmer_token");
+  const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
 
   if (!token) {
     return <Navigate to="/farmer-login" replace />;

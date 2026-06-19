@@ -11,7 +11,8 @@ import {
   X, 
   CheckCircle,
   Phone,
-  Wheat
+  Wheat,
+  Lock
 } from "lucide-react";
 import "./Products.css";
 
@@ -109,11 +110,11 @@ function BookingModal({ product, onClose }) {
   const [bookingDetails, setBookingDetails] = useState(null);
 
   const navigate = useNavigate();
-  const token = localStorage.getItem("farmer_token");
+  const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
 
   useEffect(() => {
     if (token) {
-      const infoStr = localStorage.getItem("farmer_info");
+      const infoStr = localStorage.getItem("farmer_data");
       if (infoStr) {
         try {
           const info = JSON.parse(infoStr);
@@ -165,7 +166,8 @@ function BookingModal({ product, onClose }) {
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem("farmer_token");
-        localStorage.removeItem("farmer_info");
+        localStorage.removeItem("farmerToken");
+        localStorage.removeItem("farmer_data");
         window.dispatchEvent(new Event("storage"));
         toast.error("Session expired. Please log in again.");
         navigate("/farmer-login");
@@ -218,7 +220,28 @@ function BookingModal({ product, onClose }) {
         </div>
 
         <div className="modal-body">
-          {submitted ? (
+          {!token ? (
+            <div style={{ textAlign: "center", padding: "1.5rem 1rem" }}>
+              <div style={{ width: "50px", height: "50px", background: "rgba(230, 81, 0, 0.1)", border: "1px solid rgba(230, 81, 0, 0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", margin: "0 auto 1.25rem" }}>
+                <Lock size={24} style={{ color: "var(--harvest-lt || #f97316)" }} />
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "0.75rem" }}>Farmer Login Required</h3>
+              <p style={{ color: "var(--text-secondary)", fontSize: "13px", lineHeight: "1.6", marginBottom: "1.5rem" }}>
+                Please login using your registered mobile number to purchase/book this product.
+              </p>
+              <button 
+                className="form-submit" 
+                onClick={() => {
+                  onClose();
+                  navigate("/farmer-login");
+                }}
+                style={{ width: "100%" }}
+                type="button"
+              >
+                Login Now
+              </button>
+            </div>
+          ) : submitted ? (
             <div className="modal-success" style={{ textAlign: "center", padding: "10px" }}>
               <div className="modal-success-icon" style={{ marginBottom: "16px" }}><CheckCircle size={40} className="text-leaf-light" /></div>
               <h3>Booking Confirmed!</h3>
@@ -245,6 +268,7 @@ function BookingModal({ product, onClose }) {
                   value={form.farmerName}
                   onChange={handleChange}
                   placeholder="Full name"
+                  disabled={!!token}
                   required
                 />
               </div>
@@ -261,6 +285,7 @@ function BookingModal({ product, onClose }) {
                   placeholder="10-digit number"
                   maxLength={10}
                   inputMode="numeric"
+                  disabled={!!token}
                   required
                 />
               </div>

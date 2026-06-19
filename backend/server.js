@@ -52,7 +52,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/product-bookings", productBookingRoutes);
 app.use("/api/equipments", equipmentRatesRoutes);
 app.use("/api/farmer-auth", farmerAuthRoutes);
-app.use("/api/farmer", farmerDashboardRoutes);
+app.use("/api/farmer", farmerAuthRoutes);
 app.get("/", (req, res) => {
   res.send("Kalludevakunta FPO Backend Running");
 });

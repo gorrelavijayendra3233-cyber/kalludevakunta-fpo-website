@@ -15,7 +15,7 @@ const NAV_LINKS = [
 
 function Navbar() {
   const [open, setOpen] = useState(false);
-  const [isFarmerLoggedIn, setIsFarmerLoggedIn] = useState(!!localStorage.getItem("farmer_token"));
+  const [isFarmerLoggedIn, setIsFarmerLoggedIn] = useState(!!(localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token")));
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const close = () => {
     setOpen(false);
@@ -25,7 +25,7 @@ function Navbar() {
 
   useEffect(() => {
     const checkLoginStatus = () => {
-      setIsFarmerLoggedIn(!!localStorage.getItem("farmer_token"));
+      setIsFarmerLoggedIn(!!(localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token")));
     };
     window.addEventListener("storage", checkLoginStatus);
     return () => window.removeEventListener("storage", checkLoginStatus);
@@ -33,7 +33,8 @@ function Navbar() {
 
   const handleLogout = () => {
     localStorage.removeItem("farmer_token");
-    localStorage.removeItem("farmer_info");
+    localStorage.removeItem("farmerToken");
+    localStorage.removeItem("farmer_data");
     setIsFarmerLoggedIn(false);
     window.dispatchEvent(new Event("storage"));
     toast.success("Logged out successfully");
@@ -74,6 +75,40 @@ function Navbar() {
             </NavLink>
           </li>
         ))}
+
+        {isFarmerLoggedIn ? (
+          <li className="navbar__dropdown-container">
+            <button
+              className="navbar__dropdown-trigger"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+            >
+              Dashboard <ChevronDown size={14} style={{ marginLeft: "4px" }} />
+            </button>
+            <ul className={`navbar__dropdown-menu${dropdownOpen ? " show" : ""}`}>
+              <li>
+                <NavLink to="/farmer-dashboard" onClick={close}>
+                  Dashboard
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to="/farmer-profile" onClick={close}>
+                  My Profile
+                </NavLink>
+              </li>
+              <li>
+                <button className="navbar__logout-btn" onClick={() => { handleLogout(); close(); }}>
+                  Logout
+                </button>
+              </li>
+            </ul>
+          </li>
+        ) : (
+          <li>
+            <NavLink to="/farmer-login" onClick={close}>
+              Farmer Login
+            </NavLink>
+          </li>
+        )}
 
         {/* CTA — Contact */}
         <li>

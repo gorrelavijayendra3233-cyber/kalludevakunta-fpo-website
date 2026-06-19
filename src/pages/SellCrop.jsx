@@ -98,13 +98,13 @@ function SellCrops() {
   const [loading, setLoading]   = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const navigate = useNavigate();
-  const token = localStorage.getItem("farmer_token");
+  const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
 
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     if (token) {
-      const infoStr = localStorage.getItem("farmer_info");
+      const infoStr = localStorage.getItem("farmer_data");
       if (infoStr) {
         try {
           const info = JSON.parse(infoStr);
@@ -168,7 +168,8 @@ const handleSubmit = async (e) => {
 
     if (response.status === 401 || response.status === 403) {
       localStorage.removeItem("farmer_token");
-      localStorage.removeItem("farmer_info");
+      localStorage.removeItem("farmerToken");
+      localStorage.removeItem("farmer_data");
       window.dispatchEvent(new Event("storage"));
       toast.error("Session expired. Please log in again.");
       navigate("/farmer-login");
@@ -233,7 +234,25 @@ const handleSubmit = async (e) => {
           </div>
 
           <div className="form-card__body">
-            {submitted ? (
+            {!token ? (
+              <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
+                <div style={{ width: "50px", height: "50px", background: "rgba(230, 81, 0, 0.1)", border: "1px solid rgba(230, 81, 0, 0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", margin: "0 auto 1.25rem" }}>
+                  <Lock size={24} style={{ color: "var(--harvest-lt || #f97316)" }} />
+                </div>
+                <h3 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "0.75rem" }}>Farmer Login Required</h3>
+                <p style={{ color: "var(--text-secondary)", fontSize: "13px", lineHeight: "1.6", marginBottom: "1.5rem" }}>
+                  Please login using your registered mobile number to submit crop requests.
+                </p>
+                <button 
+                  className="form-submit" 
+                  onClick={() => navigate("/farmer-login")}
+                  style={{ width: "100%" }}
+                  type="button"
+                >
+                  Login Now
+                </button>
+              </div>
+            ) : submitted ? (
               <div className="form-success-msg fade-up">
                 <div className="success-icon"><CheckCircle size={44} className="text-leaf-light" /></div>
                 <h3>Request Submitted!</h3>
@@ -274,6 +293,7 @@ const handleSubmit = async (e) => {
                       onChange={handleChange}
                       placeholder="Your full name"
                       autoComplete="name"
+                      disabled={!!token}
                     />
                     {errors.farmerName && <span className="form-error">{errors.farmerName}</span>}
                   </div>
@@ -294,6 +314,7 @@ const handleSubmit = async (e) => {
                       maxLength={10}
                       inputMode="numeric"
                       autoComplete="tel"
+                      disabled={!!token}
                     />
                     {errors.mobileNumber && <span className="form-error">{errors.mobileNumber}</span>}
                   </div>

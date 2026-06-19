@@ -161,16 +161,24 @@ const handleSubmit = async (e) => {
           
           {/* Info cards (Left Side) */}
           <div className="contact__info-list">
-            <div className="contact__item glass-panel fade-up-1">
+            <a
+              href="https://maps.app.goo.gl/e4b7P6B5o8okTJcX7"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="contact__item glass-panel fade-up-1"
+              style={{ textDecoration: "none", color: "inherit", cursor: "pointer" }}
+            >
               <div className="contact__icon"><MapPin size={20} /></div>
               <div>
-                <div className="contact__label">Address</div>
+                <div className="contact__label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Address <span style={{ fontSize: '10px', opacity: 0.6, textTransform: 'none' }}>(Open Maps ↗)</span>
+                </div>
                 <div className="contact__value">
                   Kalludevakunta (V), Mantralayam (M),<br />
                   Kurnool District, Andhra Pradesh – 518345
                 </div>
               </div>
-            </div>
+            </a>
             
             <div className="contact__item glass-panel fade-up-2 contact__item--phone">
               <div className="contact-phone-content">
@@ -203,14 +211,18 @@ const handleSubmit = async (e) => {
               </div>
             </div>
 
-            {/* Google Maps placeholder section */}
-            <div className="contact__map glass-panel fade-up-3">
-              <div className="map-glow" />
-              <div className="map-content">
-                <MapPin size={24} className="map-pin-pulse" />
-                <span className="map-text">Google Maps View</span>
-                <small className="map-sub">Kalludevakunta Farmers Producer Company Limited, Andhra Pradesh</small>
-              </div>
+            {/* Google Maps iframe section */}
+            <div className="contact__map glass-panel fade-up-3" style={{ height: "250px", padding: 0 }}>
+              <iframe
+                title="Kalludevakunta FPO Location"
+                src="https://maps.google.com/maps?q=Kalludevakunta%20fpo%20company%20limited&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                width="100%"
+                height="100%"
+                style={{ border: 0, filter: "grayscale(1) invert(0.9) contrast(1.2)" }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
             </div>
           </div>
 

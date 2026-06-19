@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Lock, ArrowRight, Sprout, ShieldAlert, KeyRound } from "lucide-react";
+import { Phone, Sprout, ShieldAlert, KeyRound } from "lucide-react";
 import toast from "react-hot-toast";
 import "./FarmerLogin.css";
 
@@ -13,16 +13,52 @@ function FarmerLogin() {
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify OTP
   const [loading, setLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const navigate = useNavigate();
 
   // Redirect if already logged in
   useEffect(() => {
-    const token = localStorage.getItem("farmer_token");
+    const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
     if (token) {
       navigate("/farmer-dashboard");
     }
   }, [navigate]);
+
+  // Load MSG91 script & init widget
+  useEffect(() => {
+    const scriptId = "msg91-otp-script";
+    let script = document.getElementById(scriptId);
+
+    const initWidget = () => {
+      if (window.initSendOTP) {
+        window.initSendOTP({
+          widgetId: "3666726a614e373435363130",
+          tokenAuth: "533115TwHVe50C6a33c31eP1",
+          exposeMethods: true,
+          success: (data) => {
+            console.log("MSG91 Widget Init Success", data);
+          },
+          failure: (error) => {
+            console.error("MSG91 Widget Init Failure", error);
+          }
+        });
+      }
+    };
+
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://verify.msg91.com/otp-provider.js";
+      script.async = true;
+      script.onload = () => {
+        initWidget();
+      };
+      document.body.appendChild(script);
+    } else {
+      initWidget();
+    }
+  }, []);
 
   // Handle OTP countdown timer
   useEffect(() => {
@@ -32,56 +68,11 @@ function FarmerLogin() {
     }
   }, [countdown]);
 
-  // Dynamically load MSG91 Widget script
-  useEffect(() => {
-    const widgetId = import.meta.env.VITE_MSG91_WIDGET_ID || "366671657276343530333234";
-    const tokenAuth = import.meta.env.VITE_MSG91_TOKEN_AUTH || "533115TEujAKR2ELl6a323176P1";
-
-    window.configuration = {
-      widgetId: widgetId,
-      tokenAuth: tokenAuth,
-      exposeMethods: true,
-      success: (data) => {
-        console.log("MSG91 Widget initialized & success callback:", data);
-      },
-      failure: (error) => {
-        console.error("MSG91 Widget failure:", error);
-      }
-    };
-
-    const scriptId = "msg91-otp-script";
-    let script = document.getElementById(scriptId);
-
-    if (!script) {
-      script = document.createElement("script");
-      script.id = scriptId;
-      script.src = "https://verify.msg91.com/otp-provider.js";
-      script.async = true;
-      script.onload = () => {
-        if (typeof window.initSendOTP === "function") {
-          window.initSendOTP(window.configuration);
-        }
-      };
-      document.body.appendChild(script);
-    } else {
-      if (typeof window.initSendOTP === "function") {
-        window.initSendOTP(window.configuration);
-      }
-    }
-  }, []);
-
   const cleanPhone = (rawPhone) => {
-    let clean = String(rawPhone).replace(/\D/g, "");
-    if (clean.length === 12 && clean.startsWith("91")) {
-      clean = clean.substring(2);
-    }
-    if (clean.length === 11 && clean.startsWith("0")) {
-      clean = clean.substring(1);
-    }
-    return clean;
+    return String(rawPhone).replace(/\D/g, "");
   };
 
-  const handleSendOtp = async (e) => {
+  const handleSendOtp = (e) => {
     e.preventDefault();
     const normalizedPhone = cleanPhone(phone);
     if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
@@ -89,175 +80,94 @@ function FarmerLogin() {
       return;
     }
 
+    if (!window.sendOtp) {
+      toast.error("OTP Widget is loading, please wait...");
+      return;
+    }
+
     setLoading(true);
-    let resolved = false;
-
-    // Set a safety timeout of 4 seconds so it never gets stuck
-    const timeoutId = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        console.warn("sendOtp call timed out after 4 seconds.");
-        if (import.meta.env.DEV) {
-          toast.success("[DEV MODE] OTP request timed out. Proceeding with mock OTP: 123456");
-          setStep(2);
-          setOtp("123456");
-          setCountdown(60);
-        } else {
-          toast.error("OTP request timed out. Please check your network and try again.");
-        }
+    window.sendOtp(
+      "91" + normalizedPhone,
+      (res) => {
         setLoading(false);
+        toast.success("OTP code sent successfully!");
+        setStep(2);
+        setCountdown(60);
+      },
+      (err) => {
+        setLoading(false);
+        toast.error(err.message || "Failed to send OTP code.");
       }
-    }, 4000);
+    );
+  };
 
-    const triggerSend = () => {
-      if (typeof window.sendOtp === "function") {
-        window.sendOtp(
-          "91" + normalizedPhone,
-          (data) => {
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timeoutId);
-              toast.success("OTP code sent successfully!");
-              setStep(2);
-              setCountdown(60);
-              setLoading(false);
-            }
-          },
-          (error) => {
-            if (!resolved) {
-              resolved = true;
-              clearTimeout(timeoutId);
-              console.error("MSG91 sendOtp error:", error);
-              if (import.meta.env.DEV) {
-                toast.success("[DEV MODE] Failed to send real OTP. Proceeding with mock OTP: 123456");
-                setStep(2);
-                setOtp("123456");
-                setCountdown(60);
-              } else {
-                toast.error(error.message || "Failed to send OTP code.");
-              }
-              setLoading(false);
-            }
-          }
-        );
-      } else {
-        if (!resolved) {
-          resolved = true;
-          clearTimeout(timeoutId);
-          console.error("window.sendOtp is not available.");
-          if (import.meta.env.DEV) {
-            toast.success("[DEV MODE] MSG91 Widget script not loaded. Proceeding with mock OTP: 123456");
-            setStep(2);
-            setOtp("123456");
-            setCountdown(60);
-          } else {
-            toast.error("OTP verification service is currently unavailable. Please try again.");
-          }
-          setLoading(false);
-        }
+  const verifyOTP = () => {
+    return new Promise((resolve, reject) => {
+      if (!window.verifyOtp) {
+        return reject(new Error("OTP Widget is loading, please wait..."));
       }
-    };
-
-    triggerSend();
+      window.verifyOtp(
+        otp,
+        (res) => resolve(res),
+        (err) => reject(err)
+      );
+    });
   };
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
+    if (isVerifying) return;
+
     if (!/^\d{6}$/.test(otp)) {
       toast.error("OTP must be a 6-digit verification code.");
       return;
     }
 
+    setIsVerifying(true);
     setLoading(true);
-    let resolved = false;
-    const normalizedPhone = cleanPhone(phone);
 
-    const callBackendLogin = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/farmer-auth/verify`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ phone: normalizedPhone }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-          toast.success("Logged in successfully!");
-          localStorage.setItem("farmer_token", data.token);
-          localStorage.setItem("farmer_info", JSON.stringify(data.farmer));
-          
-          // Dispatch storage event to update navbar instantly
-          window.dispatchEvent(new Event("storage"));
-          
-          navigate("/farmer-dashboard");
-        } else {
-          toast.error(data.message || "Farmer verification failed. Please contact the administrator.");
-        }
-      } catch (error) {
-        console.error("Backend verify endpoint error:", error);
-        toast.error("Unable to verify registration. Please try again.");
-      } finally {
-        setLoading(false);
+    try {
+      const verificationResult = await verifyOTP();
+      const tokenVal = typeof verificationResult === "string" ? verificationResult : (verificationResult?.access_token || verificationResult?.token || verificationResult?.data);
+      if (!tokenVal) {
+        throw new Error("Failed to retrieve OTP access token.");
       }
-    };
 
-    // Strict dev-only mock OTP
-    if (import.meta.env.DEV && otp === "123456") {
-      await callBackendLogin();
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        console.warn("verifyOtp call timed out after 4 seconds.");
-        if (import.meta.env.DEV) {
-          toast.success("[DEV MODE] OTP verification timed out. Proceeding with database login.");
-          callBackendLogin();
-        } else {
-          toast.error("OTP verification timed out. Please try again.");
-          setLoading(false);
-        }
-      }
-    }, 4000);
-
-    // Production MSG91 verify flow
-    if (typeof window.verifyOtp === "function") {
-      window.verifyOtp(
-        otp,
-        async (data) => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeoutId);
-            await callBackendLogin();
-          }
+      // Call backend to verify MSG91 access token and login
+      const response = await fetch(`${API_BASE}/farmer/verify-msg91`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        (error) => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timeoutId);
-            toast.error(error.message || "Invalid OTP code / తప్పుడు ఓటిపి");
-            setLoading(false);
-          }
-        }
-      );
-    } else {
-      if (!resolved) {
-        resolved = true;
-        clearTimeout(timeoutId);
-        toast.error("Verification service is unavailable. Please try again.");
-        setLoading(false);
+        body: JSON.stringify({
+          action: "login",
+          otpToken: tokenVal
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success("Logged in successfully!");
+        localStorage.setItem("farmerToken", data.token);
+        localStorage.setItem("farmer_token", data.token);
+        localStorage.setItem("farmer_data", JSON.stringify(data.farmer));
+        window.dispatchEvent(new Event("storage"));
+        navigate("/farmer-dashboard");
+      } else {
+        toast.error(data.message || "Login failed.");
       }
+    } catch (err) {
+      toast.error(err.message || "Invalid OTP code / తప్పుడు ఓటిపి");
+    } finally {
+      setIsVerifying(false);
+      setLoading(false);
     }
   };
 
   return (
     <div className="farmer-login-container">
       <div className="farmer-login-card glass-panel fade-up">
-        
         <div className="login-header">
           <div className="logo-badge">
             <Sprout size={28} className="logo-icon-svg" />
@@ -283,7 +193,7 @@ function FarmerLogin() {
                   disabled={loading}
                 />
               </div>
-              <span className="input-hint">Must be registered with the FPO by the administrator.</span>
+              <span className="input-hint">Must be registered with the FPO.</span>
             </div>
 
             <button type="submit" className="login-submit-btn" disabled={loading}>
@@ -309,41 +219,45 @@ function FarmerLogin() {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
                   required
-                  disabled={loading}
+                  disabled={loading || isVerifying}
                   autoFocus
                 />
               </div>
             </div>
 
             <div className="otp-actions">
-              <button 
-                type="button" 
-                className="back-btn" 
-                onClick={() => setStep(1)} 
-                disabled={loading}
+              <button
+                type="button"
+                className="back-btn"
+                onClick={() => setStep(1)}
+                disabled={loading || isVerifying}
               >
                 Change Number
               </button>
-              
+
               {countdown > 0 ? (
                 <span className="resend-countdown">Resend in {countdown}s</span>
               ) : (
-                <button 
-                  type="button" 
-                  className="resend-btn" 
-                  onClick={handleSendOtp} 
-                  disabled={loading}
+                <button
+                  type="button"
+                  className="resend-btn"
+                  onClick={handleSendOtp}
+                  disabled={loading || isVerifying}
                 >
                   Resend OTP
                 </button>
               )}
             </div>
 
-            <button type="submit" className="login-submit-btn" disabled={loading}>
-              {loading ? "Verifying..." : "Verify & Log In"}
+            <button type="submit" className="login-submit-btn" disabled={loading || isVerifying}>
+              {loading || isVerifying ? "Verifying..." : "Verify & Log In"}
             </button>
           </form>
         )}
+
+        <p className="auth-footer-text">
+          New farmer? <span className="auth-link" onClick={() => navigate("/farmer-register")}>Register here</span>
+        </p>
       </div>
     </div>
   );

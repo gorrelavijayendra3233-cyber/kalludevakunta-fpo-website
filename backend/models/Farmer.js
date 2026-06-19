@@ -10,9 +10,13 @@ const farmerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    farmerName: {
+      type: String,
+    },
     phone: {
       type: String,
       required: true,
+      unique: true,
     },
     village: {
       type: String,
@@ -27,8 +31,14 @@ const farmerSchema = new mongoose.Schema(
     cropType: {
       type: String,
     },
+    primaryCrop: {
+      type: String,
+    },
     landHolding: {
       type: Number,
+    },
+    landArea: {
+      type: String,
     },
     gender: {
       type: String,
@@ -44,6 +54,10 @@ const farmerSchema = new mongoose.Schema(
       type: String,
       default: "Active",
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
     lastLogin: {
       type: Date,
     },
@@ -54,6 +68,24 @@ const farmerSchema = new mongoose.Schema(
 );
 
 farmerSchema.pre("save", async function () {
+  if (this.farmerName && !this.name) {
+    this.name = this.farmerName;
+  } else if (this.name && !this.farmerName) {
+    this.farmerName = this.name;
+  }
+
+  if (this.primaryCrop && !this.cropType) {
+    this.cropType = this.primaryCrop;
+  } else if (this.cropType && !this.primaryCrop) {
+    this.primaryCrop = this.cropType;
+  }
+
+  if (this.landArea && (this.landHolding === undefined || this.landHolding === null)) {
+    this.landHolding = parseFloat(this.landArea) || 0;
+  } else if (this.landHolding !== undefined && this.landHolding !== null && !this.landArea) {
+    this.landArea = `${this.landHolding} Acres`;
+  }
+
   if (this.isNew) {
     const lastFarmer = await this.constructor.findOne().sort({ farmerId: -1 });
     let nextIdNumber = 1;

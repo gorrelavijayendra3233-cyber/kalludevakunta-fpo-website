@@ -37,7 +37,8 @@ function FarmerDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("farmer_token");
-    localStorage.removeItem("farmer_info");
+    localStorage.removeItem("farmerToken");
+    localStorage.removeItem("farmer_data");
     toast.success("Logged out successfully");
     // Dispatch custom storage event to update navbar instantly
     window.dispatchEvent(new Event("storage"));
@@ -55,7 +56,7 @@ function FarmerDashboard() {
 
   // Route protection check and data fetching
   useEffect(() => {
-    const token = localStorage.getItem("farmer_token");
+    const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
     if (!token) {
       toast.error("Please login as a farmer to access the dashboard.");
       navigate("/farmer-login");
@@ -194,8 +195,8 @@ function FarmerDashboard() {
           </button>
 
           <button 
-            className={`nav-item ${activeTab === "profile" ? "active" : ""}`}
-            onClick={() => setActiveTab("profile")}
+            className="nav-item"
+            onClick={() => navigate("/farmer-profile")}
           >
             <User size={18} />
             <span>My Profile</span>
@@ -426,74 +427,7 @@ function FarmerDashboard() {
             </div>
           )}
 
-          {/* Tab 5: Profile */}
-          {activeTab === "profile" && (
-            <div className="tab-pane fade-in">
-              <div className="profile-details-grid">
-                
-                <div className="profile-detail-card glass-panel">
-                  <div className="profile-detail-header">
-                    <User size={22} className="header-icon" />
-                    <h3>FPO Registration Details</h3>
-                  </div>
-                  
-                  <div className="detail-rows">
-                    <div className="detail-row">
-                      <span className="label">Farmer Name / పేరు</span>
-                      <span className="value">{farmer.name}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">FPO Registration ID</span>
-                      <span className="value font-semibold text-primary">{farmer.farmerId}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">Mobile Number / ఫోన్</span>
-                      <span className="value">{farmer.phone}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">Gender</span>
-                      <span className="value">{farmer.gender || "-"}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">Aadhaar (Last 4 digits)</span>
-                      <span className="value">{farmer.aadhaarLast4 || "XXXX"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="profile-detail-card glass-panel">
-                  <div className="profile-detail-header">
-                    <MapPin size={22} className="header-icon" />
-                    <h3>Agricultural Land Details</h3>
-                  </div>
-                  
-                  <div className="detail-rows">
-                    <div className="detail-row">
-                      <span className="label">Village / గ్రామం</span>
-                      <span className="value">{farmer.village}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">Mandal / మండలం</span>
-                      <span className="value">{farmer.mandal || "-"}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">District / జిల్లా</span>
-                      <span className="value">{farmer.district || "-"}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">Land Holding (Acres)</span>
-                      <span className="value">{farmer.landHolding ? `${farmer.landHolding} Acres` : "-"}</span>
-                    </div>
-                    <div className="detail-row">
-                      <span className="label">Preferred Crop Type</span>
-                      <span className="value">{farmer.cropType || "-"}</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          )}
+          {/* Profile Tab Removed (redirected to /farmer-profile page) */}
 
         </div>
       </main>

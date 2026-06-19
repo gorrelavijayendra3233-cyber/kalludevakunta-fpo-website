@@ -3,22 +3,23 @@ const router = express.Router();
 const CropRequest = require("../models/CropRequest");
 const auth = require("../middleware/auth");
 const Notification = require("../models/Notification");
+const farmerAuth = require("../middleware/farmerAuth");
 
-router.post("/", async (req, res) => {
+router.post("/", farmerAuth, async (req, res) => {
   try {
-    const { cropName, quantity, price, farmerName, phone } = req.body;
+    const { cropName, quantity, price } = req.body;
 
-    if (!cropName || !quantity || !price || !farmerName || !phone) {
+    if (!cropName || !quantity || !price) {
       return res.status(400).json({
         success: false,
-        message: "Crop Name, Quantity, Price, Farmer Name, and Phone are required fields."
+        message: "Crop Name, Quantity, and Price are required fields."
       });
     }
 
     const crop = new CropRequest({
-      farmerId: "PUBLIC",
-      farmerName,
-      phone,
+      farmerId: req.farmer.farmerId,
+      farmerName: req.farmer.name,
+      phone: req.farmer.phone,
       cropName,
       quantity,
       price
