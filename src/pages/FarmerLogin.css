@@ -254,3 +254,9 @@
   text-decoration: underline;
   color: #22c55e;
 }
+
+.captcha-container {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0;
+}

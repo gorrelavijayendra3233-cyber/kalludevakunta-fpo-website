@@ -56,6 +56,7 @@ function FarmerRegister() {
           widgetId: "3666726a614e373435363130",
           tokenAuth: "533115TwHVe50C6a33c31eP1",
           exposeMethods: true,
+          captchaRenderId: "msg91-captcha-container",
           success: (data) => {
             console.log("MSG91 Widget Init Success", data);
           },
@@ -408,6 +409,8 @@ function FarmerRegister() {
               </select>
             </div>
           </div>
+
+          <div id="msg91-captcha-container" className="captcha-container"></div>
 
           {!otpSent && !otpVerified && (
             <button

@@ -19,7 +19,7 @@ const cleanPhone = (p) => {
 // POST /api/farmer/login
 router.post("/login", async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, otpToken } = req.body;
 
     if (!phone) {
       return res.status(400).json({
@@ -28,7 +28,59 @@ router.post("/login", async (req, res) => {
       });
     }
 
+    if (!otpToken) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP verification token is required."
+      });
+    }
+
+    // Verify access token with MSG91
+    const authKey = process.env.MSG91_AUTH_KEY || "533115AysFGtd672h56a33bd4dP1";
+    const response = await fetch("https://control.msg91.com/api/v5/widget/verifyAccessToken", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "authkey": authKey,
+        "access-token": otpToken
+      })
+    });
+
+    if (!response.ok) {
+      return res.status(400).json({
+        success: false,
+        message: `MSG91 server-side verification failed with status ${response.status}.`
+      });
+    }
+
+    const verifyData = await response.json();
+    if (verifyData.type !== "success" && verifyData.status !== "success") {
+      return res.status(400).json({
+        success: false,
+        message: verifyData.message || "Invalid or expired OTP access token."
+      });
+    }
+
+    // Extract verified phone number from MSG91 response
+    let extractedPhone = "";
+    if (typeof verifyData.data === "string") {
+      extractedPhone = verifyData.data;
+    } else if (verifyData.data && typeof verifyData.data === "object") {
+      extractedPhone = verifyData.data.mobile || verifyData.data.phone || "";
+    }
+
+    const cleanExtracted = cleanPhone(extractedPhone);
     const cleanNum = cleanPhone(phone);
+
+    if (cleanExtracted !== cleanNum) {
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number mismatch during verification."
+      });
+    }
+
     const farmer = await Farmer.findOne({ phone: cleanNum });
     if (!farmer) {
       return res.status(404).json({

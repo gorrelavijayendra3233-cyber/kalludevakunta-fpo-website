@@ -36,6 +36,7 @@ function FarmerLogin() {
           widgetId: "3666726a614e373435363130",
           tokenAuth: "533115TwHVe50C6a33c31eP1",
           exposeMethods: true,
+          captchaRenderId: "msg91-captcha-container",
           success: (data) => {
             console.log("MSG91 Widget Init Success", data);
           },
@@ -118,6 +119,7 @@ function FarmerLogin() {
     e.preventDefault();
     if (isVerifying) return;
 
+    const normalizedPhone = cleanPhone(phone);
     if (!/^\d{6}$/.test(otp)) {
       toast.error("OTP must be a 6-digit verification code.");
       return;
@@ -133,14 +135,14 @@ function FarmerLogin() {
         throw new Error("Failed to retrieve OTP access token.");
       }
 
-      // Call backend to verify MSG91 access token and login
-      const response = await fetch(`${API_BASE}/farmer/verify-msg91`, {
+      // Call backend: POST /api/farmer/login
+      const response = await fetch(`${API_BASE}/farmer/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          action: "login",
+          phone: normalizedPhone,
           otpToken: tokenVal
         }),
       });
@@ -195,6 +197,8 @@ function FarmerLogin() {
               </div>
               <span className="input-hint">Must be registered with the FPO.</span>
             </div>
+
+            <div id="msg91-captcha-container" className="captcha-container"></div>
 
             <button type="submit" className="login-submit-btn" disabled={loading}>
               {loading ? "Sending OTP..." : "Request OTP Code"}
