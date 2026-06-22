@@ -19,19 +19,27 @@ const cleanPhone = (p) => {
 // POST /api/farmer/login
 router.post("/login", async (req, res) => {
   try {
+    // 3. Add logging at the top:
+    console.log("LOGIN BODY:", req.body);
+
     const { phone, otpToken } = req.body;
 
+    // 4. Log:
+    console.log("PHONE:", phone);
+    console.log("OTP TOKEN:", otpToken);
+
+    // 7. Before any validation add:
     if (!phone) {
       return res.status(400).json({
         success: false,
-        message: "Phone number is required."
+        message: "phone missing"
       });
     }
 
     if (!otpToken) {
       return res.status(400).json({
         success: false,
-        message: "OTP verification token is required."
+        message: "otpToken missing"
       });
     }
 
@@ -56,8 +64,10 @@ router.post("/login", async (req, res) => {
     }
 
     const verifyData = await response.json();
-    const verifyResponse = { data: verifyData };
-    console.log("MSG91 Verify Response:", verifyResponse.data);
+    response.data = verifyData;
+
+    // 8. Log full MSG91 verification response:
+    console.log("MSG91 VERIFY:", response.data);
 
     if (verifyData.type !== "success" && verifyData.status !== "success") {
       return res.status(400).json({
@@ -80,15 +90,19 @@ router.post("/login", async (req, res) => {
     if (cleanExtracted !== cleanNum) {
       return res.status(400).json({
         success: false,
-        message: "Mobile number mismatch during verification."
+        message: `Mobile number mismatch during verification. Extracted: ${cleanExtracted}, Submitted: ${cleanNum}`
       });
     }
 
+    // 9. Log farmer lookup:
+    console.log("Searching farmer:", phone);
+
     const farmer = await Farmer.findOne({ phone: cleanNum });
     if (!farmer) {
+      // 10. If farmer not found:
       return res.status(404).json({
         success: false,
-        message: "Farmer not registered. Please register first."
+        message: "Farmer not found"
       });
     }
 
@@ -107,16 +121,25 @@ router.post("/login", async (req, res) => {
     }
     await farmer.save();
 
-    // Sign JWT token with 30-day expiration
-    const token = jwt.sign(
-      {
-        farmerId: farmer._id
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "30d"
-      }
-    );
+    let token;
+    try {
+      // Sign JWT token with 30-day expiration
+      token = jwt.sign(
+        {
+          farmerId: farmer._id
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "30d"
+        }
+      );
+    } catch (jwtErr) {
+      // 11. If JWT creation fails, return actual error.
+      return res.status(500).json({
+        success: false,
+        message: `JWT creation failed: ${jwtErr.message}`
+      });
+    }
 
     res.json({
       success: true,
