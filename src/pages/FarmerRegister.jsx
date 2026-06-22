@@ -143,7 +143,7 @@ function FarmerRegister() {
       otp,
       (res) => {
         setLoading(false);
-        const tokenVal = typeof res === "string" ? res : (res?.access_token || res?.token || res?.data);
+        const tokenVal = typeof res === "string" ? res : (res?.message || res?.access_token || res?.token || res?.data);
         if (!tokenVal) {
           toast.error("Failed to retrieve OTP access token.");
           return;
