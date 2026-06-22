@@ -65,26 +65,21 @@ const cropSaleSchema = new mongoose.Schema(
   }
 );
 
-cropSaleSchema.pre("save", async function (next) {
+cropSaleSchema.pre("save", async function () {
   // Automatically calculate estimated value
   this.estimatedValue = this.quantity * this.expectedPrice;
 
   if (this.isNew) {
-    try {
-      const lastSale = await this.constructor.findOne().sort({ cropSaleId: -1 });
-      let nextIdNumber = 1;
-      if (lastSale && lastSale.cropSaleId) {
-        const match = lastSale.cropSaleId.match(/CS(\d+)/);
-        if (match) {
-          nextIdNumber = parseInt(match[1], 10) + 1;
-        }
+    const lastSale = await this.constructor.findOne().sort({ cropSaleId: -1 });
+    let nextIdNumber = 1;
+    if (lastSale && lastSale.cropSaleId) {
+      const match = lastSale.cropSaleId.match(/CS(\d+)/);
+      if (match) {
+        nextIdNumber = parseInt(match[1], 10) + 1;
       }
-      this.cropSaleId = `CS${String(nextIdNumber).padStart(3, "0")}`;
-    } catch (err) {
-      return next(err);
     }
+    this.cropSaleId = `CS${String(nextIdNumber).padStart(3, "0")}`;
   }
-  next();
 });
 
 module.exports = mongoose.model("CropSale", cropSaleSchema);
