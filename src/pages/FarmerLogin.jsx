@@ -189,6 +189,8 @@ function FarmerLogin() {
           <p className="subtitle">రైతు లాగిన్ — Access crop selling, machinery booking, and order history</p>
         </div>
 
+        <div id="msg91-captcha-container" className="captcha-container"></div>
+
         {step === 1 ? (
           <form onSubmit={handleSendOtp} className="login-form">
             <div className="input-group">
@@ -208,8 +210,6 @@ function FarmerLogin() {
               </div>
               <span className="input-hint">Must be registered with the FPO.</span>
             </div>
-
-            <div id="msg91-captcha-container" className="captcha-container"></div>
 
             <button type="submit" className="login-submit-btn" disabled={loading}>
               {loading ? "Sending OTP..." : "Request OTP Code"}
