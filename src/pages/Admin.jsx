@@ -10,7 +10,6 @@ import {
   Menu,
   X,
   Sun,
-  Moon,
   Search,
   RefreshCw,
   Lock,
@@ -182,9 +181,7 @@ function Admin() {
   const [selectedItem, setSelectedItem] = useState(null);
 
   // ── Theme State ──
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("fpo_admin_theme") || "dark";
-  });
+  const [theme, setTheme] = useState("dark");
 
   // ── Search States ──
   const [searchContact, setSearchContact] = useState("");
@@ -2463,13 +2460,6 @@ const handleDelete = async (type, id) => {
 
             <button className="sync-btn" title="Reload Database" onClick={fetchData} disabled={loading}>
               <RefreshCw size={16} className={loading ? "spin" : ""} />
-            </button>
-            <button 
-              className="theme-toggle" 
-              title="Toggle theme mode"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
             <button 
