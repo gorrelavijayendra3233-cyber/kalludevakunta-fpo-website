@@ -69,6 +69,15 @@ router.post("/login", async (req, res) => {
     // 8. Log full MSG91 verification response:
     console.log("MSG91 VERIFY:", response.data);
 
+    // Write raw response to file for diagnostics
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      fs.writeFileSync(path.join(__dirname, "../msg91_verify_raw.json"), JSON.stringify(verifyData, null, 2));
+    } catch (fsErr) {
+      console.error("Write raw response error:", fsErr);
+    }
+
     if (verifyData.type !== "success" && verifyData.status !== "success") {
       return res.status(400).json({
         success: false,
@@ -78,10 +87,20 @@ router.post("/login", async (req, res) => {
 
     // Extract verified phone number from MSG91 response
     let extractedPhone = "";
-    if (typeof verifyData.data === "string") {
-      extractedPhone = verifyData.data;
-    } else if (verifyData.data && typeof verifyData.data === "object") {
-      extractedPhone = verifyData.data.mobile || verifyData.data.phone || "";
+    if (verifyData.message && typeof verifyData.message === "string" && /^\d+$/.test(verifyData.message)) {
+      extractedPhone = verifyData.message;
+    } else if (verifyData.mobile) {
+      extractedPhone = verifyData.mobile;
+    } else if (verifyData.phone) {
+      extractedPhone = verifyData.phone;
+    } else if (verifyData.phone_number) {
+      extractedPhone = verifyData.phone_number;
+    } else if (verifyData.data) {
+      if (typeof verifyData.data === "string") {
+        extractedPhone = verifyData.data;
+      } else if (typeof verifyData.data === "object") {
+        extractedPhone = verifyData.data.mobile || verifyData.data.phone || verifyData.data.phone_number || "";
+      }
     }
 
     const cleanExtracted = cleanPhone(extractedPhone);
@@ -90,7 +109,7 @@ router.post("/login", async (req, res) => {
     if (cleanExtracted !== cleanNum) {
       return res.status(400).json({
         success: false,
-        message: `Mobile number mismatch during verification. Extracted: ${cleanExtracted}, Submitted: ${cleanNum}`
+        message: `Mobile number mismatch during verification. Extracted: '${cleanExtracted}', Submitted: '${cleanNum}'. Raw: ${JSON.stringify(verifyData)}`
       });
     }
 
@@ -292,10 +311,20 @@ router.post("/verify-msg91", async (req, res) => {
     }
 
     let extractedPhone = "";
-    if (typeof verifyData.data === "string") {
-      extractedPhone = verifyData.data;
-    } else if (verifyData.data && typeof verifyData.data === "object") {
-      extractedPhone = verifyData.data.mobile || verifyData.data.phone || "";
+    if (verifyData.message && typeof verifyData.message === "string" && /^\d+$/.test(verifyData.message)) {
+      extractedPhone = verifyData.message;
+    } else if (verifyData.mobile) {
+      extractedPhone = verifyData.mobile;
+    } else if (verifyData.phone) {
+      extractedPhone = verifyData.phone;
+    } else if (verifyData.phone_number) {
+      extractedPhone = verifyData.phone_number;
+    } else if (verifyData.data) {
+      if (typeof verifyData.data === "string") {
+        extractedPhone = verifyData.data;
+      } else if (typeof verifyData.data === "object") {
+        extractedPhone = verifyData.data.mobile || verifyData.data.phone || verifyData.data.phone_number || "";
+      }
     }
 
     const cleanExtracted = cleanPhone(extractedPhone);
