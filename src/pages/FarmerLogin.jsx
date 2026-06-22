@@ -140,8 +140,7 @@ function FarmerLogin() {
               verificationResult?.data
             );
 
-      console.log("MSG91 VERIFY RESPONSE:", verificationResult);
-      console.log("MSG91 TOKEN:", tokenVal);
+      
 
       if (!tokenVal) {
         throw new Error("Failed to retrieve OTP access token.");

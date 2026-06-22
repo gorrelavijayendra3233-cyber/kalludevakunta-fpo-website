@@ -679,6 +679,39 @@
   box-shadow: 0 4px 12px rgba(255, 82, 82, 0.3);
 }
 
+.action-btn.approve {
+  color: #10b981;
+}
+
+.action-btn.approve:hover {
+  color: #ffffff;
+  border-color: #10b981;
+  background: #10b981;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.action-btn.reject {
+  color: #ef4444;
+}
+
+.action-btn.reject:hover {
+  color: #ffffff;
+  border-color: #ef4444;
+  background: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.action-btn.complete {
+  color: #3b82f6;
+}
+
+.action-btn.complete:hover {
+  color: #ffffff;
+  border-color: #3b82f6;
+  background: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
 /* ── Settings Tab ── */
 .settings-wrapper {
   padding: 2rem;

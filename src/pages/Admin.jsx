@@ -26,7 +26,9 @@ import {
   Coins,
   ShoppingCart,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Check,
+  Ban
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
@@ -99,6 +101,13 @@ function Admin() {
   const [crops, setCrops] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [farmers, setFarmers] = useState([]);
+  
+  // Crop Sales module custom filters & reject state
+  const [cropStatusFilter, setCropStatusFilter] = useState("All");
+  const [cropTimeframeFilter, setCropTimeframeFilter] = useState("all");
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectCropId, setRejectCropId] = useState("");
+  const [rejectRemarks, setRejectRemarks] = useState("");
 
   // ── Farmers Module States ──
   const [showFarmerModal, setShowFarmerModal] = useState(false);
@@ -341,7 +350,7 @@ function Admin() {
       const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes, equipmentsRes] =
         await Promise.all([
           fetch(`${API_BASE}/contact`, { headers: getAuthHeaders(), signal }),
-          fetch(`${API_BASE}/crops`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/crop-sales`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/bookings`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/farmers`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/products`, { headers: getAuthHeaders(), signal }),
@@ -629,7 +638,7 @@ const handleDelete = async (type, id) => {
     return;
   }
 
-  const endpoint = type === "contacts" ? "contact" : type;
+  const endpoint = type === "contacts" ? "contact" : type === "crops" ? "crop-sales" : type;
 
   try {
     const response = await fetch(
@@ -667,6 +676,107 @@ const handleDelete = async (type, id) => {
     toast.error("Failed to delete record.");
   }
 };
+
+  // ── Crop Request Actions ──
+  const handleApproveCrop = async (id) => {
+    if (!window.confirm("Are you sure you want to approve this crop sale request?")) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/crop-sales/${id}/approve`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+      const data = response.ok ? await response.json() : null;
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Approval failed.");
+      }
+      toast.success("Crop sale request approved.");
+      fetchData();
+      if (selectedItem && selectedItem.data._id === id) {
+        setSelectedItem(prev => ({ ...prev, data: { ...prev.data, status: "Approved" } }));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to approve request.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectCrop = async (id, remarks) => {
+    if (!remarks || !remarks.trim()) {
+      toast.error("Please provide rejection remarks.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/crop-sales/${id}/reject`, {
+        method: "PUT",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ remarks }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+      const data = response.ok ? await response.json() : null;
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Rejection failed.");
+      }
+      toast.success("Crop sale request rejected.");
+      fetchData();
+      if (selectedItem && selectedItem.data._id === id) {
+        setSelectedItem(prev => ({ ...prev, data: { ...prev.data, status: "Rejected", adminRemarks: remarks } }));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to reject request.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompleteCrop = async (id) => {
+    if (!window.confirm("Are you sure you want to mark this crop sale request as completed?")) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/crop-sales/${id}/complete`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+      const data = response.ok ? await response.json() : null;
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Completion failed.");
+      }
+      toast.success("Crop sale request marked as completed.");
+      fetchData();
+      if (selectedItem && selectedItem.data._id === id) {
+        setSelectedItem(prev => ({ ...prev, data: { ...prev.data, status: "Completed" } }));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to complete request.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ── Farmer CRUD Handlers ──
   const handleFarmerSubmit = async (e) => {
@@ -1647,14 +1757,19 @@ const handleDelete = async (type, id) => {
         item.date || (item.createdAt ? item.createdAt.substring(0, 10) : "")
       ]);
     } else if (type === "crops") {
-      headers = ["Farmer Name", "Crop Name", "Quantity (Qtls)", "Expected Price (per Qtl)", "Phone Number", "Date"];
+      headers = ["Request ID", "Farmer Name", "Phone Number", "Village", "Crop Name", "Quantity", "Unit", "Expected Price", "Estimated Value", "Status", "Date"];
       rows = dataList.map(item => [
+        item.cropSaleId || "CS---",
         item.farmerName || "",
+        item.phone || "",
+        item.village || "",
         item.cropName || "",
         item.quantity || 0,
-        item.price || 0,
-        item.phone || "",
-        item.date || (item.createdAt ? item.createdAt.substring(0, 10) : "")
+        item.unit || "Qtls",
+        item.expectedPrice || item.price || 0,
+        item.estimatedValue || (item.quantity * (item.expectedPrice || item.price || 0)),
+        item.status || "Pending",
+        item.submittedAt ? new Date(item.submittedAt).toLocaleDateString("en-IN") : (item.createdAt ? new Date(item.createdAt).toLocaleDateString("en-IN") : "")
       ]);
     } else if (type === "bookings") {
       headers = ["Farmer Name", "Equipment Name", "Booking Date", "Duration", "Phone Number", "Status"];
@@ -1908,6 +2023,24 @@ const handleDelete = async (type, id) => {
     };
   };
 
+  const getCropSalesStatusChartData = () => {
+    const pending = crops.filter(c => c.status === "Pending" || !c.status).length;
+    const approved = crops.filter(c => c.status === "Approved").length;
+    const rejected = crops.filter(c => c.status === "Rejected").length;
+    const completed = crops.filter(c => c.status === "Completed").length;
+
+    return {
+      labels: ["Pending", "Approved", "Rejected", "Completed"],
+      datasets: [
+        {
+          data: [pending, approved, rejected, completed],
+          backgroundColor: ["#f9a825", "#2e7d32", "#c62828", "#1565c0"],
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+
   const getChartOptions = (title) => {
     const isLight = theme === "light";
     const textColor = isLight ? "#2e3b2e" : "#e0e7e1";
@@ -2034,11 +2167,38 @@ const handleDelete = async (type, id) => {
 
   const filteredCrops = crops.filter(cr => {
     const term = searchCrop.toLowerCase();
-    return (
+    const matchesSearch = (
       (cr.farmerName || "").toLowerCase().includes(term) ||
       (cr.cropName || "").toLowerCase().includes(term) ||
-      (cr.phone || "").includes(term)
+      (cr.phone || "").includes(term) ||
+      (cr.cropSaleId || "").toLowerCase().includes(term) ||
+      (cr.village || "").toLowerCase().includes(term)
     );
+
+    const matchesStatus = cropStatusFilter === "All" || cr.status === cropStatusFilter;
+
+    let matchesTimeframe = true;
+    if (cropTimeframeFilter !== "all") {
+      const date = new Date(cr.submittedAt || cr.createdAt);
+      const now = new Date();
+      if (cropTimeframeFilter === "today") {
+        const todayStart = new Date();
+        todayStart.setHours(0,0,0,0);
+        matchesTimeframe = date >= todayStart;
+      } else if (cropTimeframeFilter === "week") {
+        const weekStart = new Date();
+        weekStart.setDate(now.getDate() - 7);
+        weekStart.setHours(0,0,0,0);
+        matchesTimeframe = date >= weekStart;
+      } else if (cropTimeframeFilter === "month") {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0,0,0,0);
+        matchesTimeframe = date >= monthStart;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesTimeframe;
   });
 
   const filteredBookings = bookings.filter(b => {
@@ -2758,16 +2918,57 @@ const handleDelete = async (type, id) => {
                     <h2 className="module-title">Crop Sales Requests</h2>
                     <p className="module-description">Review crop selling proposals submitted by farmers for purchase approval.</p>
                   </div>
-                  <div className="pane-header-actions">
-                    <div className="search-bar-wrapper">
-                      <Search size={16} />
-                      <input 
-                        type="text" 
-                        placeholder="Search by farmer, crop, phone..." 
-                        value={searchCropInput}
-                        onChange={(e) => setSearchCropInput(e.target.value)}
-                      />
+                  <div className="pane-header-actions" style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center", flex: 1 }}>
+                      <div className="search-bar-wrapper">
+                        <Search size={16} />
+                        <input 
+                          type="text" 
+                          placeholder="Search by farmer, crop, ID, village..." 
+                          value={searchCropInput}
+                          onChange={(e) => setSearchCropInput(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Filters Group */}
+                      <div className="filter-group-wrapper" style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+                        <div className="filter-select-wrapper" style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--admin-panel-bg)", border: "1px solid var(--admin-panel-border)", borderRadius: "12px", padding: "0 12px", height: "44px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", fontWeight: "600" }}>Status:</span>
+                          <select 
+                            value={cropStatusFilter}
+                            onChange={(e) => {
+                              setCropStatusFilter(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                            style={{ background: "transparent", border: "none", color: "var(--admin-text-primary)", fontWeight: "600", outline: "none", cursor: "pointer", fontSize: "13px" }}
+                          >
+                            <option value="All" style={{ background: "#07140a", color: "#fff" }}>All</option>
+                            <option value="Pending" style={{ background: "#07140a", color: "#fff" }}>Pending</option>
+                            <option value="Approved" style={{ background: "#07140a", color: "#fff" }}>Approved</option>
+                            <option value="Rejected" style={{ background: "#07140a", color: "#fff" }}>Rejected</option>
+                            <option value="Completed" style={{ background: "#07140a", color: "#fff" }}>Completed</option>
+                          </select>
+                        </div>
+
+                        <div className="filter-select-wrapper" style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--admin-panel-bg)", border: "1px solid var(--admin-panel-border)", borderRadius: "12px", padding: "0 12px", height: "44px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", fontWeight: "600" }}>Timeframe:</span>
+                          <select 
+                            value={cropTimeframeFilter}
+                            onChange={(e) => {
+                              setCropTimeframeFilter(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                            style={{ background: "transparent", border: "none", color: "var(--admin-text-primary)", fontWeight: "600", outline: "none", cursor: "pointer", fontSize: "13px" }}
+                          >
+                            <option value="all" style={{ background: "#07140a", color: "#fff" }}>All Time</option>
+                            <option value="today" style={{ background: "#07140a", color: "#fff" }}>Today</option>
+                            <option value="week" style={{ background: "#07140a", color: "#fff" }}>This Week</option>
+                            <option value="month" style={{ background: "#07140a", color: "#fff" }}>This Month</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
+
                     <button 
                       className="btn-action primary" 
                       onClick={() => exportCSV("crops", filteredCrops)}
@@ -2792,25 +2993,37 @@ const handleDelete = async (type, id) => {
                         <table className="admin-table">
                           <thead>
                             <tr>
+                              <th>Request ID</th>
                               <th>Farmer Name</th>
+                              <th>Village</th>
                               <th>Crop Name</th>
-                              <th>Quantity (Qtls)</th>
+                              <th>Quantity</th>
                               <th>Expected Price</th>
-                              <th>Phone Number</th>
+                              <th>Estimated Value</th>
+                              <th>Phone</th>
+                              <th>Status</th>
                               <th>Date</th>
                               <th className="text-right">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
                             {paginatedCrops.map(cr => {
-                              const dateStr = cr.date || (cr.createdAt ? cr.createdAt.substring(0, 10) : "");
+                              const dateStr = cr.submittedAt ? new Date(cr.submittedAt).toLocaleDateString() : (cr.createdAt ? new Date(cr.createdAt).toLocaleDateString() : "");
                               return (
                                 <tr key={cr._id}>
+                                  <td className="font-semibold" data-label="Request ID">{cr.cropSaleId || "N/A"}</td>
                                   <td className="font-semibold" data-label="Farmer Name">{cr.farmerName}</td>
-                                  <td className="text-accent" data-label="Crop Name">{cr.cropName}</td>
-                                  <td data-label="Quantity">{cr.quantity}</td>
-                                  <td data-label="Price">₹{cr.price} / Qtl</td>
+                                  <td data-label="Village">{cr.village || "N/A"}</td>
+                                  <td className="text-accent font-semibold" data-label="Crop Name">{cr.cropName}</td>
+                                  <td data-label="Quantity">{cr.quantity} {cr.unit || "Quintals"}</td>
+                                  <td data-label="Expected Price">₹{cr.expectedPrice}</td>
+                                  <td className="text-accent font-semibold" data-label="Estimated Value">₹{cr.estimatedValue || (cr.quantity * cr.expectedPrice)}</td>
                                   <td data-label="Phone">{cr.phone}</td>
+                                  <td data-label="Status">
+                                    <span className={getStatusBadgeClass(cr.status)}>
+                                      {cr.status}
+                                    </span>
+                                  </td>
                                   <td data-label="Date">{dateStr}</td>
                                   <td className="text-right" data-label="Actions">
                                     <div className="action-button-group">
@@ -2823,6 +3036,43 @@ const handleDelete = async (type, id) => {
                                       >
                                         <Eye size={15} />
                                       </button>
+                                      {cr.status === "Pending" && (
+                                        <>
+                                          <button 
+                                            className="action-btn approve" 
+                                            title="Approve Request"
+                                            onClick={() => handleApproveCrop(cr._id)}
+                                            tabIndex={0}
+                                            aria-label="Approve Request"
+                                          >
+                                            <Check size={15} />
+                                          </button>
+                                          <button 
+                                            className="action-btn reject" 
+                                            title="Reject Request"
+                                            onClick={() => {
+                                              setRejectCropId(cr._id);
+                                              setRejectRemarks("");
+                                              setShowRejectModal(true);
+                                            }}
+                                            tabIndex={0}
+                                            aria-label="Reject Request"
+                                          >
+                                            <Ban size={15} />
+                                          </button>
+                                        </>
+                                      )}
+                                      {cr.status === "Approved" && (
+                                        <button 
+                                          className="action-btn complete" 
+                                          title="Mark Completed"
+                                          onClick={() => handleCompleteCrop(cr._id)}
+                                          tabIndex={0}
+                                          aria-label="Mark Completed"
+                                        >
+                                          <CheckCircle size={15} />
+                                        </button>
+                                      )}
                                       <button 
                                         className="action-btn delete" 
                                         title="Delete record"
@@ -3845,6 +4095,9 @@ const handleDelete = async (type, id) => {
                     <div className="chart-wrapper glass-panel" style={{ height: "300px", padding: "16px" }}>
                       <Doughnut data={getInventoryStatusChartData()} options={getPieOptions("Inventory Status")} />
                     </div>
+                    <div className="chart-wrapper glass-panel" style={{ height: "300px", padding: "16px" }}>
+                      <Doughnut data={getCropSalesStatusChartData()} options={getPieOptions("Crop Sales Request Status")} />
+                    </div>
                   </div>
 
                   {/* Analytics Insights Grid */}
@@ -4273,32 +4526,151 @@ const handleDelete = async (type, id) => {
               )}
 
               {selectedItem.type === "crop" && (
-                <div className="details-list">
-                  <div className="detail-item">
-                    <span className="label">Farmer Name:</span>
-                    <span className="value font-semibold">{selectedItem.data.farmerName}</span>
+                <>
+                  <div className="details-list">
+                    <div className="detail-item">
+                      <span className="label">Request ID:</span>
+                      <span className="value font-semibold">{selectedItem.data.cropSaleId || "N/A"}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Farmer Name:</span>
+                      <span className="value font-semibold">{selectedItem.data.farmerName}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Village:</span>
+                      <span className="value">{selectedItem.data.village || "N/A"}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Crop Name:</span>
+                      <span className="value text-accent font-semibold">{selectedItem.data.cropName}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Quantity Offered:</span>
+                      <span className="value">{selectedItem.data.quantity} {selectedItem.data.unit || "Quintals"}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Expected Price:</span>
+                      <span className="value">₹{selectedItem.data.expectedPrice} per {selectedItem.data.unit || "Quintals"}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Estimated Value:</span>
+                      <span className="value text-accent font-semibold">₹{selectedItem.data.estimatedValue || (selectedItem.data.quantity * selectedItem.data.expectedPrice)}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Phone Number:</span>
+                      <span className="value">{selectedItem.data.phone}</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Approval Status:</span>
+                      <span className={`value ${getStatusBadgeClass(selectedItem.data.status || "Pending")}`}>
+                        {selectedItem.data.status || "Pending"}
+                      </span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="label">Submitted Date:</span>
+                      <span className="value">{selectedItem.data.submittedAt ? new Date(selectedItem.data.submittedAt).toLocaleString() : (selectedItem.data.createdAt ? new Date(selectedItem.data.createdAt).toLocaleString() : "N/A")}</span>
+                    </div>
+                    {selectedItem.data.approvedAt && (
+                      <div className="detail-item">
+                        <span className="label">Approved Date:</span>
+                        <span className="value">{new Date(selectedItem.data.approvedAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {selectedItem.data.description && (
+                      <div className="detail-item full-width">
+                        <span className="label">Description / Harvest Details:</span>
+                        <span className="value text-block">{selectedItem.data.description}</span>
+                      </div>
+                    )}
+                    {selectedItem.data.adminRemarks && (
+                      <div className="detail-item full-width" style={{ borderLeft: "4px solid var(--admin-danger, #ef4444)", paddingLeft: "12px", background: "rgba(239, 68, 68, 0.05)" }}>
+                        <span className="label" style={{ color: "var(--admin-danger, #ef4444)" }}>Admin Remarks / Rejection Reason:</span>
+                        <span className="value text-block font-semibold">{selectedItem.data.adminRemarks}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Crop Name:</span>
-                    <span className="value text-accent">{selectedItem.data.cropName}</span>
+
+                  {/* Status Timeline */}
+                  <div className="timeline-wrapper" style={{ marginTop: "24px", padding: "20px", background: "rgba(255,255,255,0.02)", borderRadius: "12px", border: "1px dashed rgba(255,255,255,0.08)" }}>
+                    <span className="label" style={{ display: "block", marginBottom: "16px", fontWeight: "600", fontSize: "13px", color: "var(--admin-text-secondary)" }}>Request Timeline:</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", position: "relative", padding: "0 15px" }}>
+                      {/* Line behind steps */}
+                      <div style={{
+                        position: "absolute",
+                        top: "14px",
+                        left: "12%",
+                        right: "12%",
+                        height: "3px",
+                        background: "rgba(255, 255, 255, 0.1)",
+                        zIndex: 0
+                      }}>
+                        <div style={{
+                          height: "100%",
+                          width: selectedItem.data.status === "Completed" ? "100%" : selectedItem.data.status === "Approved" ? "50%" : "0%",
+                          background: selectedItem.data.status === "Rejected" ? "#ef4444" : "var(--admin-accent-blue, #3b82f6)",
+                          transition: "width 0.3s ease"
+                        }} />
+                      </div>
+
+                      {/* Step 1: Submitted */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1, position: "relative" }}>
+                        <div style={{
+                          width: "30px",
+                          height: "30px",
+                          borderRadius: "50%",
+                          background: "#2e7d32",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontWeight: "bold",
+                          fontSize: "12px"
+                        }}>✓</div>
+                        <span style={{ fontSize: "11px", marginTop: "6px", color: "var(--admin-text-primary)", fontWeight: "500" }}>Submitted</span>
+                      </div>
+
+                      {/* Step 2: Approved / Rejected */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1, position: "relative" }}>
+                        <div style={{
+                          width: "30px",
+                          height: "30px",
+                          borderRadius: "50%",
+                          background: selectedItem.data.status === "Rejected" ? "#ef4444" : (["Approved", "Completed"].includes(selectedItem.data.status) ? "#2e7d32" : "#424242"),
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontWeight: "bold",
+                          fontSize: "12px"
+                        }}>
+                          {selectedItem.data.status === "Rejected" ? "✗" : (["Approved", "Completed"].includes(selectedItem.data.status) ? "✓" : "2")}
+                        </div>
+                        <span style={{ fontSize: "11px", marginTop: "6px", color: selectedItem.data.status === "Rejected" ? "#ef4444" : (["Approved", "Completed"].includes(selectedItem.data.status) ? "var(--admin-text-primary)" : "var(--admin-text-secondary)"), fontWeight: "500" }}>
+                          {selectedItem.data.status === "Rejected" ? "Rejected" : "Approved"}
+                        </span>
+                      </div>
+
+                      {/* Step 3: Completed */}
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1, position: "relative" }}>
+                        <div style={{
+                          width: "30px",
+                          height: "30px",
+                          borderRadius: "50%",
+                          background: selectedItem.data.status === "Completed" ? "#2e7d32" : "#424242",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#fff",
+                          fontWeight: "bold",
+                          fontSize: "12px"
+                        }}>
+                          {selectedItem.data.status === "Completed" ? "✓" : "3"}
+                        </div>
+                        <span style={{ fontSize: "11px", marginTop: "6px", color: selectedItem.data.status === "Completed" ? "var(--admin-text-primary)" : "var(--admin-text-secondary)", fontWeight: "500" }}>Completed</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="detail-item">
-                    <span className="label">Quantity Offered:</span>
-                    <span className="value">{selectedItem.data.quantity} Quintals</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Expected Price:</span>
-                    <span className="value">₹{selectedItem.data.price} per Qtl</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Phone Number:</span>
-                    <span className="value">{selectedItem.data.phone}</span>
-                  </div>
-                  <div className="detail-item">
-                    <span className="label">Submitted Date:</span>
-                    <span className="value">{selectedItem.data.date || selectedItem.data.createdAt?.substring(0, 10)}</span>
-                  </div>
-                </div>
+                </>
               )}
 
               {selectedItem.type === "booking" && (
@@ -4340,6 +4712,55 @@ const handleDelete = async (type, id) => {
                 onClick={() => handleDelete(selectedItem.type === "contact" ? "contacts" : selectedItem.type === "crop" ? "crops" : "bookings", selectedItem.data._id)}
               >
                 Delete Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Remarks Modal */}
+      {showRejectModal && (
+        <div className="modal-overlay" onClick={() => setShowRejectModal(false)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+            <div className="modal-header">
+              <h3>Provide Rejection Remarks</h3>
+              <button className="modal-close-btn" onClick={() => setShowRejectModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: "20px" }}>
+              <p style={{ fontSize: "14px", color: "var(--admin-text-secondary)", marginBottom: "12px" }}>
+                Please enter the reason for rejecting this crop sales request. The farmer will be notified.
+              </p>
+              <textarea
+                value={rejectRemarks}
+                onChange={(e) => setRejectRemarks(e.target.value)}
+                placeholder="Enter rejection reason (e.g., Price too high, Quality concerns, Quantity limit exceeded)..."
+                rows={4}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  background: "var(--admin-panel-bg)",
+                  border: "1px solid var(--admin-panel-border)",
+                  borderRadius: "8px",
+                  color: "var(--admin-text-primary)",
+                  outline: "none",
+                  resize: "vertical",
+                  fontSize: "14px"
+                }}
+              />
+            </div>
+            <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button className="btn-modal-close" onClick={() => setShowRejectModal(false)}>Cancel</button>
+              <button
+                className="btn-modal-delete"
+                style={{ background: "#ef4444", color: "#fff", borderColor: "#ef4444" }}
+                onClick={() => {
+                  handleRejectCrop(rejectCropId, rejectRemarks);
+                  setShowRejectModal(false);
+                }}
+              >
+                Submit Rejection
               </button>
             </div>
           </div>

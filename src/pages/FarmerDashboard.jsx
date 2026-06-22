@@ -15,7 +15,8 @@ import {
   CheckCircle,
   AlertTriangle,
   XCircle,
-  Coins
+  Coins,
+  Bell
 } from "lucide-react";
 import toast from "react-hot-toast";
 import "./FarmerDashboard.css";
@@ -30,6 +31,8 @@ function FarmerDashboard() {
   const [cropRequests, setCropRequests] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
   
   const navigate = useNavigate();
@@ -80,16 +83,18 @@ function FarmerDashboard() {
         const profileData = await profileRes.json();
         setFarmer(profileData.farmer);
 
-        // Fetch user transaction history
-        const [cropsRes, bookingsRes, ordersRes] = await Promise.all([
+        // Fetch user transaction history and notifications
+        const [cropsRes, bookingsRes, ordersRes, notifsRes] = await Promise.all([
           fetch(`${API_BASE}/farmer/crop-requests`, { headers }),
           fetch(`${API_BASE}/farmer/bookings`, { headers }),
-          fetch(`${API_BASE}/farmer/orders`, { headers })
+          fetch(`${API_BASE}/farmer/orders`, { headers }),
+          fetch(`${API_BASE}/farmer/notifications`, { headers })
         ]);
 
         if (cropsRes.status === 401 || cropsRes.status === 403 ||
             bookingsRes.status === 401 || bookingsRes.status === 403 ||
-            ordersRes.status === 401 || ordersRes.status === 403) {
+            ordersRes.status === 401 || ordersRes.status === 403 ||
+            notifsRes.status === 401 || notifsRes.status === 403) {
           handleLogout();
           return;
         }
@@ -97,6 +102,7 @@ function FarmerDashboard() {
         if (cropsRes.ok) setCropRequests(await cropsRes.json());
         if (bookingsRes.ok) setBookings(await bookingsRes.json());
         if (ordersRes.ok) setOrders(await ordersRes.json());
+        if (notifsRes.ok) setNotifications(await notifsRes.json());
 
       } catch (error) {
         console.error(error);
@@ -109,6 +115,41 @@ function FarmerDashboard() {
     fetchFarmerData();
   }, [navigate]);
 
+  const handleMarkAsRead = async (id) => {
+    const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/farmer/notifications/${id}/read`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true, isRead: true } : n));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/farmer/notifications/read-all`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true, isRead: true })));
+        toast.success("All notifications marked as read.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const getStatusClass = (status) => {
     const s = String(status || "").toLowerCase().trim();
     if (["confirmed", "active", "success", "completed", "approved"].includes(s)) {
@@ -117,7 +158,7 @@ function FarmerDashboard() {
     if (["pending", "warning", "low stock"].includes(s)) {
       return "badge-status warning";
     }
-    return "badge-status danger"; // Cancelled, inactive, failed
+    return "badge-status danger"; // Cancelled, inactive, failed, rejected
   };
 
   const formatLastLogin = (dateString) => {
@@ -171,8 +212,8 @@ function FarmerDashboard() {
           </button>
 
           <button 
-            className={`nav-item ${activeTab === "crops" ? "active" : ""}`}
-            onClick={() => setActiveTab("crops")}
+            className="nav-item"
+            onClick={() => navigate("/my-crop-requests")}
           >
             <Sprout size={18} />
             <span>My Crop Requests</span>
@@ -211,14 +252,78 @@ function FarmerDashboard() {
 
       {/* ── Main Panel ── */}
       <main className="farmer-main">
-        <header className="farmer-header glass-panel">
+        <header className="farmer-header glass-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h1>Kalludevakunta FPO Portal</h1>
             <p>Welcome back, <strong>{farmer.name}</strong> — registered FPO member</p>
           </div>
-          <div className="portal-status-badge">
-            <span className="status-dot"></span>
-            <span>Secured Session</span>
+          <div className="farmer-header-right">
+            {/* Bell Icon Notification Center */}
+            <div className="notification-bell-wrapper">
+              <button 
+                className="notification-bell-btn" 
+                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                title="Notifications"
+              >
+                <Bell size={20} />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="notification-badge">
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+
+              {showNotifDropdown && (
+                <div className="notification-dropdown">
+                  <div className="notification-dropdown-header">
+                    <h4>Notifications ({notifications.filter(n => !n.read).length} unread)</h4>
+                    {notifications.length > 0 && (
+                      <button className="mark-all-read-btn" onClick={handleMarkAllAsRead}>
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  <div className="notification-list">
+                    {notifications.length === 0 ? (
+                      <div className="notification-empty">No notifications yet.</div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div 
+                          key={notif._id} 
+                          className={`notification-item ${!notif.read ? "unread" : ""}`}
+                          onClick={() => !notif.read && handleMarkAsRead(notif._id)}
+                        >
+                          <div className="notification-item-content">
+                            <div className="notification-item-title">{notif.title}</div>
+                            <div className="notification-item-msg">{notif.message}</div>
+                            <div className="notification-item-time">
+                              {new Date(notif.createdAt).toLocaleDateString("en-IN")} {new Date(notif.createdAt).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          {!notif.read && (
+                            <button 
+                              className="notification-item-action" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(notif._id);
+                              }}
+                              title="Mark as read"
+                            >
+                              ✓
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="portal-status-badge">
+              <span className="status-dot"></span>
+              <span>Secured Session</span>
+            </div>
           </div>
         </header>
 
@@ -232,23 +337,66 @@ function FarmerDashboard() {
                 <h2>Namaskaram, {farmer.name}!</h2>
                 <p>Access your personalized dashboard to manage crop selling requests, lease advanced agricultural machinery, and purchase organic seeds and fertilizers directly from your FPO portal.</p>
                 <div className="hero-cta-group">
-                  <button onClick={() => navigate("/sell-crops")} className="cta-btn primary">Sell Crops</button>
+                  <button onClick={() => navigate("/sell-crop")} className="cta-btn primary">Sell Crops</button>
                   <button onClick={() => navigate("/equipment-booking")} className="cta-btn secondary">Book Equipment</button>
                   <button onClick={() => navigate("/products")} className="cta-btn secondary">Order Products</button>
                 </div>
               </div>
 
-              {/* Quick Summary Cards */}
-              <div className="summary-cards-grid">
-                <div className="summary-card glass-panel" onClick={() => setActiveTab("crops")}>
+              {/* Section: Crop Selling Overview */}
+              <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "15px", color: "var(--text-primary)", marginTop: "20px" }}>Crop Selling Overview</h3>
+              <div className="summary-cards-grid" style={{ marginBottom: "25px" }}>
+                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
                   <div className="card-top">
                     <div className="icon-wrap green"><Sprout size={20} /></div>
                     <span className="count">{cropRequests.length}</span>
                   </div>
                   <h3>Total Crop Requests</h3>
-                  <p>Crops listed for selling</p>
+                  <p>All submitted listings</p>
                 </div>
 
+                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
+                  <div className="card-top">
+                    <div className="icon-wrap warning"><Clock size={20} /></div>
+                    <span className="count">{cropRequests.filter(c => c.status === "Pending").length}</span>
+                  </div>
+                  <h3>Pending Requests</h3>
+                  <p>Awaiting FPO review</p>
+                </div>
+
+                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
+                  <div className="card-top">
+                    <div className="icon-wrap green"><CheckCircle size={20} /></div>
+                    <span className="count">{cropRequests.filter(c => c.status === "Approved").length}</span>
+                  </div>
+                  <h3>Approved Requests</h3>
+                  <p>Verified crop approvals</p>
+                </div>
+
+                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
+                  <div className="card-top">
+                    <div className="icon-wrap green"><CheckCircle size={20} /></div>
+                    <span className="count">{cropRequests.filter(c => c.status === "Completed").length}</span>
+                  </div>
+                  <h3>Completed Requests</h3>
+                  <p>Procured & completed sales</p>
+                </div>
+
+                <div className="summary-card glass-panel" style={{ background: "linear-gradient(135deg, rgba(230, 81, 0, 0.1) 0%, rgba(13, 35, 21, 0.6) 100%)", border: "1px solid rgba(230, 81, 0, 0.2)" }}>
+                  <div className="card-top">
+                    <div className="icon-wrap orange"><Coins size={20} /></div>
+                    <span className="count" style={{ fontSize: "20px" }}>
+                      ₹{cropRequests.filter(c => c.status !== "Rejected").reduce((sum, c) => sum + (c.estimatedValue || c.quantity * (c.expectedPrice || c.price || 0)), 0).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <h3>Total Expected Revenue</h3>
+                  <p>Active expected payout</p>
+                </div>
+              </div>
+
+              {/* Section: Other Services */}
+              <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "15px", color: "var(--text-primary)" }}>Other FPO Services</h3>
+              <div className="summary-cards-grid">
                 <div className="summary-card glass-panel" onClick={() => setActiveTab("bookings")}>
                   <div className="card-top">
                     <div className="icon-wrap green"><Tractor size={20} /></div>
@@ -309,22 +457,24 @@ function FarmerDashboard() {
                   <table className="farmer-table">
                     <thead>
                       <tr>
+                        <th>ID</th>
                         <th>Date</th>
                         <th>Crop Name</th>
-                        <th>Quantity (Qtls)</th>
-                        <th>Expected Price (₹/Qtl)</th>
+                        <th>Quantity</th>
+                        <th>Expected Price</th>
                         <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {cropRequests.map((c) => (
                         <tr key={c._id}>
-                          <td>{new Date(c.createdAt).toLocaleDateString("en-IN")}</td>
+                          <td><span className="font-semibold text-accent">{c.cropSaleId || "CS---"}</span></td>
+                          <td>{new Date(c.submittedAt || c.createdAt).toLocaleDateString("en-IN")}</td>
                           <td className="font-semibold">{c.cropName}</td>
-                          <td>{c.quantity} Qtls</td>
-                          <td>₹{c.price}</td>
+                          <td>{c.quantity} {c.unit || "Qtls"}</td>
+                          <td>₹{c.expectedPrice || c.price} / {c.unit || "Qtl"}</td>
                           <td>
-                            <span className={getStatusClass("Confirmed")}>Submitted</span>
+                            <span className={getStatusClass(c.status)}>{c.status}</span>
                           </td>
                         </tr>
                       ))}

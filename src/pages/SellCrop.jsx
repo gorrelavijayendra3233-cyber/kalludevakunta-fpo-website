@@ -143,11 +143,11 @@ const handleSubmit = async (e) => {
 
   try {
     const payload = {
-      farmerName: form.farmerName,
       cropName: form.cropName,
       quantity: Number(form.quantity),
-      price: Number(form.expectedPrice || 0),
-      phone: form.mobileNumber,
+      unit: form.quantityUnit,
+      expectedPrice: Number(form.expectedPrice || 0),
+      description: form.notes || "",
     };
 
     const headers = {
@@ -158,7 +158,7 @@ const handleSubmit = async (e) => {
     }
 
     const response = await fetch(
-      `${API_BASE}/crops`,
+      `${API_BASE}/crop-sales`,
       {
         method: "POST",
         headers,

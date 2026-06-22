@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Farmer = require("../models/Farmer");
 const Product = require("../models/Product");
-const CropRequest = require("../models/CropRequest");
+const CropSale = require("../models/CropSale");
 const EquipmentBooking = require("../models/EquipmentBooking");
 const Contact = require("../models/Contact");
 const auth = require("../middleware/auth");
@@ -54,7 +54,7 @@ router.get("/", auth, async (req, res) => {
     ] = await Promise.all([
       Farmer.countDocuments(query),
       Product.countDocuments(query),
-      CropRequest.countDocuments(query),
+      CropSale.countDocuments(query),
       EquipmentBooking.countDocuments(query),
       Contact.countDocuments(query),
       Product.countDocuments({ ...query, status: "In Stock" }),
@@ -89,7 +89,7 @@ router.get("/dashboard", auth, async (req, res) => {
     ] = await Promise.all([
       Farmer.countDocuments(),
       Product.countDocuments(),
-      CropRequest.countDocuments(),
+      CropSale.countDocuments(),
       EquipmentBooking.countDocuments(),
       Contact.countDocuments(),
       Product.countDocuments({ status: "In Stock" }),

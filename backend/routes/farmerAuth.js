@@ -4,6 +4,8 @@ const Farmer = require("../models/Farmer");
 const CropRequest = require("../models/CropRequest");
 const EquipmentBooking = require("../models/EquipmentBooking");
 const ProductBooking = require("../models/ProductBooking");
+const CropSale = require("../models/CropSale");
+const Notification = require("../models/Notification");
 const jwt = require("jsonwebtoken");
 const farmerAuth = require("../middleware/farmerAuth");
 
@@ -536,8 +538,13 @@ router.put("/profile", farmerAuth, async (req, res) => {
 // GET /api/farmer/crop-requests
 router.get("/crop-requests", farmerAuth, async (req, res) => {
   try {
-    const cropRequests = await CropRequest.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
-    res.json(cropRequests);
+    const cropSales = await CropSale.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
+    // Map to include 'price' field for backward compatibility
+    const mapped = cropSales.map(s => ({
+      ...s.toObject(),
+      price: s.expectedPrice // backward-compatibility mapping
+    }));
+    res.json(mapped);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -558,6 +565,46 @@ router.get("/orders", farmerAuth, async (req, res) => {
   try {
     const orders = await ProductBooking.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
     res.json(orders);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/farmer/notifications (Farmer targeted notifications)
+router.get("/notifications", farmerAuth, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/farmer/notifications/:id/read (Mark single notification as read)
+router.put("/notifications/:id/read", farmerAuth, async (req, res) => {
+  try {
+    const notif = await Notification.findOneAndUpdate(
+      { _id: req.params.id, farmerId: req.farmer.farmerId },
+      { read: true, isRead: true },
+      { new: true }
+    );
+    if (!notif) {
+      return res.status(404).json({ success: false, message: "Notification not found." });
+    }
+    res.json({ success: true, data: notif });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PUT /api/farmer/notifications/read-all (Mark all notifications as read)
+router.put("/notifications/read-all", farmerAuth, async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { farmerId: req.farmer.farmerId, read: false },
+      { read: true, isRead: true }
+    );
+    res.json({ success: true, message: "All notifications marked as read." });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

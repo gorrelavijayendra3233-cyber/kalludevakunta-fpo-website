@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const CropRequest = require("../models/CropRequest");
+const CropSale = require("../models/CropSale");
 const EquipmentBooking = require("../models/EquipmentBooking");
 const ProductBooking = require("../models/ProductBooking");
 const farmerAuth = require("../middleware/farmerAuth");
@@ -19,8 +19,12 @@ router.get("/profile", async (req, res) => {
 // 2. Get Farmer Crop Requests
 router.get("/crop-requests", async (req, res) => {
   try {
-    const cropRequests = await CropRequest.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
-    res.json(cropRequests);
+    const cropSales = await CropSale.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
+    const mapped = cropSales.map(s => ({
+      ...s.toObject(),
+      price: s.expectedPrice
+    }));
+    res.json(mapped);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

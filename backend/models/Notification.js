@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const notificationSchema = new mongoose.Schema(
   {
+    farmerId: {
+      type: String,
+      default: null
+    },
     title: {
       type: String,
       required: true,
@@ -12,8 +16,11 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["farmer", "crop", "booking", "contact", "inventory", "system"],
       default: "system",
+    },
+    read: {
+      type: Boolean,
+      default: false,
     },
     isRead: {
       type: Boolean,

@@ -12,6 +12,7 @@ import FarmerLogin     from "../pages/FarmerLogin";
 import FarmerRegister  from "../pages/FarmerRegister";
 import FarmerDashboard from "../pages/FarmerDashboard";
 import FarmerProfile   from "../pages/FarmerProfile";
+import MyCropRequests  from "../pages/MyCropRequests";
 import ProtectedRoute from "../components/ProtectedRoute";
 
 function AppRoutes() {
@@ -23,6 +24,7 @@ function AppRoutes() {
       <Route path="/gallery"           element={<Gallery />}          />
       <Route path="/contact"           element={<Contact />}          />
       <Route path="/sell-crops"        element={<SellCrops />}        />
+      <Route path="/sell-crop"         element={<SellCrops />}        />
       <Route path="/equipment-booking" element={<EquipmentBooking />} />
       <Route path="/admin"             element={<Admin />}            />
       
@@ -31,11 +33,11 @@ function AppRoutes() {
       <Route path="/farmer-register"   element={<FarmerRegister />} />
       <Route path="/farmer-dashboard"  element={<ProtectedRoute><FarmerDashboard /></ProtectedRoute>} />
       <Route path="/farmer-profile"    element={<ProtectedRoute><FarmerProfile /></ProtectedRoute>} />
+      <Route path="/my-crop-requests"  element={<ProtectedRoute><MyCropRequests /></ProtectedRoute>} />
 
       {/* Legacy/Redirect protection routes */}
-      <Route path="/crop-request"      element={<Navigate to="/sell-crops" replace />} />
+      <Route path="/crop-request"      element={<Navigate to="/sell-crop" replace />} />
       <Route path="/product-order"     element={<Navigate to="/products" replace />}   />
-      <Route path="/my-crop-requests"  element={<Navigate to="/farmer-dashboard" replace />} />
       <Route path="/my-bookings"       element={<Navigate to="/farmer-dashboard" replace />} />
       <Route path="/my-orders"         element={<Navigate to="/farmer-dashboard" replace />} />
       <Route path="/my-profile"        element={<Navigate to="/farmer-dashboard" replace />} />
