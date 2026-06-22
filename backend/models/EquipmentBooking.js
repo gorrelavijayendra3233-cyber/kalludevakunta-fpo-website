@@ -11,6 +11,9 @@ const EquipmentBookingSchema = new mongoose.Schema({
     type: String,
     default: "Pending",
   },
+  adminRemarks: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now,

@@ -65,6 +65,72 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+router.put("/:id/approve", auth, async (req, res) => {
+  try {
+    const booking = await EquipmentBooking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+    
+    booking.status = "Approved";
+    await booking.save();
+
+    // Create targeted farmer notification
+    try {
+      await Notification.create({
+        farmerId: booking.farmerId,
+        title: "Equipment Booking Approved",
+        message: `Your booking request for ${booking.equipmentName} on ${new Date(booking.bookingDate).toLocaleDateString("en-IN")} has been approved.`,
+        type: "booking",
+        priority: "medium",
+        read: false,
+        isRead: false
+      });
+    } catch (err) {
+      console.error("Failed to create farmer notification:", err);
+    }
+
+    res.json({ success: true, message: "Booking approved successfully", data: booking });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.put("/:id/reject", auth, async (req, res) => {
+  try {
+    const { remarks } = req.body;
+    const booking = await EquipmentBooking.findById(req.params.id);
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    booking.status = "Rejected";
+    if (remarks) {
+      booking.adminRemarks = remarks;
+    }
+    await booking.save();
+
+    // Create targeted farmer notification
+    try {
+      await Notification.create({
+        farmerId: booking.farmerId,
+        title: "Equipment Booking Rejected",
+        message: `Your booking request for ${booking.equipmentName} on ${new Date(booking.bookingDate).toLocaleDateString("en-IN")} was rejected.${remarks ? `\n\nReason: ${remarks}` : ""}`,
+        type: "booking",
+        priority: "medium",
+        read: false,
+        isRead: false
+      });
+    } catch (err) {
+      console.error("Failed to create farmer notification:", err);
+    }
+
+    res.json({ success: true, message: "Booking rejected successfully", data: booking });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.delete("/:id", auth, async (req, res) => {
   try {
     const booking = await EquipmentBooking.findByIdAndDelete(req.params.id);

@@ -108,6 +108,7 @@ function Admin() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectCropId, setRejectCropId] = useState("");
   const [rejectRemarks, setRejectRemarks] = useState("");
+  const [rejectType, setRejectType] = useState("crop");
 
   // ── Farmers Module States ──
   const [showFarmerModal, setShowFarmerModal] = useState(false);
@@ -773,6 +774,75 @@ const handleDelete = async (type, id) => {
     } catch (error) {
       console.error(error);
       toast.error(error.message || "Failed to complete request.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveBooking = async (id) => {
+    if (!window.confirm("Are you sure you want to approve this equipment booking?")) return;
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/bookings/${id}/approve`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+      const data = response.ok ? await response.json() : null;
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Approval failed.");
+      }
+      toast.success("Equipment booking approved.");
+      fetchData();
+      if (selectedItem && selectedItem.data._id === id) {
+        setSelectedItem(prev => ({ ...prev, data: { ...prev.data, status: "Approved" } }));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to approve booking.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRejectBooking = async (id, remarks) => {
+    if (!remarks || !remarks.trim()) {
+      toast.error("Please provide rejection remarks.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/bookings/${id}/reject`, {
+        method: "PUT",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ remarks }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+      const data = response.ok ? await response.json() : null;
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.message || "Rejection failed.");
+      }
+      toast.success("Equipment booking rejected.");
+      fetchData();
+      if (selectedItem && selectedItem.data._id === id) {
+        setSelectedItem(prev => ({ ...prev, data: { ...prev.data, status: "Rejected", adminRemarks: remarks } }));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to reject booking.");
     } finally {
       setLoading(false);
     }
@@ -3172,6 +3242,33 @@ const handleDelete = async (type, id) => {
                                       >
                                         <Eye size={15} />
                                       </button>
+                                      {(b.status === "Pending" || !b.status) && (
+                                        <>
+                                          <button 
+                                            className="action-btn approve" 
+                                            title="Approve Booking"
+                                            onClick={() => handleApproveBooking(b._id)}
+                                            tabIndex={0}
+                                            aria-label="Approve Booking"
+                                          >
+                                            <Check size={15} />
+                                          </button>
+                                          <button 
+                                            className="action-btn reject" 
+                                            title="Reject Booking"
+                                            onClick={() => {
+                                              setRejectCropId(b._id);
+                                              setRejectType("booking");
+                                              setRejectRemarks("");
+                                              setShowRejectModal(true);
+                                            }}
+                                            tabIndex={0}
+                                            aria-label="Reject Booking"
+                                          >
+                                            <Ban size={15} />
+                                          </button>
+                                        </>
+                                      )}
                                       <button 
                                         className="action-btn delete" 
                                         title="Delete record"
@@ -4701,12 +4798,43 @@ const handleDelete = async (type, id) => {
                       {selectedItem.data.status || "Pending"}
                     </span>
                   </div>
+                  {selectedItem.data.adminRemarks && (
+                    <div className="detail-item full-width" style={{ borderLeft: "4px solid var(--admin-danger, #ef4444)", paddingLeft: "12px", background: "rgba(239, 68, 68, 0.05)" }}>
+                      <span className="label" style={{ color: "var(--admin-danger, #ef4444)" }}>Admin Remarks / Rejection Reason:</span>
+                      <span className="value text-block font-semibold">{selectedItem.data.adminRemarks}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
             
-            <div className="modal-footer">
-              <button className="btn-modal-close" onClick={() => setSelectedItem(null)}>Close Inspector</button>
+            <div className="modal-footer" style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button className="btn-modal-close" onClick={() => setSelectedItem(null)}>Close Inspector</button>
+                {selectedItem.type === "booking" && selectedItem.data.status === "Pending" && (
+                  <>
+                    <button 
+                      className="btn-modal-action approve"
+                      style={{ background: "#10b981", color: "#fff", border: "1px solid #10b981", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
+                      onClick={() => handleApproveBooking(selectedItem.data._id)}
+                    >
+                      Approve Booking
+                    </button>
+                    <button 
+                      className="btn-modal-action reject"
+                      style={{ background: "#ef4444", color: "#fff", border: "1px solid #ef4444", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
+                      onClick={() => {
+                        setRejectCropId(selectedItem.data._id);
+                        setRejectType("booking");
+                        setRejectRemarks("");
+                        setShowRejectModal(true);
+                      }}
+                    >
+                      Reject Booking
+                    </button>
+                  </>
+                )}
+              </div>
               <button 
                 className="btn-modal-delete"
                 onClick={() => handleDelete(selectedItem.type === "contact" ? "contacts" : selectedItem.type === "crop" ? "crops" : "bookings", selectedItem.data._id)}
@@ -4730,7 +4858,7 @@ const handleDelete = async (type, id) => {
             </div>
             <div className="modal-body" style={{ padding: "20px" }}>
               <p style={{ fontSize: "14px", color: "var(--admin-text-secondary)", marginBottom: "12px" }}>
-                Please enter the reason for rejecting this crop sales request. The farmer will be notified.
+                Please enter the reason for rejecting this {rejectType === "booking" ? "equipment booking" : "crop sales"} request. The farmer will be notified.
               </p>
               <textarea
                 value={rejectRemarks}
@@ -4756,7 +4884,11 @@ const handleDelete = async (type, id) => {
                 className="btn-modal-delete"
                 style={{ background: "#ef4444", color: "#fff", borderColor: "#ef4444" }}
                 onClick={() => {
-                  handleRejectCrop(rejectCropId, rejectRemarks);
+                  if (rejectType === "booking") {
+                    handleRejectBooking(rejectCropId, rejectRemarks);
+                  } else {
+                    handleRejectCrop(rejectCropId, rejectRemarks);
+                  }
                   setShowRejectModal(false);
                 }}
               >
