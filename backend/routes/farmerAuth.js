@@ -56,6 +56,9 @@ router.post("/login", async (req, res) => {
     }
 
     const verifyData = await response.json();
+    const verifyResponse = { data: verifyData };
+    console.log("MSG91 Verify Response:", verifyResponse.data);
+
     if (verifyData.type !== "success" && verifyData.status !== "success") {
       return res.status(400).json({
         success: false,

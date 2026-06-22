@@ -130,7 +130,19 @@ function FarmerLogin() {
 
     try {
       const verificationResult = await verifyOTP();
-      const tokenVal = typeof verificationResult === "string" ? verificationResult : (verificationResult?.access_token || verificationResult?.token || verificationResult?.data);
+      const tokenVal =
+        typeof verificationResult === "string"
+          ? verificationResult
+          : (
+              verificationResult?.message ||
+              verificationResult?.access_token ||
+              verificationResult?.token ||
+              verificationResult?.data
+            );
+
+      console.log("MSG91 VERIFY RESPONSE:", verificationResult);
+      console.log("MSG91 TOKEN:", tokenVal);
+
       if (!tokenVal) {
         throw new Error("Failed to retrieve OTP access token.");
       }
