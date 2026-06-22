@@ -39,8 +39,7 @@ const cropSaleSchema = new mongoose.Schema(
       required: true
     },
     estimatedValue: {
-      type: Number,
-      required: true
+      type: Number
     },
     description: {
       type: String
