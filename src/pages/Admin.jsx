@@ -2260,6 +2260,155 @@ const handleDelete = async (type, id) => {
     document.body.removeChild(link);
   };
 
+  const exportPDF = (type, dataList) => {
+    let headers = [];
+    let rows = [];
+    let title = "";
+
+    if (type === "contacts") {
+      title = "Contact Inquiries Report";
+      headers = ["Name", "Phone", "Email", "Village", "Inquiry Type", "Date"];
+      rows = dataList.map(item => [
+        item.fullName || "",
+        item.phone || "",
+        item.email || "",
+        item.village || "",
+        item.inquiryType || "",
+        item.date || (item.createdAt ? item.createdAt.substring(0, 10) : "")
+      ]);
+    } else if (type === "crops") {
+      title = "Crop Selling Requests Report";
+      headers = ["Request ID", "Farmer Name", "Phone", "Village", "Crop Name", "Qty", "Expected Price", "Est Value", "Status"];
+      rows = dataList.map(item => [
+        item.cropSaleId || "CS---",
+        item.farmerName || "",
+        item.phone || "",
+        item.village || "",
+        item.cropName || "",
+        `${item.quantity || 0} ${item.unit || "Qtls"}`,
+        `Rs. ${item.expectedPrice || item.price || 0}`,
+        `Rs. ${item.estimatedValue || (item.quantity * (item.expectedPrice || item.price || 0))}`,
+        item.status || "Pending"
+      ]);
+    } else if (type === "bookings") {
+      title = "Equipment Bookings Report";
+      headers = ["Farmer Name", "Equipment Name", "Booking Date", "Duration", "Phone Number", "Status"];
+      rows = dataList.map(item => [
+        item.farmerName || "",
+        item.equipmentName || "",
+        item.bookingDate || (item.createdAt ? item.createdAt.substring(0, 10) : ""),
+        item.duration || "1 Day",
+        item.phone || "",
+        item.status || "Pending"
+      ]);
+    } else if (type === "farmers") {
+      title = "Farmer Registry Report";
+      headers = ["Farmer ID", "Name", "Phone", "Village", "Mandal", "Crop Type", "Land Holding", "Status"];
+      rows = dataList.map(item => [
+        item.farmerId || "",
+        item.name || "",
+        item.phone || "",
+        item.village || "",
+        item.mandal || "",
+        item.cropType || "",
+        `${item.landHolding || 0} Acres`,
+        item.status || "Active"
+      ]);
+    } else if (type === "products") {
+      title = "Product Inventory Report";
+      headers = ["Product ID", "Product Name", "Category", "Price", "Stock", "Status"];
+      rows = dataList.map(item => [
+        item.productId || "",
+        item.name || "",
+        item.category || "",
+        `Rs. ${item.price || 0}`,
+        item.stock || 0,
+        item.status || "In Stock"
+      ]);
+    } else if (type === "product-bookings") {
+      title = "Product Bookings & Orders Report";
+      headers = ["Booking ID", "Farmer Name", "Product Name", "Quantity", "Total Price", "Phone Number", "Booking Date", "Status"];
+      rows = dataList.map(item => [
+        item.bookingId || "",
+        item.farmerName || "",
+        item.productName || "",
+        item.quantity || 0,
+        `Rs. ${item.totalPrice || 0}`,
+        item.phone || "",
+        item.bookingDate || (item.createdAt ? item.createdAt.substring(0, 10) : ""),
+        item.status || "Pending"
+      ]);
+    } else if (type === "equipments") {
+      title = "Machinery & Equipment Rates Report";
+      headers = ["Equipment ID", "Equipment Name", "Hourly Rate", "Daily Rate", "Availability"];
+      rows = dataList.map(item => [
+        item.equipmentId || "",
+        item.name || "",
+        `Rs. ${item.rateHour || 0}/hr`,
+        `Rs. ${item.rateDay || 0}/day`,
+        item.available ? "Available" : "Unavailable"
+      ]);
+    }
+
+    const doc = new jsPDF();
+    const primaryColor = [13, 35, 21];
+    const accentColor = [197, 168, 128];
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.text("Kalludevakunta Farmers Producer Company Limited", 14, 20);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Official Administrative Report", 14, 25);
+    
+    doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
+    doc.setLineWidth(0.5);
+    doc.line(14, 28, 196, 28);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(50, 50, 50);
+    doc.text(title, 14, 38);
+    
+    const now = new Date();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Generated: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 14, 44);
+    
+    doc.autoTable({
+      startY: 49,
+      head: [headers],
+      body: rows,
+      theme: "striped",
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: [255, 255, 255],
+        fontSize: 9,
+        fontStyle: "bold"
+      },
+      alternateRowStyles: {
+        fillColor: [245, 248, 245]
+      },
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 2.5
+      },
+      margin: { top: 49, left: 14, right: 14 }
+    });
+    
+    doc.save(`fpo_${type}_export.pdf`);
+
+    triggerSystemNotification(
+      "Report Exported",
+      `${type.charAt(0).toUpperCase() + type.slice(1)} table exported in PDF format.`,
+      "low"
+    );
+  };
+
   // ── Chartjs Calculations ──
   const getTrendData = () => {
     const dates = [];
@@ -3711,14 +3860,24 @@ const handleDelete = async (type, id) => {
                         onChange={(e) => setSearchContactInput(e.target.value)}
                       />
                     </div>
-                    <button 
-                      className="btn-action primary" 
-                      onClick={() => exportCSV("contacts", filteredContacts)}
-                      disabled={filteredContacts.length === 0}
-                    >
-                      <Download size={15} />
-                      <span>Export to CSV</span>
-                    </button>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button 
+                        className="btn-action primary" 
+                        onClick={() => exportCSV("contacts", filteredContacts)}
+                        disabled={filteredContacts.length === 0}
+                      >
+                        <Download size={15} />
+                        <span>Export CSV</span>
+                      </button>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportPDF("contacts", filteredContacts)}
+                        disabled={filteredContacts.length === 0}
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
+                      </button>
+                    </div>
                   </div>
 
                   {filteredContacts.length === 0 ? (
@@ -3849,14 +4008,24 @@ const handleDelete = async (type, id) => {
                       </div>
                     </div>
 
-                    <button 
-                      className="btn-action primary" 
-                      onClick={() => exportCSV("crops", filteredCrops)}
-                      disabled={filteredCrops.length === 0}
-                    >
-                      <Download size={15} />
-                      <span>Export to CSV</span>
-                    </button>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button 
+                        className="btn-action primary" 
+                        onClick={() => exportCSV("crops", filteredCrops)}
+                        disabled={filteredCrops.length === 0}
+                      >
+                        <Download size={15} />
+                        <span>Export CSV</span>
+                      </button>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportPDF("crops", filteredCrops)}
+                        disabled={filteredCrops.length === 0}
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
+                      </button>
+                    </div>
                   </div>
 
                   {filteredCrops.length === 0 ? (
@@ -3993,14 +4162,24 @@ const handleDelete = async (type, id) => {
                         onChange={(e) => setSearchBookingInput(e.target.value)}
                       />
                     </div>
-                    <button 
-                      className="btn-action primary" 
-                      onClick={() => exportCSV("bookings", filteredBookings)}
-                      disabled={filteredBookings.length === 0}
-                    >
-                      <Download size={15} />
-                      <span>Export to CSV</span>
-                    </button>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button 
+                        className="btn-action primary" 
+                        onClick={() => exportCSV("bookings", filteredBookings)}
+                        disabled={filteredBookings.length === 0}
+                      >
+                        <Download size={15} />
+                        <span>Export CSV</span>
+                      </button>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportPDF("bookings", filteredBookings)}
+                        disabled={filteredBookings.length === 0}
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
+                      </button>
+                    </div>
                   </div>
 
                   {filteredBookings.length === 0 ? (
@@ -4174,14 +4353,24 @@ const handleDelete = async (type, id) => {
                         onChange={(e) => setSearchProductBookingInput(e.target.value)}
                       />
                     </div>
-                    <button 
-                      className="btn-action primary" 
-                      onClick={() => exportCSV("product-bookings", filteredProductBookings)}
-                      disabled={filteredProductBookings.length === 0}
-                    >
-                      <Download size={15} />
-                      <span>Export to CSV</span>
-                    </button>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button 
+                        className="btn-action primary" 
+                        onClick={() => exportCSV("product-bookings", filteredProductBookings)}
+                        disabled={filteredProductBookings.length === 0}
+                      >
+                        <Download size={15} />
+                        <span>Export CSV</span>
+                      </button>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportPDF("product-bookings", filteredProductBookings)}
+                        disabled={filteredProductBookings.length === 0}
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
+                      </button>
+                    </div>
                   </div>
 
                   {filteredProductBookings.length === 0 ? (
@@ -4352,7 +4541,15 @@ const handleDelete = async (type, id) => {
                         disabled={filteredFarmers.length === 0}
                       >
                         <Download size={15} />
-                        <span>Export Farmers CSV</span>
+                        <span>Export CSV</span>
+                      </button>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportPDF("farmers", filteredFarmers)}
+                        disabled={filteredFarmers.length === 0}
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
                       </button>
                     </div>
                   </div>
@@ -4576,6 +4773,14 @@ const handleDelete = async (type, id) => {
                         <Download size={15} />
                         <span>Export CSV</span>
                       </button>
+                      <button 
+                        className="btn-action outline" 
+                        onClick={() => exportPDF("products", filteredProducts)}
+                        disabled={filteredProducts.length === 0}
+                      >
+                        <FileText size={15} />
+                        <span>Export PDF</span>
+                      </button>
                     </div>
                   </div>
 
@@ -4695,6 +4900,14 @@ const handleDelete = async (type, id) => {
                         disabled={filteredEquipments.length === 0}
                       >
                         <Download size={15} /> Export CSV
+                      </button>
+                      <button 
+                        className="action-btn csv-export" 
+                        onClick={() => exportPDF("equipments", filteredEquipments)}
+                        disabled={filteredEquipments.length === 0}
+                        style={{ marginLeft: "8px" }}
+                      >
+                        <FileText size={15} /> Export PDF
                       </button>
                       <button className="action-btn add-new" onClick={() => setShowEquipmentModal(true)}>
                         + Add Equipment
