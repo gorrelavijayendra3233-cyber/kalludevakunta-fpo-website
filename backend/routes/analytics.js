@@ -4,6 +4,8 @@ const Farmer = require("../models/Farmer");
 const Product = require("../models/Product");
 const CropSale = require("../models/CropSale");
 const EquipmentBooking = require("../models/EquipmentBooking");
+const ProductBooking = require("../models/ProductBooking");
+const Equipment = require("../models/Equipment");
 const Contact = require("../models/Contact");
 const auth = require("../middleware/auth");
 
@@ -37,6 +39,69 @@ const getTimeframeQuery = (timeframe) => {
   return { createdAt: { $gte: startDate } };
 };
 
+const getEquipmentBookingRevenue = async (query, equipments) => {
+  const bookings = await EquipmentBooking.find(query);
+  let total = 0;
+  for (const b of bookings) {
+    if (b.status === "Rejected" || b.status === "Cancelled") continue;
+    const equip = equipments.find(e => e.name.toLowerCase() === b.equipmentName.toLowerCase());
+    if (!equip) continue;
+    const durStr = b.duration || "";
+    const match = durStr.match(/(\d+)/);
+    if (match) {
+      const val = parseInt(match[1], 10);
+      if (durStr.toLowerCase().includes("hour")) {
+        total += val * equip.rateHour;
+      } else if (durStr.toLowerCase().includes("day")) {
+        total += val * equip.rateDay;
+      } else {
+        total += val * equip.rateHour;
+      }
+    } else {
+      total += 1 * equip.rateDay;
+    }
+  }
+  return total;
+};
+
+const getRevenueAnalytics = async (equipments) => {
+  const timeframes = ["today", "week", "month", "year"];
+  const breakdown = {};
+
+  for (const tf of timeframes) {
+    const query = getTimeframeQuery(tf);
+    
+    // Expected Crop Revenue
+    const cropValueResult = await CropSale.aggregate([
+      { $match: { ...query, status: { $ne: "Rejected" } } },
+      { $group: { _id: null, total: { $sum: "$estimatedValue" } } }
+    ]);
+    const expectedCropRevenue = cropValueResult[0]?.total || 0;
+
+    // Product Sales Revenue
+    const productSalesResult = await ProductBooking.aggregate([
+      { $match: { ...query, status: { $ne: "Cancelled" } } },
+      { $group: { _id: null, total: { $sum: "$totalPrice" } } }
+    ]);
+    const productSalesRevenue = productSalesResult[0]?.total || 0;
+
+    // Equipment Booking Revenue
+    const equipmentBookingRevenue = await getEquipmentBookingRevenue(query, equipments);
+
+    // Total Platform Revenue
+    const totalPlatformRevenue = expectedCropRevenue + productSalesRevenue + equipmentBookingRevenue;
+
+    breakdown[tf] = {
+      expectedCropRevenue,
+      productSalesRevenue,
+      equipmentBookingRevenue,
+      totalPlatformRevenue
+    };
+  }
+
+  return breakdown;
+};
+
 // 1. GET /api/analytics
 router.get("/", auth, async (req, res) => {
   try {
@@ -50,7 +115,16 @@ router.get("/", auth, async (req, res) => {
       totalBookings,
       totalContacts,
       inStockProducts,
-      outOfStockProducts
+      outOfStockProducts,
+      totalOrders,
+      approvedCropRequests,
+      rejectedCropRequests,
+      completedCropRequests,
+      cropValueResult,
+      cropStats,
+      villageStats,
+      equipmentStats,
+      productSalesStats
     ] = await Promise.all([
       Farmer.countDocuments(query),
       Product.countDocuments(query),
@@ -58,8 +132,40 @@ router.get("/", auth, async (req, res) => {
       EquipmentBooking.countDocuments(query),
       Contact.countDocuments(query),
       Product.countDocuments({ ...query, status: "In Stock" }),
-      Product.countDocuments({ ...query, status: "Out of Stock" })
+      Product.countDocuments({ ...query, status: "Out of Stock" }),
+      ProductBooking.countDocuments(query),
+      CropSale.countDocuments({ ...query, status: "Approved" }),
+      CropSale.countDocuments({ ...query, status: "Rejected" }),
+      CropSale.countDocuments({ ...query, status: "Completed" }),
+      CropSale.aggregate([
+        { $match: query },
+        { $group: { _id: null, total: { $sum: "$estimatedValue" } } }
+      ]),
+      CropSale.aggregate([
+        { $match: query },
+        { $group: { _id: "$cropName", count: { $sum: 1 }, revenue: { $sum: "$estimatedValue" }, quantity: { $sum: "$quantity" } } }
+      ]),
+      Farmer.aggregate([
+        { $match: query },
+        { $group: { _id: "$village", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      EquipmentBooking.aggregate([
+        { $match: query },
+        { $group: { _id: "$equipmentName", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      ProductBooking.aggregate([
+        { $match: query },
+        { $group: { _id: "$productName", count: { $sum: "$quantity" }, revenue: { $sum: "$totalPrice" } } },
+        { $sort: { count: -1 } }
+      ])
     ]);
+
+    const estimatedCropValue = cropValueResult[0]?.total || 0;
+
+    const equipments = await Equipment.find();
+    const revenueBreakdown = await getRevenueAnalytics(equipments);
 
     res.json({
       totalFarmers,
@@ -68,7 +174,17 @@ router.get("/", auth, async (req, res) => {
       totalBookings,
       totalContacts,
       inStockProducts,
-      outOfStockProducts
+      outOfStockProducts,
+      totalOrders,
+      approvedCropRequests,
+      rejectedCropRequests,
+      completedCropRequests,
+      estimatedCropValue,
+      cropStats,
+      villageStats,
+      equipmentStats,
+      productSalesStats,
+      revenueBreakdown
     });
   } catch (error) {
     handleError(res, error);
@@ -85,7 +201,16 @@ router.get("/dashboard", auth, async (req, res) => {
       totalBookings,
       totalContacts,
       inStockProducts,
-      outOfStockProducts
+      outOfStockProducts,
+      totalOrders,
+      approvedCropRequests,
+      rejectedCropRequests,
+      completedCropRequests,
+      cropValueResult,
+      cropStats,
+      villageStats,
+      equipmentStats,
+      productSalesStats
     ] = await Promise.all([
       Farmer.countDocuments(),
       Product.countDocuments(),
@@ -93,8 +218,35 @@ router.get("/dashboard", auth, async (req, res) => {
       EquipmentBooking.countDocuments(),
       Contact.countDocuments(),
       Product.countDocuments({ status: "In Stock" }),
-      Product.countDocuments({ status: "Out of Stock" })
+      Product.countDocuments({ status: "Out of Stock" }),
+      ProductBooking.countDocuments(),
+      CropSale.countDocuments({ status: "Approved" }),
+      CropSale.countDocuments({ status: "Rejected" }),
+      CropSale.countDocuments({ status: "Completed" }),
+      CropSale.aggregate([
+        { $group: { _id: null, total: { $sum: "$estimatedValue" } } }
+      ]),
+      CropSale.aggregate([
+        { $group: { _id: "$cropName", count: { $sum: 1 }, revenue: { $sum: "$estimatedValue" }, quantity: { $sum: "$quantity" } } }
+      ]),
+      Farmer.aggregate([
+        { $group: { _id: "$village", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      EquipmentBooking.aggregate([
+        { $group: { _id: "$equipmentName", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      ProductBooking.aggregate([
+        { $group: { _id: "$productName", count: { $sum: "$quantity" }, revenue: { $sum: "$totalPrice" } } },
+        { $sort: { count: -1 } }
+      ])
     ]);
+
+    const estimatedCropValue = cropValueResult[0]?.total || 0;
+
+    const equipments = await Equipment.find();
+    const revenueBreakdown = await getRevenueAnalytics(equipments);
 
     res.json({
       totalFarmers,
@@ -103,7 +255,17 @@ router.get("/dashboard", auth, async (req, res) => {
       totalBookings,
       totalContacts,
       inStockProducts,
-      outOfStockProducts
+      outOfStockProducts,
+      totalOrders,
+      approvedCropRequests,
+      rejectedCropRequests,
+      completedCropRequests,
+      estimatedCropValue,
+      cropStats,
+      villageStats,
+      equipmentStats,
+      productSalesStats,
+      revenueBreakdown
     });
   } catch (error) {
     handleError(res, error);

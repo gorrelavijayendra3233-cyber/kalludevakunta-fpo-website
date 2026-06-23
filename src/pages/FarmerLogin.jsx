@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Phone, Sprout, ShieldAlert, KeyRound } from "lucide-react";
 import toast from "react-hot-toast";
@@ -16,6 +16,7 @@ function FarmerLogin() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const navigate = useNavigate();
+  const verifyingRef = useRef(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -117,7 +118,7 @@ function FarmerLogin() {
 
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    if (isVerifying) return;
+    if (isVerifying || verifyingRef.current) return;
 
     const normalizedPhone = cleanPhone(phone);
     if (!/^\d{6}$/.test(otp)) {
@@ -125,6 +126,7 @@ function FarmerLogin() {
       return;
     }
 
+    verifyingRef.current = true;
     setIsVerifying(true);
     setLoading(true);
 
@@ -173,6 +175,7 @@ function FarmerLogin() {
     } catch (err) {
       toast.error(err.message || "Invalid OTP code / తప్పుడు ఓటిపి");
     } finally {
+      verifyingRef.current = false;
       setIsVerifying(false);
       setLoading(false);
     }

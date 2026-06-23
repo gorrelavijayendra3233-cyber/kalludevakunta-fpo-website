@@ -16,7 +16,10 @@ import {
   AlertTriangle,
   XCircle,
   Coins,
-  Bell
+  Bell,
+  FolderOpen,
+  Search,
+  Download
 } from "lucide-react";
 import toast from "react-hot-toast";
 import "./FarmerDashboard.css";
@@ -32,6 +35,12 @@ function FarmerDashboard() {
   const [bookings, setBookings] = useState([]);
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [marketPrices, setMarketPrices] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [searchDoc, setSearchDoc] = useState("");
+  const [filterDocCategory, setFilterDocCategory] = useState("All");
+  const [announcementCategory, setAnnouncementCategory] = useState("All");
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [loading, setLoading] = useState(true);
   
@@ -52,7 +61,7 @@ function FarmerDashboard() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get("tab");
-    if (tabParam && ["dashboard", "crops", "bookings", "orders", "profile"].includes(tabParam)) {
+    if (tabParam && ["dashboard", "crops", "bookings", "orders", "profile", "documents"].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [location.search]);
@@ -83,18 +92,22 @@ function FarmerDashboard() {
         const profileData = await profileRes.json();
         setFarmer(profileData.farmer);
 
-        // Fetch user transaction history and notifications
-        const [cropsRes, bookingsRes, ordersRes, notifsRes] = await Promise.all([
+        // Fetch user transaction history, notifications, and announcements
+        const [cropsRes, bookingsRes, ordersRes, notifsRes, announcementsRes, marketPricesRes, documentsRes] = await Promise.all([
           fetch(`${API_BASE}/farmer/crop-requests`, { headers }),
           fetch(`${API_BASE}/farmer/bookings`, { headers }),
           fetch(`${API_BASE}/farmer/orders`, { headers }),
-          fetch(`${API_BASE}/farmer/notifications`, { headers })
+          fetch(`${API_BASE}/farmer/notifications`, { headers }),
+          fetch(`${API_BASE}/announcements`, { headers }),
+          fetch(`${API_BASE}/market-prices`, { headers }),
+          fetch(`${API_BASE}/documents`, { headers })
         ]);
 
         if (cropsRes.status === 401 || cropsRes.status === 403 ||
             bookingsRes.status === 401 || bookingsRes.status === 403 ||
             ordersRes.status === 401 || ordersRes.status === 403 ||
-            notifsRes.status === 401 || notifsRes.status === 403) {
+            notifsRes.status === 401 || notifsRes.status === 403 ||
+            announcementsRes.status === 401 || announcementsRes.status === 403) {
           handleLogout();
           return;
         }
@@ -103,6 +116,9 @@ function FarmerDashboard() {
         if (bookingsRes.ok) setBookings(await bookingsRes.json());
         if (ordersRes.ok) setOrders(await ordersRes.json());
         if (notifsRes.ok) setNotifications(await notifsRes.json());
+        if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
+        if (marketPricesRes.ok) setMarketPrices(await marketPricesRes.json());
+        if (documentsRes.ok) setDocuments(await documentsRes.json());
 
       } catch (error) {
         console.error(error);
@@ -236,6 +252,14 @@ function FarmerDashboard() {
           </button>
 
           <button 
+            className={`nav-item ${activeTab === "documents" ? "active" : ""}`}
+            onClick={() => setActiveTab("documents")}
+          >
+            <FolderOpen size={18} />
+            <span>Document Center</span>
+          </button>
+
+          <button 
             className="nav-item"
             onClick={() => navigate("/farmer-profile")}
           >
@@ -343,87 +367,192 @@ function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* Section: Crop Selling Overview */}
-              <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "15px", color: "var(--text-primary)", marginTop: "20px" }}>Crop Selling Overview</h3>
-              <div className="summary-cards-grid" style={{ marginBottom: "25px" }}>
-                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
+              {/* Section: Overview Metrics */}
+              <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "15px", color: "var(--text-primary)", marginTop: "20px" }}>My FPO Overview</h3>
+              <div className="summary-cards-grid" style={{ marginBottom: "25px", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                <div className="summary-card glass-panel" onClick={() => setActiveTab("crops")} style={{ cursor: "pointer" }}>
                   <div className="card-top">
                     <div className="icon-wrap green"><Sprout size={20} /></div>
                     <span className="count">{cropRequests.length}</span>
                   </div>
-                  <h3>Total Crop Requests</h3>
-                  <p>All submitted listings</p>
+                  <h3>My Crop Requests</h3>
+                  <p>Crop sale offers submitted</p>
                 </div>
 
-                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
-                  <div className="card-top">
-                    <div className="icon-wrap warning"><Clock size={20} /></div>
-                    <span className="count">{cropRequests.filter(c => c.status === "Pending").length}</span>
-                  </div>
-                  <h3>Pending Requests</h3>
-                  <p>Awaiting FPO review</p>
-                </div>
-
-                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
-                  <div className="card-top">
-                    <div className="icon-wrap green"><CheckCircle size={20} /></div>
-                    <span className="count">{cropRequests.filter(c => c.status === "Approved").length}</span>
-                  </div>
-                  <h3>Approved Requests</h3>
-                  <p>Verified crop approvals</p>
-                </div>
-
-                <div className="summary-card glass-panel" onClick={() => navigate("/my-crop-requests")}>
-                  <div className="card-top">
-                    <div className="icon-wrap green"><CheckCircle size={20} /></div>
-                    <span className="count">{cropRequests.filter(c => c.status === "Completed").length}</span>
-                  </div>
-                  <h3>Completed Requests</h3>
-                  <p>Procured & completed sales</p>
-                </div>
-
-                <div className="summary-card glass-panel" style={{ background: "linear-gradient(135deg, rgba(230, 81, 0, 0.1) 0%, rgba(13, 35, 21, 0.6) 100%)", border: "1px solid rgba(230, 81, 0, 0.2)" }}>
-                  <div className="card-top">
-                    <div className="icon-wrap orange"><Coins size={20} /></div>
-                    <span className="count" style={{ fontSize: "20px" }}>
-                      ₹{cropRequests.filter(c => c.status !== "Rejected").reduce((sum, c) => sum + (c.estimatedValue || c.quantity * (c.expectedPrice || c.price || 0)), 0).toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                  <h3>Total Expected Revenue</h3>
-                  <p>Active expected payout</p>
-                </div>
-              </div>
-
-              {/* Section: Other Services */}
-              <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "15px", color: "var(--text-primary)" }}>Other FPO Services</h3>
-              <div className="summary-cards-grid">
-                <div className="summary-card glass-panel" onClick={() => setActiveTab("bookings")}>
+                <div className="summary-card glass-panel" onClick={() => setActiveTab("bookings")} style={{ cursor: "pointer" }}>
                   <div className="card-top">
                     <div className="icon-wrap green"><Tractor size={20} /></div>
                     <span className="count">{bookings.length}</span>
                   </div>
-                  <h3>Total Equipment Bookings</h3>
-                  <p>Machinery booking entries</p>
+                  <h3>Equipment Bookings</h3>
+                  <p>Machinery rentals registered</p>
                 </div>
 
-                <div className="summary-card glass-panel" onClick={() => setActiveTab("orders")}>
+                <div className="summary-card glass-panel" onClick={() => setActiveTab("orders")} style={{ cursor: "pointer" }}>
                   <div className="card-top">
                     <div className="icon-wrap green"><ShoppingCart size={20} /></div>
                     <span className="count">{orders.length}</span>
                   </div>
-                  <h3>Total Product Orders</h3>
-                  <p>Seed & Fertilizer orders</p>
+                  <h3>Product Orders</h3>
+                  <p>Seed & fertilizer purchases</p>
                 </div>
 
-                <div className="summary-card glass-panel" onClick={() => setActiveTab("profile")}>
+                <div className="summary-card glass-panel" style={{ background: "linear-gradient(135deg, rgba(230, 81, 0, 0.15) 0%, rgba(13, 35, 21, 0.6) 100%)", border: "1px solid rgba(230, 81, 0, 0.2)" }}>
                   <div className="card-top">
-                    <div className="icon-wrap green"><Clock size={20} /></div>
+                    <div className="icon-wrap orange"><Coins size={20} /></div>
+                    <span className="count" style={{ fontSize: "20px" }}>
+                      ₹{cropRequests.filter(c => c.status === "Approved" || c.status === "Completed").reduce((sum, c) => sum + (c.estimatedValue || c.quantity * (c.expectedPrice || c.price || 0)), 0).toLocaleString("en-IN")}
+                    </span>
                   </div>
-                  <h3>Last Login</h3>
-                  <p style={{ marginTop: "12px", fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>
-                    {formatLastLogin(farmer.lastLogin)}
-                  </p>
+                  <h3>Estimated Earnings</h3>
+                  <p>Approved & completed sales</p>
                 </div>
+              </div>
+
+              {/* Live Market Prices Section */}
+              <div className="market-prices-section" style={{ marginTop: "30px", marginBottom: "25px" }}>
+                <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "15px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Coins size={18} style={{ color: "var(--harvest-lt)" }} /> Live Market Prices / ప్రస్తుత మార్కెట్ ధరలు
+                </h3>
+                {marketPrices.length === 0 ? (
+                  <div className="glass-panel" style={{ padding: "20px", textAlign: "center", color: "var(--text-secondary)", borderRadius: "12px" }}>
+                    No market prices available.
+                  </div>
+                ) : (
+                  <div className="summary-cards-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
+                    {marketPrices.map((mp) => {
+                      const isUp = mp.trend === "up";
+                      const isDown = mp.trend === "down";
+                      const trendColor = isUp ? "#34d399" : isDown ? "#f87171" : "#fbbf24";
+                      
+                      return (
+                        <div key={mp._id} className="summary-card glass-panel" style={{ background: "rgba(13, 35, 21, 0.45)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "20px", borderRadius: "12px" }}>
+                          <div className="card-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                            <span style={{ fontSize: "16px", fontWeight: "bold", color: "#fff" }}>{mp.cropName}</span>
+                            <span style={{
+                              fontSize: "11px",
+                              fontWeight: "bold",
+                              color: trendColor,
+                              padding: "2px 8px",
+                              borderRadius: "10px",
+                              background: isUp ? "rgba(52, 211, 153, 0.1)" : isDown ? "rgba(248, 113, 113, 0.1)" : "rgba(251, 191, 36, 0.1)",
+                              border: `1px solid ${trendColor}22`,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px"
+                            }}>
+                              {isUp ? "▲" : isDown ? "▼" : "●"} {mp.trend.toUpperCase()}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                              <span style={{ color: "var(--text-secondary)" }}>Today's Price:</span>
+                              <span style={{ fontWeight: "700", color: "#fff" }}>₹{mp.todayPrice}/Qtl</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                              <span style={{ color: "var(--text-secondary)" }}>Recommended:</span>
+                              <span style={{ fontWeight: "700", color: "var(--harvest-lt)" }}>₹{mp.recommendedPrice}/Qtl</span>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", color: "rgba(255, 255, 255, 0.4)" }}>
+                              <span>Yesterday:</span>
+                              <span>₹{mp.yesterdayPrice || 0}/Qtl</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Farmer Notice Board */}
+              <div className="notice-board-section" style={{ marginTop: "30px", marginBottom: "25px" }}>
+                <div className="section-header-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: "600", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Bell size={18} style={{ color: "var(--harvest-lt)" }} /> FPC Notice Board / సమాచార బోర్డు
+                  </h3>
+                  {/* Category filters */}
+                  <div className="category-filters-scroll" style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "4px", maxWidth: "100%" }}>
+                    {["All", "Training", "Government Schemes", "Market Prices", "Events", "General"].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setAnnouncementCategory(cat)}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "20px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          transition: "all 0.2s ease-in-out",
+                          border: announcementCategory === cat ? "1px solid var(--harvest-lt)" : "1px solid rgba(255,255,255,0.08)",
+                          background: announcementCategory === cat ? "rgba(46, 125, 50, 0.2)" : "rgba(255,255,255,0.02)",
+                          color: announcementCategory === cat ? "var(--harvest-lt)" : "var(--text-secondary)",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {announcements.filter(a => announcementCategory === "All" || a.category === announcementCategory).length === 0 ? (
+                  <div className="glass-panel" style={{ padding: "30px", textAlign: "center", color: "var(--text-secondary)", borderRadius: "12px" }}>
+                    No notices published in this category.
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
+                    {announcements
+                      .filter(a => announcementCategory === "All" || a.category === announcementCategory)
+                      .map(a => (
+                        <div
+                          key={a._id}
+                          className="glass-panel hover-3d"
+                          style={{
+                            padding: "20px",
+                            borderRadius: "12px",
+                            display: "flex",
+                            gap: "20px",
+                            alignItems: "flex-start",
+                            flexDirection: "row",
+                            flexWrap: "wrap",
+                            borderLeft: a.priority === "high" ? "4px solid #ef4444" : a.priority === "medium" ? "4px solid #f59e0b" : "4px solid #10b981",
+                            background: "rgba(13, 35, 21, 0.45)",
+                            boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.2)"
+                          }}
+                        >
+                          {a.imageUrl && (
+                            <div style={{ flexShrink: 0, width: "120px", height: "90px", borderRadius: "8px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+                              <img src={a.imageUrl} alt={a.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            </div>
+                          )}
+                          <div style={{ flex: "1 1 250px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                              <h4 style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-primary)", margin: 0 }}>{a.title}</h4>
+                              <span style={{
+                                fontSize: "10px",
+                                fontWeight: "700",
+                                padding: "3px 8px",
+                                borderRadius: "10px",
+                                background: a.priority === "high" ? "rgba(239, 68, 68, 0.15)" : a.priority === "medium" ? "rgba(245, 158, 11, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                                color: a.priority === "high" ? "#f87171" : a.priority === "medium" ? "#fbbf24" : "#34d399",
+                                border: a.priority === "high" ? "1px solid rgba(239, 68, 68, 0.2)" : a.priority === "medium" ? "1px solid rgba(245, 158, 11, 0.2)" : "1px solid rgba(16, 185, 129, 0.2)"
+                              }}>
+                                {a.priority.toUpperCase()}
+                              </span>
+                            </div>
+                            <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5", marginBottom: "12px", whiteSpace: "pre-wrap" }}>
+                              {a.description}
+                            </p>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", color: "rgba(255,255,255,0.45)", flexWrap: "wrap", gap: "8px" }}>
+                              <span style={{ background: "rgba(255,255,255,0.04)", padding: "2px 8px", borderRadius: "4px", color: "var(--harvest-lt)", fontWeight: "600" }}>{a.category}</span>
+                              <span>{new Date(a.createdAt).toLocaleDateString("en-IN")}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
 
               {/* FPO Contact Quick card */}
@@ -431,7 +560,7 @@ function FarmerDashboard() {
                 <h3>Need Assistance?</h3>
                 <p>If you need help with bookings, crop registrations, or updating profile details, contact FPO Support immediately.</p>
                 <div className="contact-info">
-                  <Phone size={16} /> <span>+91 90144 88562 (Hanumanthu Goud)</span>
+                  <Phone size={16} /> <span>+91 90144 88562 (Bheemaiah)</span>
                 </div>
               </div>
             </div>
@@ -572,6 +701,116 @@ function FarmerDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab 5: Document Center */}
+          {activeTab === "documents" && (
+            <div className="tab-pane fade-in">
+              <div className="tab-pane-header">
+                <h2>Document Center / పత్రాల కేంద్రం</h2>
+                <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Official guides, schemes, manuals, and application forms.</span>
+              </div>
+
+              {/* Filters */}
+              <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ position: "relative", flex: "1 1 200px", maxWidth: "400px" }}>
+                  <Search size={16} style={{ position: "absolute", left: "12px", top: "10px", color: "rgba(255, 255, 255, 0.4)" }} />
+                  <input 
+                    type="text" 
+                    placeholder="Search documents by title... / శోధించండి..." 
+                    value={searchDoc}
+                    onChange={(e) => setSearchDoc(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px 8px 36px",
+                      borderRadius: "8px",
+                      background: "rgba(255, 255, 255, 0.03)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      color: "#fff",
+                      outline: "none",
+                      fontSize: "14px"
+                    }}
+                  />
+                </div>
+                <select
+                  value={filterDocCategory}
+                  onChange={(e) => setFilterDocCategory(e.target.value)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: "8px",
+                    background: "rgba(13, 35, 21, 0.9)",
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    color: "#fff",
+                    outline: "none",
+                    cursor: "pointer",
+                    fontSize: "14px"
+                  }}
+                >
+                  <option value="All">All Categories / అన్ని విభాగాలు</option>
+                  <option value="Government Schemes">Government Schemes / ప్రభుత్వ పథకాలు</option>
+                  <option value="Training Manuals">Training Manuals / శిక్షణ మాన్యువల్లు</option>
+                  <option value="Crop Guides">Crop Guides / పంటల సమాచారం</option>
+                  <option value="FPO Forms">FPO Forms / ఎఫ్.పి.ఓ పత్రాలు</option>
+                  <option value="Other">Other / ఇతరాలు</option>
+                </select>
+              </div>
+
+              {documents.filter(d => {
+                const matchesSearch = d.title.toLowerCase().includes(searchDoc.toLowerCase()) || (d.description && d.description.toLowerCase().includes(searchDoc.toLowerCase()));
+                const matchesCat = filterDocCategory === "All" || d.category === filterDocCategory;
+                return matchesSearch && matchesCat;
+              }).length === 0 ? (
+                <div className="empty-state glass-panel">
+                  <FolderOpen size={48} className="empty-icon" style={{ opacity: 0.5 }} />
+                  <h3>No Documents Available</h3>
+                  <p>Check back later for updated guides, brochures, and application files.</p>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+                  {documents.filter(d => {
+                    const matchesSearch = d.title.toLowerCase().includes(searchDoc.toLowerCase()) || (d.description && d.description.toLowerCase().includes(searchDoc.toLowerCase()));
+                    const matchesCat = filterDocCategory === "All" || d.category === filterDocCategory;
+                    return matchesSearch && matchesCat;
+                  }).map((doc) => {
+                    return (
+                      <div key={doc._id} className="glass-panel hover-3d" style={{ padding: "20px", borderRadius: "12px", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "rgba(13, 35, 21, 0.45)", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: "700", background: "rgba(76, 175, 80, 0.15)", color: "var(--harvest-lt)", padding: "2px 8px", borderRadius: "4px", border: "1px solid rgba(76,175,80,0.2)" }}>{doc.category}</span>
+                            <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>{doc.fileSize}</span>
+                          </div>
+                          <h4 style={{ fontSize: "15px", fontWeight: "600", color: "#fff", margin: "0 0 6px 0" }}>{doc.title}</h4>
+                          <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.4", margin: "0 0 16px 0" }}>{doc.description || "No description available."}</p>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px", marginTop: "12px" }}>
+                          <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>Uploaded: {new Date(doc.createdAt).toLocaleDateString("en-IN")}</span>
+                          <a 
+                            href={`${API_BASE.replace("/api", "")}${doc.fileUrl}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              fontSize: "12px",
+                              color: "var(--harvest-lt)",
+                              fontWeight: "600",
+                              textDecoration: "none",
+                              padding: "4px 10px",
+                              borderRadius: "4px",
+                              background: "rgba(76, 175, 80, 0.1)",
+                              transition: "background 0.2s"
+                            }}
+                          >
+                            <Download size={14} /> Download
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

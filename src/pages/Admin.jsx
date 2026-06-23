@@ -18,6 +18,7 @@ import {
   Package,
   BarChart3,
   FileText,
+  FolderOpen,
   Bell,
   Settings,
   Send,
@@ -28,13 +29,15 @@ import {
   Clock,
   CheckCircle,
   Check,
-  Ban
+  Ban,
+  Megaphone
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import * as XLSX from "xlsx";
+import LocationSelector from "../components/LocationSelector/LocationSelector";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -118,9 +121,10 @@ function Admin() {
   const [farmerForm, setFarmerForm] = useState({
     name: "",
     phone: "",
-    village: "",
+    state: "Andhra Pradesh",
+    district: "",
     mandal: "",
-    district: "Kurnool",
+    village: "",
     cropType: "",
     landHolding: "",
     gender: "Male",
@@ -184,6 +188,22 @@ function Admin() {
   const [monthlyAnalytics, setMonthlyAnalytics] = useState([]);
   const [categoryAnalytics, setCategoryAnalytics] = useState([]);
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState("all");
+  const [reportStartDate, setReportStartDate] = useState("");
+  const [reportEndDate, setReportEndDate] = useState("");
+
+  // ── Announcements States ──
+  const [announcements, setAnnouncements] = useState([]);
+  const [showAddAnnouncementModal, setShowAddAnnouncementModal] = useState(false);
+  const [showEditAnnouncementModal, setShowEditAnnouncementModal] = useState(false);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: "",
+    description: "",
+    category: "General",
+    priority: "low",
+    imageUrl: "",
+    published: true
+  });
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -192,6 +212,32 @@ function Admin() {
 
   // ── Theme State ──
   const [theme, setTheme] = useState("dark");
+
+  // ── Market Prices States ──
+  const [marketPrices, setMarketPrices] = useState([]);
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [editingTodayPrice, setEditingTodayPrice] = useState("");
+  const [editingRecPrice, setEditingRecPrice] = useState("");
+
+  // ── Document Center States ──
+  const [documents, setDocuments] = useState([]);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [documentForm, setDocumentForm] = useState({
+    title: "",
+    description: "",
+    category: "Government Schemes"
+  });
+  const [documentFile, setDocumentFile] = useState(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [searchDoc, setSearchDoc] = useState("");
+  const [filterDocCategory, setFilterDocCategory] = useState("All");
+
+  // ── Audit Logs States ──
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [searchAuditLogsInput, setSearchAuditLogsInput] = useState("");
+  const [searchAuditLogs, setSearchAuditLogs] = useState("");
+  const [filterAuditModule, setFilterAuditModule] = useState("All");
+  const [filterAuditAction, setFilterAuditAction] = useState("All");
 
   // ── Search States ──
   const [searchContact, setSearchContact] = useState("");
@@ -348,7 +394,7 @@ function Admin() {
     try {
       const signal = AbortSignal.timeout(30000);
 
-      const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes, equipmentsRes] =
+      const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes, equipmentsRes, announcementsRes, marketPricesRes, documentsRes, auditLogsRes] =
         await Promise.all([
           fetch(`${API_BASE}/contact`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/crop-sales`, { headers: getAuthHeaders(), signal }),
@@ -362,7 +408,11 @@ function Admin() {
           fetch(`${API_BASE}/notifications/settings`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/notifications/telegram-status`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/product-bookings`, { headers: getAuthHeaders(), signal }),
-          fetch(`${API_BASE}/equipments`, { headers: getAuthHeaders(), signal })
+          fetch(`${API_BASE}/equipments`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/announcements/admin`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/market-prices`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/documents`, { headers: getAuthHeaders(), signal }),
+          fetch(`${API_BASE}/audit-logs`, { headers: getAuthHeaders(), signal })
         ]);
 
       if (
@@ -378,14 +428,17 @@ function Admin() {
         settingsRes.status === 401 ||
         telegramRes.status === 401 ||
         productBookingsRes.status === 401 ||
-        equipmentsRes.status === 401
+        equipmentsRes.status === 401 ||
+        announcementsRes.status === 401 ||
+        documentsRes.status === 401 ||
+        auditLogsRes.status === 401
       ) {
         setLoading(false);
         handleUnauthorized();
         return;
       }
 
-      if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok || !equipmentsRes.ok) {
+      if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok || !equipmentsRes.ok || !announcementsRes.ok || !marketPricesRes.ok || !documentsRes.ok || !auditLogsRes.ok) {
         throw new Error("Failed to fetch data");
       }
 
@@ -402,6 +455,10 @@ function Admin() {
       const telegramData = await telegramRes.json();
       const productBookingsData = await productBookingsRes.json();
       const equipmentsData = await equipmentsRes.json();
+      const announcementsData = await announcementsRes.json();
+      const marketPricesData = await marketPricesRes.json();
+      const documentsData = await documentsRes.json();
+      const auditLogsData = await auditLogsRes.json();
 
       setContacts(contactsData);
       setCrops(cropsData);
@@ -419,6 +476,10 @@ function Admin() {
       setTelegramStatus(telegramData);
       setProductBookings(Array.isArray(productBookingsData) ? productBookingsData : (productBookingsData?.data || []));
       setEquipments(equipmentsData);
+      setAnnouncements(announcementsData);
+      setMarketPrices(marketPricesData);
+      setDocuments(documentsData);
+      setAuditLogs(auditLogsData);
       setIsOffline(false);
     } catch (error) {
       console.error("Database fetch error:", error);
@@ -472,6 +533,131 @@ function Admin() {
       }
     } catch (error) {
       console.error("Failed to clear all notifications:", error);
+    }
+  };
+
+  const handleUpdateMarketPrice = async (id) => {
+    if (!editingTodayPrice || !editingRecPrice) {
+      toast.error("Prices cannot be empty");
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/market-prices/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          todayPrice: Number(editingTodayPrice),
+          recommendedPrice: Number(editingRecPrice)
+        })
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to update market price");
+      }
+
+      const resData = await response.json();
+      if (resData.success) {
+        toast.success("Market price updated successfully!");
+        setEditingPriceId(null);
+        fetchData();
+        triggerSystemNotification(
+          "Market Price Updated",
+          `Market price updated to ₹${editingTodayPrice}/Qtl.`,
+          "low"
+        );
+      } else {
+        toast.error(resData.message || "Failed to update price");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to update price");
+    }
+  };
+
+  const handleDocumentUpload = async (e) => {
+    e.preventDefault();
+    if (!documentForm.title || !documentFile) {
+      toast.error("Document Title and File are required.");
+      return;
+    }
+    
+    setUploadingDoc(true);
+    const formData = new FormData();
+    formData.append("title", documentForm.title);
+    formData.append("description", documentForm.description || "");
+    formData.append("category", documentForm.category || "Other");
+    formData.append("file", documentFile);
+
+    try {
+      const response = await fetch(`${API_BASE}/documents/upload`, {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders()
+        },
+        body: formData
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      const resData = await response.json();
+      if (resData.success) {
+        toast.success("Document uploaded successfully!");
+        setShowDocumentModal(false);
+        setDocumentForm({ title: "", description: "", category: "Government Schemes" });
+        setDocumentFile(null);
+        fetchData();
+        triggerSystemNotification(
+          "Document Uploaded",
+          `New document "${documentForm.title}" has been uploaded to the center.`,
+          "medium"
+        );
+      } else {
+        toast.error(resData.message || "Failed to upload document");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Error uploading file.");
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDocumentDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this document?")) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/documents/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+
+      if (response.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+
+      const resData = await response.json();
+      if (resData.success) {
+        toast.success("Document deleted successfully!");
+        fetchData();
+      } else {
+        toast.error(resData.message || "Failed to delete document");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error deleting document.");
     }
   };
 
@@ -613,6 +799,14 @@ function Admin() {
     return () => clearTimeout(timer);
   }, [searchEquipmentInput]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchAuditLogs(searchAuditLogsInput);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchAuditLogsInput]);
+
   // Reset pagination & clear search inputs on tab changes
   useEffect(() => {
     setCurrentPage(1);
@@ -624,6 +818,7 @@ function Admin() {
     setSearchBookingInput("");
     setNotificationSearchInput("");
     setSearchEquipmentInput("");
+    setSearchAuditLogsInput("");
   }, [activeTab]);
 
 // ── DELETE Request Handlers ──
@@ -851,8 +1046,8 @@ const handleDelete = async (type, id) => {
   // ── Farmer CRUD Handlers ──
   const handleFarmerSubmit = async (e) => {
     e.preventDefault();
-    if (!farmerForm.name || !farmerForm.phone || !farmerForm.village) {
-      toast.error("Name, Phone, and Village are required.");
+    if (!farmerForm.name || !farmerForm.phone || !farmerForm.state || !farmerForm.district || !farmerForm.mandal || !farmerForm.village) {
+      toast.error("Name, Phone, State, District, Mandal, and Village are required.");
       return;
     }
     if (!/^\d{10}$/.test(farmerForm.phone)) {
@@ -892,9 +1087,10 @@ const handleDelete = async (type, id) => {
         setFarmerForm({
           name: "",
           phone: "",
-          village: "",
+          state: "Andhra Pradesh",
+          district: "",
           mandal: "",
-          district: "Kurnool",
+          village: "",
           cropType: "",
           landHolding: "",
           gender: "Male",
@@ -913,8 +1109,8 @@ const handleDelete = async (type, id) => {
 
   const handleFarmerUpdate = async (e) => {
     e.preventDefault();
-    if (!editingFarmer.name || !editingFarmer.phone || !editingFarmer.village) {
-      toast.error("Name, Phone, and Village are required.");
+    if (!editingFarmer.name || !editingFarmer.phone || !editingFarmer.state || !editingFarmer.district || !editingFarmer.mandal || !editingFarmer.village) {
+      toast.error("Name, Phone, State, District, Mandal, and Village are required.");
       return;
     }
     if (!/^\d{10}$/.test(editingFarmer.phone)) {
@@ -1111,6 +1307,131 @@ const handleDelete = async (type, id) => {
         fetchData();
       } else {
         toast.error(data.message || "Failed to delete product.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  // ── Announcements CRUD Handlers ──
+  const handleAnnouncementSubmit = async (e) => {
+    e.preventDefault();
+    if (!announcementForm.title || !announcementForm.description) {
+      toast.error("Title and Description are required.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/announcements`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(announcementForm),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Announcement created successfully!");
+        setShowAddAnnouncementModal(false);
+        setAnnouncementForm({
+          title: "",
+          description: "",
+          category: "General",
+          priority: "low",
+          imageUrl: "",
+          published: true
+        });
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to create announcement.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  const handleAnnouncementUpdate = async (e) => {
+    e.preventDefault();
+    if (!announcementForm.title || !announcementForm.description) {
+      toast.error("Title and Description are required.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/announcements/${selectedAnnouncement._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(announcementForm),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Announcement updated successfully!");
+        setShowEditAnnouncementModal(false);
+        setSelectedAnnouncement(null);
+        setAnnouncementForm({
+          title: "",
+          description: "",
+          category: "General",
+          priority: "low",
+          imageUrl: "",
+          published: true
+        });
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to update announcement.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  const handleAnnouncementDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this announcement?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/announcements/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.status === 401) {
+        setLoading(false);
+        handleUnauthorized();
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Announcement deleted successfully.");
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to delete announcement.");
       }
     } catch (error) {
       console.error(error);
@@ -1315,161 +1636,238 @@ const handleDelete = async (type, id) => {
     });
   };
 
-  const handleExportReport = (reportType, format) => {
-    const timeframeText = {
-      all: "All Time",
-      today: "Today",
-      week: "This Week",
-      month: "This Month",
-      year: "This Year"
-    }[analyticsTimeframe] || "All Time";
+  const handleExportReport = async (reportType, format) => {
+    let startDate = "";
+    let endDate = "";
 
-    let headers = [];
-    let rows = [];
-    let title = "";
-    
-    if (reportType === "farmers") {
-      title = "Farmer Summary Report";
-      headers = ["Farmer ID", "Name", "Phone", "Village", "Crop Type", "Land Holding", "Status"];
-      const filtered = filterByTimeframe(farmers, analyticsTimeframe);
-      rows = filtered.map(f => [
-        f.farmerId || "",
-        f.name || "",
-        f.phone || "",
-        f.village || "",
-        f.cropType || "",
-        f.landHolding !== undefined ? `${f.landHolding} Acres` : "",
-        f.status || "Active"
-      ]);
-    } else if (reportType === "products") {
-      title = "Product Inventory Report";
-      headers = ["Product ID", "Product Name", "Category", "Price", "Stock", "Status"];
-      const filtered = filterByTimeframe(products, analyticsTimeframe);
-      rows = filtered.map(p => [
-        p.productId || "",
-        p.name || "",
-        p.category || "",
-        p.price !== undefined ? `Rs. ${p.price}` : "",
-        p.stock !== undefined ? `${p.stock}` : "",
-        p.status || "In Stock"
-      ]);
-    } else if (reportType === "crops") {
-      title = "Crop Requests Report";
-      headers = ["Farmer Name", "Crop Name", "Quantity", "Expected Price", "Date"];
-      const filtered = filterByTimeframe(crops, analyticsTimeframe);
-      rows = filtered.map(c => [
-        c.farmerName || "",
-        c.cropName || "",
-        c.quantity !== undefined ? `${c.quantity} Qtls` : "",
-        c.price !== undefined ? `Rs. ${c.price}/Qtl` : "",
-        c.createdAt ? (typeof c.createdAt === 'string' ? c.createdAt.substring(0, 10) : new Date(c.createdAt).toISOString().substring(0, 10)) : ""
-      ]);
-    } else if (reportType === "bookings") {
-      title = "Equipment Booking Report";
-      headers = ["Farmer Name", "Equipment", "Booking Date", "Status"];
-      const filtered = filterByTimeframe(bookings, analyticsTimeframe);
-      rows = filtered.map(b => [
-        b.farmerName || "",
-        b.equipmentName || "",
-        b.bookingDate || (b.createdAt ? (typeof b.createdAt === 'string' ? b.createdAt.substring(0, 10) : new Date(b.createdAt).toISOString().substring(0, 10)) : ""),
-        b.status || "Pending"
-      ]);
-    } else if (reportType === "contacts") {
-      title = "Contact Requests Report";
-      headers = ["Name", "Phone", "Subject", "Date"];
-      const filtered = filterByTimeframe(contacts, analyticsTimeframe);
-      rows = filtered.map(c => [
-        c.fullName || c.name || "",
-        c.phone || "",
-        c.inquiryType || "General Inquiry",
-        c.createdAt ? (typeof c.createdAt === 'string' ? c.createdAt.substring(0, 10) : new Date(c.createdAt).toISOString().substring(0, 10)) : ""
-      ]);
-    }
-
-    if (format === "csv") {
-      const csvContent = [
-        headers.join(","),
-        ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
-      ].join("\n");
-      
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${reportType}_report_${analyticsTimeframe}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else if (format === "excel") {
-      const wb = XLSX.utils.book_new();
-      const wsData = [headers, ...rows];
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      
-      const colWidths = headers.map(h => ({ wch: Math.max(h.length + 5, 15) }));
-      ws["!cols"] = colWidths;
-      
-      XLSX.utils.book_append_sheet(wb, ws, title.substring(0, 30));
-      XLSX.writeFile(wb, `${reportType}_report_${analyticsTimeframe}.xlsx`);
-    } else if (format === "pdf") {
-      const doc = new jsPDF();
-      const primaryColor = [13, 35, 21];
-      const accentColor = [197, 168, 128];
-      
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text("Kalludevakunta Farmers Producer Company Limited", 14, 20);
-      
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Official Administrative Report", 14, 25);
-      
-      doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
-      doc.setLineWidth(0.5);
-      doc.line(14, 28, 196, 28);
-      
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.setTextColor(50, 50, 50);
-      doc.text(title, 14, 38);
-      
+    if (analyticsTimeframe === "custom") {
+      startDate = reportStartDate;
+      endDate = reportEndDate;
+    } else if (analyticsTimeframe !== "all") {
       const now = new Date();
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Generated: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 14, 44);
-      doc.text(`Timeframe: ${timeframeText}`, 14, 48);
-      
-      doc.autoTable({
-        startY: 53,
-        head: [headers],
-        body: rows,
-        theme: "striped",
-        headStyles: {
-          fillColor: primaryColor,
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: "bold"
-        },
-        alternateRowStyles: {
-          fillColor: [245, 248, 245]
-        },
-        styles: {
-          fontSize: 8.5,
-          cellPadding: 2.5
-        },
-        margin: { top: 53, left: 14, right: 14 }
-      });
-      
-      doc.save(`${reportType}_report_${analyticsTimeframe}.pdf`);
+      let start = new Date();
+      if (analyticsTimeframe === "today") {
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (analyticsTimeframe === "week") {
+        const day = now.getDay();
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+      } else if (analyticsTimeframe === "month") {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (analyticsTimeframe === "year") {
+        start = new Date(now.getFullYear(), 0, 1);
+      }
+      startDate = start.toISOString();
     }
 
-    triggerSystemNotification(
-      "Report Exported",
-      `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report exported in ${format.toUpperCase()} format (${timeframeText}).`,
-      "low"
-    );
+    const timeframeText = analyticsTimeframe === "custom" 
+      ? `Custom (${reportStartDate || "Start"} to ${reportEndDate || "End"})` 
+      : {
+          all: "All Time",
+          today: "Today",
+          week: "This Week",
+          month: "This Month",
+          year: "This Year"
+        }[analyticsTimeframe] || "All Time";
+
+    const toastId = toast.loading("Fetching report dataset...");
+
+    try {
+      let url = `${API_BASE}/reports?reportType=${reportType}`;
+      if (startDate) url += `&startDate=${startDate}`;
+      if (endDate) url += `&endDate=${endDate}`;
+
+      const res = await fetch(url, { headers: getAuthHeaders() });
+      if (res.status === 401) {
+        toast.dismiss(toastId);
+        handleUnauthorized();
+        return;
+      }
+      if (!res.ok) {
+        throw new Error("Failed to fetch report data");
+      }
+      const json = await res.json();
+      const dataset = json.data || [];
+
+      let headers = [];
+      let rows = [];
+      let title = "";
+
+      if (reportType === "farmers") {
+        title = "Farmer Summary Report";
+        headers = ["Farmer ID", "Name", "Phone", "Village", "Crop Type", "Land Holding", "Status"];
+        rows = dataset.map(f => [
+          f.farmerId || "",
+          f.name || "",
+          f.phone || "",
+          f.village || "",
+          f.cropType || "",
+          f.landHolding !== undefined ? `${f.landHolding} Acres` : "",
+          f.status || "Active"
+        ]);
+      } else if (reportType === "products") {
+        title = "Product Inventory Report";
+        headers = ["Product ID", "Product Name", "Category", "Price", "Stock", "Status"];
+        rows = dataset.map(p => [
+          p.productId || "",
+          p.name || "",
+          p.category || "",
+          p.price !== undefined ? `Rs. ${p.price}` : "",
+          p.stock !== undefined ? `${p.stock}` : "",
+          p.status || "In Stock"
+        ]);
+      } else if (reportType === "crops") {
+        title = "Crop Requests Report";
+        headers = ["Sale ID", "Farmer Name", "Phone", "Crop Name", "Quantity", "Expected Price", "Estimated Value", "Status", "Date"];
+        rows = dataset.map(c => [
+          c.cropSaleId || "",
+          c.farmerName || "",
+          c.phone || "",
+          c.cropName || "",
+          c.quantity !== undefined ? `${c.quantity} ${c.unit || "Qtls"}` : "",
+          c.expectedPrice !== undefined ? `Rs. ${c.expectedPrice}` : "",
+          c.estimatedValue !== undefined ? `Rs. ${c.estimatedValue}` : "",
+          c.status || "Pending",
+          c.createdAt ? c.createdAt.substring(0, 10) : ""
+        ]);
+      } else if (reportType === "bookings") {
+        title = "Equipment Booking Report";
+        headers = ["Booking ID", "Farmer Name", "Equipment ID", "Equipment Name", "Duration", "Booking Date", "Status"];
+        rows = dataset.map(b => [
+          b.bookingId || "",
+          b.farmerName || "",
+          b.equipmentId || "",
+          b.equipmentName || "",
+          b.duration || "",
+          b.bookingDate ? b.bookingDate.substring(0, 10) : "",
+          b.status || "Pending"
+        ]);
+      } else if (reportType === "orders") {
+        title = "Product Orders Report";
+        headers = ["Order ID", "Farmer Name", "Product Name", "Quantity", "Total Price", "Phone Number", "Order Date", "Status"];
+        rows = dataset.map(o => [
+          o.bookingId || o._id || "",
+          o.farmerName || "",
+          o.productName || "",
+          o.quantity || 0,
+          `Rs. ${o.totalPrice || 0}`,
+          o.phone || "",
+          o.createdAt ? o.createdAt.substring(0, 10) : "",
+          o.status || "Pending"
+        ]);
+      } else if (reportType === "revenue") {
+        title = "Platform Revenue Report";
+        headers = ["Revenue Stream", "Revenue Amount"];
+        rows = dataset.map(r => [
+          r.stream || "",
+          `Rs. ${(r.revenue || 0).toLocaleString("en-IN")}`
+        ]);
+      } else if (reportType === "contacts") {
+        title = "Contact Requests Report";
+        headers = ["Name", "Phone", "Subject", "Date"];
+        rows = dataset.map(c => [
+          c.fullName || c.name || "",
+          c.phone || "",
+          c.inquiryType || "General Inquiry",
+          c.createdAt ? c.createdAt.substring(0, 10) : ""
+        ]);
+      }
+
+      toast.dismiss(toastId);
+
+      if (rows.length === 0) {
+        toast.error("No records found for the selected filter.");
+        return;
+      }
+
+      if (format === "csv") {
+        const csvContent = [
+          headers.join(","),
+          ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+        ].join("\n");
+        
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `${reportType}_report_${analyticsTimeframe}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (format === "excel") {
+        const wb = XLSX.utils.book_new();
+        const wsData = [headers, ...rows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        
+        const colWidths = headers.map(h => ({ wch: Math.max(h.length + 5, 15) }));
+        ws["!cols"] = colWidths;
+        
+        XLSX.utils.book_append_sheet(wb, ws, title.substring(0, 30));
+        XLSX.writeFile(wb, `${reportType}_report_${analyticsTimeframe}.xlsx`);
+      } else if (format === "pdf") {
+        const doc = new jsPDF();
+        const primaryColor = [13, 35, 21];
+        const accentColor = [197, 168, 128];
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text("Kalludevakunta Farmers Producer Company Limited", 14, 20);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Official Administrative Report", 14, 25);
+        
+        doc.setDrawColor(accentColor[0], accentColor[1], accentColor[2]);
+        doc.setLineWidth(0.5);
+        doc.line(14, 28, 196, 28);
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(13);
+        doc.setTextColor(50, 50, 50);
+        doc.text(title, 14, 38);
+        
+        const now = new Date();
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text(`Generated: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 14, 44);
+        doc.text(`Timeframe: ${timeframeText}`, 14, 48);
+        
+        doc.autoTable({
+          startY: 53,
+          head: [headers],
+          body: rows,
+          theme: "striped",
+          headStyles: {
+            fillColor: primaryColor,
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: "bold"
+          },
+          alternateRowStyles: {
+            fillColor: [245, 248, 245]
+          },
+          styles: {
+            fontSize: 8.5,
+            cellPadding: 2.5
+          },
+          margin: { top: 53, left: 14, right: 14 }
+        });
+        
+        doc.save(`${reportType}_report_${analyticsTimeframe}.pdf`);
+      }
+
+      triggerSystemNotification(
+        "Report Exported",
+        `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} report exported in ${format.toUpperCase()} format (${timeframeText}).`,
+        "low"
+      );
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error(error);
+      toast.error("Error exporting report: " + error.message);
+    }
   };
 
   const exportFullFPOReport = (format) => {
@@ -2111,6 +2509,73 @@ const handleDelete = async (type, id) => {
     };
   };
 
+  const getCropWiseChartData = () => {
+    const stats = analyticsStats?.cropStats || [];
+    const labels = stats.map(c => c._id || "Others");
+    const data = stats.map(c => c.count);
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: ["#2e7d32", "#e65100", "#0288d1", "#7b1fa2", "#fbc02d", "#c2185b"],
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+
+  const getVillageWiseChartData = () => {
+    const stats = analyticsStats?.villageStats || [];
+    const labels = stats.map(v => v._id || "Other");
+    const data = stats.map(v => v.count);
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Farmers count",
+          data,
+          backgroundColor: "#2e7d32",
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+
+  const getBookingTrendsChartData = () => {
+    const stats = analyticsStats?.equipmentStats || [];
+    const labels = stats.map(e => e._id || "Other");
+    const data = stats.map(e => e.count);
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Rentals",
+          data,
+          backgroundColor: "#0288d1",
+          borderRadius: 6
+        }
+      ]
+    };
+  };
+
+  const getTopProductsChartData = () => {
+    const stats = analyticsStats?.productSalesStats || [];
+    const labels = stats.map(p => p._id || "Other");
+    const data = stats.map(p => p.count);
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Quantity Sold",
+          data,
+          backgroundColor: "#e65100",
+          borderRadius: 6
+        }
+      ]
+    };
+  };
+
   const getChartOptions = (title) => {
     const isLight = theme === "light";
     const textColor = isLight ? "#2e3b2e" : "#e0e7e1";
@@ -2328,6 +2793,22 @@ const handleDelete = async (type, id) => {
     );
   });
 
+  const filteredAuditLogs = auditLogs.filter(log => {
+    const term = searchAuditLogs.toLowerCase();
+    const matchesSearch = (
+      (log.user || "").toLowerCase().includes(term) ||
+      (log.userType || "").toLowerCase().includes(term) ||
+      (log.module || "").toLowerCase().includes(term) ||
+      (log.action || "").toLowerCase().includes(term) ||
+      (log.details || "").toLowerCase().includes(term)
+    );
+    const matchesModule = filterAuditModule === "All" ||
+      (log.module || "").toLowerCase() === filterAuditModule.toLowerCase();
+    const matchesAction = filterAuditAction === "All" ||
+      (log.action || "").toLowerCase() === filterAuditAction.toLowerCase();
+    return matchesSearch && matchesModule && matchesAction;
+  });
+
   // ── Paginated Computations ──
   const paginatedContacts = filteredContacts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const paginatedCrops = filteredCrops.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -2336,6 +2817,23 @@ const handleDelete = async (type, id) => {
   const paginatedFarmers = filteredFarmers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const paginatedEquipments = filteredEquipments.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedAuditLogs = filteredAuditLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const getModuleBadgeClass = (module) => {
+    const m = String(module || "").toLowerCase().trim();
+    if (["farmers", "products", "documents"].includes(m)) return "info";
+    if (["bookings", "announcements"].includes(m)) return "success";
+    if (["crops", "market prices", "settings"].includes(m)) return "warning";
+    return "info";
+  };
+
+  const getActionBadgeClass = (action) => {
+    const a = String(action || "").toLowerCase().trim();
+    if (["create", "login", "approve"].includes(a)) return "success";
+    if (a === "update") return "warning";
+    if (a === "delete" || a === "reject") return "danger";
+    return "info";
+  };
 
   // ── Farmers Stats Calculations ──
   const totalFarmersCount = farmers.length;
@@ -2423,6 +2921,22 @@ const handleDelete = async (type, id) => {
           </button>
 
           <button 
+            className={`nav-item ${activeTab === "analytics" ? "active" : ""}`}
+            onClick={() => { setActiveTab("analytics"); setMobileMenuOpen(false); }}
+          >
+            <BarChart3 size={18} />
+            <span>Analytics Center</span>
+          </button>
+
+          <button 
+            className={`nav-item ${activeTab === "announcements" ? "active" : ""}`}
+            onClick={() => { setActiveTab("announcements"); setMobileMenuOpen(false); }}
+          >
+            <Megaphone size={18} />
+            <span>Announcements</span>
+          </button>
+
+          <button 
             className={`nav-item ${activeTab === "contacts" ? "active" : ""}`}
             onClick={() => { setActiveTab("contacts"); setMobileMenuOpen(false); }}
           >
@@ -2479,11 +2993,27 @@ const handleDelete = async (type, id) => {
           </button>
 
           <button 
+            className={`nav-item ${activeTab === "documents" ? "active" : ""}`}
+            onClick={() => { setActiveTab("documents"); setMobileMenuOpen(false); }}
+          >
+            <FolderOpen size={18} />
+            <span>Document Center</span>
+          </button>
+
+          <button 
             className={`nav-item ${activeTab === "reports" ? "active" : ""}`}
             onClick={() => { setActiveTab("reports"); setMobileMenuOpen(false); }}
           >
             <FileText size={18} />
             <span>Reports</span>
+          </button>
+
+          <button 
+            className={`nav-item ${activeTab === "audit-logs" ? "active" : ""}`}
+            onClick={() => { setActiveTab("audit-logs"); setMobileMenuOpen(false); }}
+          >
+            <Clock size={18} />
+            <span>Audit Logs</span>
           </button>
 
           <button 
@@ -2526,6 +3056,8 @@ const handleDelete = async (type, id) => {
             </button>
             <h1 className="header-title">
               {activeTab === "dashboard" && "Dashboard Overview"}
+              {activeTab === "analytics" && "Analytics Center"}
+              {activeTab === "announcements" && "Announcements Management"}
               {activeTab === "contacts" && "Contact Inquiries"}
               {activeTab === "crops" && "Crop Selling Requests"}
               {activeTab === "bookings" && "Machinery Bookings"}
@@ -2533,7 +3065,9 @@ const handleDelete = async (type, id) => {
               {activeTab === "product-bookings" && "Product Bookings & Orders"}
               {activeTab === "farmers" && "Farmer Management"}
               {activeTab === "products" && "Product Inventory"}
+              {activeTab === "documents" && "Document Center Management"}
               {activeTab === "reports" && "Report Generator Dashboard"}
+              {activeTab === "audit-logs" && "Audit Trails & Logs"}
               {activeTab === "notifications" && "Notification Center"}
               {activeTab === "settings" && "System Settings"}
             </h1>
@@ -2726,7 +3260,7 @@ const handleDelete = async (type, id) => {
             <div className="skeleton-wrapper">
               <div className="skeleton-table-header skeleton-pulse" style={{ height: "40px", width: "30%", marginBottom: "10px" }}></div>
               <div className="skeleton-table-header skeleton-pulse" style={{ height: "20px", width: "50%", marginBottom: "30px" }}></div>
-              {activeTab === "dashboard" && (
+              {["dashboard", "analytics"].includes(activeTab) && (
                 <>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.5rem", width: "100%", marginBottom: "2rem" }}>
                     <div className="skeleton-card skeleton-pulse"></div>
@@ -2751,7 +3285,7 @@ const handleDelete = async (type, id) => {
                   <div className="skeleton-chart skeleton-pulse"></div>
                 </>
               )}
-              {["farmers", "products", "product-bookings", "contacts", "crops", "bookings", "notifications", "equipments"].includes(activeTab) && (
+              {["farmers", "products", "product-bookings", "contacts", "crops", "bookings", "notifications", "equipments", "announcements", "documents", "audit-logs"].includes(activeTab) && (
                 <>
                   <div className="skeleton-table-header skeleton-pulse" style={{ marginBottom: "20px" }}></div>
                   <div className="skeleton-table-row skeleton-pulse" style={{ marginBottom: "12px" }}></div>
@@ -2774,31 +3308,31 @@ const handleDelete = async (type, id) => {
                     <h2 className="module-title">Dashboard Overview</h2>
                     <p className="module-description">Real-time analytics, critical metrics, and system activity status.</p>
                   </div>
-                  {/* Overview Grid */}
-                  <div className="metrics-grid">
-                    <div className="metric-card glass-panel" onClick={() => setActiveTab("contacts")}>
+                  {/* Overview Grid - 8 Cards */}
+                  <div className="metrics-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("farmers")}>
                       <div className="card-top">
-                        <div className="icon-wrapper green">
-                          <MessageSquare size={22} />
+                        <div className="icon-wrapper orange">
+                          <Users size={22} />
                         </div>
-                        <span className="trend-badge positive">Active</span>
+                        <span className="trend-badge positive">Farmers</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>{contacts.length}</h3>
-                        <p>Total Contacts</p>
+                        <h3>{analyticsStats?.totalFarmers || 0}</h3>
+                        <p>Total Farmers</p>
                       </div>
                     </div>
 
                     <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
                       <div className="card-top">
-                        <div className="icon-wrapper orange">
+                        <div className="icon-wrapper green">
                           <Sprout size={22} />
                         </div>
-                        <span className="trend-badge positive">Active</span>
+                        <span className="trend-badge positive">Crops</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>{crops.length}</h3>
-                        <p>Crop Sale Offers</p>
+                        <h3>{analyticsStats?.totalCropRequests || 0}</h3>
+                        <p>Total Crop Requests</p>
                       </div>
                     </div>
 
@@ -2807,54 +3341,76 @@ const handleDelete = async (type, id) => {
                         <div className="icon-wrapper blue">
                           <Tractor size={22} />
                         </div>
-                        <span className="trend-badge positive">Active</span>
+                        <span className="trend-badge positive">Rentals</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>{bookings.length}</h3>
-                        <p>Equipment Rentals</p>
+                        <h3>{analyticsStats?.totalBookings || 0}</h3>
+                        <p>Total Equipment Bookings</p>
                       </div>
                     </div>
 
-                    <div className="metric-card glass-panel" onClick={() => setActiveTab("farmers")}>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("product-bookings")}>
                       <div className="card-top">
                         <div className="icon-wrapper orange" style={{ background: "rgba(230, 81, 0, 0.15)", color: "var(--admin-accent-orange)" }}>
-                          <Users size={22} />
+                          <ShoppingCart size={22} />
                         </div>
-                        <span className="trend-badge positive">Members</span>
+                        <span className="trend-badge positive">Orders</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>{farmers.length}</h3>
-                        <p>FPO Farmers</p>
+                        <h3>{analyticsStats?.totalOrders || 0}</h3>
+                        <p>Total Product Orders</p>
                       </div>
                     </div>
 
-                    <div className="metric-card glass-panel" onClick={() => setActiveTab("products")}>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
                       <div className="card-top">
                         <div className="icon-wrapper green" style={{ background: "rgba(46, 125, 50, 0.15)", color: "var(--admin-accent-green)" }}>
-                          <Package size={22} />
+                          <CheckCircle size={22} />
                         </div>
-                        <span className="trend-badge positive">Inventory</span>
+                        <span className="trend-badge positive">Approved</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>{products.length}</h3>
-                        <p>Products</p>
+                        <h3>{analyticsStats?.approvedCropRequests || 0}</h3>
+                        <p>Approved Requests</p>
                       </div>
                     </div>
 
-                    <div className="metric-card glass-panel" onClick={() => setActiveTab("settings")}>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
                       <div className="card-top">
-                        <div className="icon-wrapper blue" style={{ background: "rgba(2, 136, 209, 0.15)", color: "var(--admin-accent-blue)" }}>
-                          <Send size={22} />
+                        <div className="icon-wrapper blue" style={{ background: "rgba(211, 47, 47, 0.15)", color: "#d32f2f" }}>
+                          <Ban size={22} />
                         </div>
-                        <span className={`trend-badge ${telegramStatus?.connected ? "positive" : "negative"}`}>
-                          {telegramStatus?.connected ? "Connected" : "Disconnected"}
-                        </span>
+                        <span className="trend-badge negative">Rejected</span>
                       </div>
                       <div className="card-bottom">
-                        <h3>Telegram</h3>
-                        <p style={{ fontSize: "11px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          Last Sent: {telegramStatus?.lastNotificationSent ? getRelativeTime(telegramStatus.lastNotificationSent) : "Never"}
-                        </p>
+                        <h3>{analyticsStats?.rejectedCropRequests || 0}</h3>
+                        <p>Rejected Requests</p>
+                      </div>
+                    </div>
+
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper green">
+                          <CheckCircle size={22} />
+                        </div>
+                        <span className="trend-badge positive">Completed</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.completedCropRequests || 0}</h3>
+                        <p>Completed Requests</p>
+                      </div>
+                    </div>
+
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper orange" style={{ background: "rgba(230, 81, 0, 0.15)", color: "var(--admin-accent-orange)" }}>
+                          <Coins size={22} />
+                        </div>
+                        <span className="trend-badge positive">Estimated</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>₹{(analyticsStats?.estimatedCropValue || 0).toLocaleString("en-IN")}</h3>
+                        <p>Estimated Crop Value</p>
                       </div>
                     </div>
                   </div>
@@ -2881,6 +3437,407 @@ const handleDelete = async (type, id) => {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Analytics Center Tab */}
+              {activeTab === "analytics" && (
+                <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Analytics Center</h2>
+                    <p className="module-description">Comprehensive business intelligence, revenue metrics, and data charts.</p>
+                  </div>
+
+                  {/* 1. Overview Cards Grid */}
+                  <div className="metrics-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", marginBottom: "24px" }}>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("farmers")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper orange"><Users size={22} /></div>
+                        <span className="trend-badge positive">Farmers</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.totalFarmers || 0}</h3>
+                        <p>Total Farmers</p>
+                      </div>
+                    </div>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper green"><Sprout size={22} /></div>
+                        <span className="trend-badge positive">Crops</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.totalCropRequests || 0}</h3>
+                        <p>Total Crop Requests</p>
+                      </div>
+                    </div>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("bookings")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper blue"><Tractor size={22} /></div>
+                        <span className="trend-badge positive">Rentals</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.totalBookings || 0}</h3>
+                        <p>Total Equipment Bookings</p>
+                      </div>
+                    </div>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("product-bookings")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper orange"><ShoppingCart size={22} /></div>
+                        <span className="trend-badge positive">Orders</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.totalOrders || 0}</h3>
+                        <p>Total Product Orders</p>
+                      </div>
+                    </div>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper green"><CheckCircle size={22} /></div>
+                        <span className="trend-badge positive">Approved</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.approvedCropRequests || 0}</h3>
+                        <p>Approved Requests</p>
+                      </div>
+                    </div>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper blue" style={{ color: "#d32f2f" }}><Ban size={22} /></div>
+                        <span className="trend-badge negative">Rejected</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.rejectedCropRequests || 0}</h3>
+                        <p>Rejected Requests</p>
+                      </div>
+                    </div>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper green"><CheckCircle size={22} /></div>
+                        <span className="trend-badge positive">Completed</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>{analyticsStats?.completedCropRequests || 0}</h3>
+                        <p>Completed Requests</p>
+                      </div>
+                    </div>
+                    <div className="metric-card glass-panel" onClick={() => setActiveTab("crops")}>
+                      <div className="card-top">
+                        <div className="icon-wrapper orange"><Coins size={22} /></div>
+                        <span className="trend-badge positive">Estimated</span>
+                      </div>
+                      <div className="card-bottom">
+                        <h3>₹{(analyticsStats?.estimatedCropValue || 0).toLocaleString("en-IN")}</h3>
+                        <p>Estimated Crop Value</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Revenue Analytics Section */}
+                  <div className="glass-panel" style={{ padding: "24px", marginBottom: "24px" }}>
+                    <h3 className="section-title" style={{ fontSize: "16px", color: "var(--admin-accent-green)", marginBottom: "16px", fontWeight: "600", borderBottom: "1px solid var(--admin-border-color)", paddingBottom: "8px" }}>
+                      Revenue Analytics
+                    </h3>
+                    <div className="table-responsive-container" style={{ border: "none", boxShadow: "none", background: "transparent" }}>
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Revenue Stream</th>
+                            <th>Today</th>
+                            <th>This Week</th>
+                            <th>This Month</th>
+                            <th>This Year</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="font-semibold">Expected Crop Revenue</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.today?.expectedCropRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.week?.expectedCropRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.month?.expectedCropRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.year?.expectedCropRevenue || 0).toLocaleString("en-IN")}</td>
+                          </tr>
+                          <tr>
+                            <td className="font-semibold">Product Sales Revenue</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.today?.productSalesRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.week?.productSalesRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.month?.productSalesRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.year?.productSalesRevenue || 0).toLocaleString("en-IN")}</td>
+                          </tr>
+                          <tr>
+                            <td className="font-semibold">Equipment Booking Revenue</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.today?.equipmentBookingRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.week?.equipmentBookingRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.month?.equipmentBookingRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td>₹{(analyticsStats?.revenueBreakdown?.year?.equipmentBookingRevenue || 0).toLocaleString("en-IN")}</td>
+                          </tr>
+                          <tr style={{ background: "rgba(46, 125, 50, 0.1)", borderTop: "2px solid var(--admin-accent-green)" }}>
+                            <td className="font-semibold" style={{ color: "var(--admin-accent-green)" }}>Total Platform Revenue</td>
+                            <td className="font-bold" style={{ color: "var(--admin-accent-green)" }}>₹{(analyticsStats?.revenueBreakdown?.today?.totalPlatformRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td className="font-bold" style={{ color: "var(--admin-accent-green)" }}>₹{(analyticsStats?.revenueBreakdown?.week?.totalPlatformRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td className="font-bold" style={{ color: "var(--admin-accent-green)" }}>₹{(analyticsStats?.revenueBreakdown?.month?.totalPlatformRevenue || 0).toLocaleString("en-IN")}</td>
+                            <td className="font-bold" style={{ color: "var(--admin-accent-green)" }}>₹{(analyticsStats?.revenueBreakdown?.year?.totalPlatformRevenue || 0).toLocaleString("en-IN")}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Market Prices Management Section */}
+                  <div className="glass-panel" style={{ padding: "24px", marginBottom: "24px" }}>
+                    <h3 className="section-title" style={{ fontSize: "16px", color: "var(--admin-accent-green)", marginBottom: "16px", fontWeight: "600", borderBottom: "1px solid var(--admin-border-color)", paddingBottom: "8px" }}>
+                      Market Prices Management
+                    </h3>
+                    <div className="table-responsive-container" style={{ border: "none", boxShadow: "none", background: "transparent" }}>
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Crop Name</th>
+                            <th>Yesterday's Price (₹/Qtl)</th>
+                            <th>Today's Price (₹/Qtl)</th>
+                            <th>Recommended Price (₹/Qtl)</th>
+                            <th>Trend</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {marketPrices.map((mp) => {
+                            const isEditing = editingPriceId === mp._id;
+                            return (
+                              <tr key={mp._id}>
+                                <td className="font-semibold">{mp.cropName}</td>
+                                <td>₹{mp.yesterdayPrice || 0}</td>
+                                <td>
+                                  {isEditing ? (
+                                    <input 
+                                      type="number" 
+                                      value={editingTodayPrice} 
+                                      onChange={(e) => setEditingTodayPrice(e.target.value)} 
+                                      className="admin-login-input" 
+                                      style={{ padding: "4px 8px", width: "100px", margin: 0, background: "rgba(0, 0, 0, 0.4)", border: "1px solid var(--admin-accent-green)", color: "#fff", borderRadius: "4px" }}
+                                    />
+                                  ) : (
+                                    <span>₹{mp.todayPrice}</span>
+                                  )}
+                                </td>
+                                <td>
+                                  {isEditing ? (
+                                    <input 
+                                      type="number" 
+                                      value={editingRecPrice} 
+                                      onChange={(e) => setEditingRecPrice(e.target.value)} 
+                                      className="admin-login-input" 
+                                      style={{ padding: "4px 8px", width: "100px", margin: 0, background: "rgba(0, 0, 0, 0.4)", border: "1px solid var(--admin-accent-green)", color: "#fff", borderRadius: "4px" }}
+                                    />
+                                  ) : (
+                                    <span>₹{mp.recommendedPrice}</span>
+                                  )}
+                                </td>
+                                <td>
+                                  <span className={`trend-badge ${mp.trend === 'up' ? 'positive' : mp.trend === 'down' ? 'negative' : 'neutral'}`} style={{ textTransform: "capitalize" }}>
+                                    {mp.trend}
+                                  </span>
+                                </td>
+                                <td>
+                                  {isEditing ? (
+                                    <div style={{ display: "flex", gap: "8px" }}>
+                                      <button 
+                                        className="btn-action small pdf" 
+                                        onClick={() => handleUpdateMarketPrice(mp._id)}
+                                        style={{ background: "var(--admin-accent-green)", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
+                                      >
+                                        Save
+                                      </button>
+                                      <button 
+                                        className="btn-action small csv" 
+                                        onClick={() => setEditingPriceId(null)}
+                                        style={{ background: "#d32f2f", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      className="btn-action small excel" 
+                                      onClick={() => {
+                                        setEditingPriceId(mp._id);
+                                        setEditingTodayPrice(mp.todayPrice);
+                                        setEditingRecPrice(mp.recommendedPrice);
+                                      }}
+                                      style={{ background: "rgba(197, 168, 128, 0.2)", border: "1px solid var(--admin-accent-gold)", color: "var(--admin-accent-gold)", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
+                                    >
+                                      Edit Price
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* 3. Charts Row */}
+                  <div className="charts-row" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>
+                    <div className="chart-wrapper glass-panel" style={{ height: "340px" }}>
+                      <div className="chart-header">
+                        <h4>Crop-wise Requests</h4>
+                        <span>Total distribution</span>
+                      </div>
+                      <div className="chart-container" style={{ position: "relative", height: "260px" }}>
+                        <Pie data={getCropWiseChartData()} options={getPieOptions("Crops Distribution")} />
+                      </div>
+                    </div>
+
+                    <div className="chart-wrapper glass-panel" style={{ height: "340px" }}>
+                      <div className="chart-header">
+                        <h4>Village-wise Farmers</h4>
+                        <span>Top villages</span>
+                      </div>
+                      <div className="chart-container" style={{ position: "relative", height: "260px" }}>
+                        <Bar data={getVillageWiseChartData()} options={getChartOptions("Farmers by Village")} />
+                      </div>
+                    </div>
+
+                    <div className="chart-wrapper glass-panel" style={{ height: "340px" }}>
+                      <div className="chart-header">
+                        <h4>Machinery Booking Trends</h4>
+                        <span>Popular machinery</span>
+                      </div>
+                      <div className="chart-container" style={{ position: "relative", height: "260px" }}>
+                        <Bar data={getBookingTrendsChartData()} options={getChartOptions("Bookings by Equipment")} />
+                      </div>
+                    </div>
+
+                    <div className="chart-wrapper glass-panel" style={{ height: "340px" }}>
+                      <div className="chart-header">
+                        <h4>Top Selling Products</h4>
+                        <span>Quantity sold</span>
+                      </div>
+                      <div className="chart-container" style={{ position: "relative", height: "260px" }}>
+                        <Bar data={getTopProductsChartData()} options={getChartOptions("Top Products")} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Announcements Tab */}
+              {activeTab === "announcements" && (
+                <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Announcements & Notice Board</h2>
+                    <p className="module-description">Publish, edit, and categorize official notices, events, and training announcements for farmers.</p>
+                  </div>
+
+                  <div className="pane-header-actions">
+                    <div className="search-bar-wrapper">
+                      <Search size={16} />
+                      <input 
+                        type="text" 
+                        placeholder="Search announcements..." 
+                        value={searchCrop}
+                        onChange={(e) => setSearchCrop(e.target.value)}
+                      />
+                    </div>
+                    <button 
+                      className="btn-action primary" 
+                      onClick={() => {
+                        setAnnouncementForm({ title: "", description: "", category: "General", priority: "low", imageUrl: "", published: true });
+                        setShowAddAnnouncementModal(true);
+                      }}
+                    >
+                      <span>+ Publish Notice</span>
+                    </button>
+                  </div>
+
+                  {announcements.length === 0 ? (
+                    <EmptyState 
+                      icon={Megaphone} 
+                      title="No Announcements Published" 
+                      message="Get started by publishing your first notice to the farmer notice board." 
+                      ctaText="+ Publish Notice"
+                      onCtaClick={() => setShowAddAnnouncementModal(true)}
+                    />
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Title</th>
+                              <th>Category</th>
+                              <th>Priority</th>
+                              <th>Published</th>
+                              <th>Created Date</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {announcements
+                              .filter(a => !searchCrop || a.title.toLowerCase().includes(searchCrop.toLowerCase()) || a.category.toLowerCase().includes(searchCrop.toLowerCase()))
+                              .map(a => {
+                                return (
+                                  <tr key={a._id}>
+                                    <td className="font-semibold" data-label="Title">{a.title}</td>
+                                    <td data-label="Category">
+                                      <span className="badge-status success">{a.category}</span>
+                                    </td>
+                                    <td data-label="Priority">
+                                      <span className={`badge-status ${a.priority === "high" ? "danger" : a.priority === "medium" ? "warning" : "success"}`}>
+                                        {a.priority.toUpperCase()}
+                                      </span>
+                                    </td>
+                                    <td data-label="Published">
+                                      <span className={`badge-status ${a.published ? "success" : "danger"}`}>
+                                        {a.published ? "YES" : "NO"}
+                                      </span>
+                                    </td>
+                                    <td data-label="Created Date">{new Date(a.createdAt).toLocaleDateString("en-IN")}</td>
+                                    <td className="text-right" data-label="Actions">
+                                      <div className="action-button-group">
+                                        <button 
+                                          className="action-btn view" 
+                                          title="Inspect notice"
+                                          onClick={() => setSelectedItem({ type: "announcement", data: a })}
+                                        >
+                                          <Eye size={15} />
+                                        </button>
+                                        <button 
+                                          className="action-btn edit" 
+                                          title="Edit notice"
+                                          onClick={() => {
+                                            setSelectedAnnouncement(a);
+                                            setAnnouncementForm({
+                                              title: a.title,
+                                              description: a.description,
+                                              category: a.category,
+                                              priority: a.priority,
+                                              imageUrl: a.imageUrl,
+                                              published: a.published
+                                            });
+                                            setShowEditAnnouncementModal(true);
+                                          }}
+                                        >
+                                          <Pencil size={15} />
+                                        </button>
+                                        <button 
+                                          className="action-btn delete" 
+                                          title="Delete notice"
+                                          onClick={() => handleAnnouncementDelete(a._id)}
+                                        >
+                                          <Trash2 size={15} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4000,8 +4957,30 @@ const handleDelete = async (type, id) => {
                         <option value="week" style={{ background: "#0d2315", color: "#fff" }}>This Week</option>
                         <option value="month" style={{ background: "#0d2315", color: "#fff" }}>This Month</option>
                         <option value="year" style={{ background: "#0d2315", color: "#fff" }}>This Year</option>
+                        <option value="custom" style={{ background: "#0d2315", color: "#fff" }}>Custom Range</option>
                       </select>
                     </div>
+
+                    {analyticsTimeframe === "custom" && (
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                        <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", fontWeight: "600" }}>Start:</span>
+                        <input 
+                          type="date" 
+                          value={reportStartDate} 
+                          onChange={(e) => setReportStartDate(e.target.value)} 
+                          className="admin-login-input" 
+                          style={{ padding: "4px 8px", margin: 0, width: "130px", background: "rgba(0,0,0,0.3)", border: "1px solid var(--admin-border-color)", color: "#fff", borderRadius: "4px" }} 
+                        />
+                        <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", fontWeight: "600" }}>End:</span>
+                        <input 
+                          type="date" 
+                          value={reportEndDate} 
+                          onChange={(e) => setReportEndDate(e.target.value)} 
+                          className="admin-login-input" 
+                          style={{ padding: "4px 8px", margin: 0, width: "130px", background: "rgba(0,0,0,0.3)", border: "1px solid var(--admin-border-color)", color: "#fff", borderRadius: "4px" }} 
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Reports Overview Cards Grid */}
@@ -4175,6 +5154,38 @@ const handleDelete = async (type, id) => {
                           <button className="btn-action small csv" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("contacts", "csv")}>CSV</button>
                         </div>
                       </div>
+
+                      {/* 6. Product Orders */}
+                      <div className="report-card glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                        <div>
+                          <h4 style={{ fontSize: "15px", color: "var(--admin-text-primary)", fontWeight: "600", marginBottom: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <ShoppingCart size={16} style={{ color: "var(--admin-accent-green)" }} />
+                            <span>Product Orders Report</span>
+                          </h4>
+                          <p style={{ fontSize: "12px", color: "var(--admin-text-secondary)", marginBottom: "15px" }}>Log of seeds, fertilizers, and pesticide orders submitted by farmers, with quantities and payment statuses.</p>
+                        </div>
+                        <div className="action-buttons-stack" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button className="btn-action small pdf" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("orders", "pdf")}>PDF</button>
+                          <button className="btn-action small excel" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("orders", "excel")}>Excel</button>
+                          <button className="btn-action small csv" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("orders", "csv")}>CSV</button>
+                        </div>
+                      </div>
+
+                      {/* 7. Platform Revenue */}
+                      <div className="report-card glass-panel" style={{ padding: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                        <div>
+                          <h4 style={{ fontSize: "15px", color: "var(--admin-text-primary)", fontWeight: "600", marginBottom: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <Coins size={16} style={{ color: "var(--admin-accent-green)" }} />
+                            <span>Platform Revenue Report</span>
+                          </h4>
+                          <p style={{ fontSize: "12px", color: "var(--admin-text-secondary)", marginBottom: "15px" }}>Financial report summarizing revenue streams from crop transactions, machinery rentals, and retail sales.</p>
+                        </div>
+                        <div className="action-buttons-stack" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button className="btn-action small pdf" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("revenue", "pdf")}>PDF</button>
+                          <button className="btn-action small excel" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("revenue", "excel")}>Excel</button>
+                          <button className="btn-action small csv" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("revenue", "csv")}>CSV</button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -4261,6 +5272,218 @@ const handleDelete = async (type, id) => {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Document Center Tab */}
+              {activeTab === "documents" && (
+                <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Document Center Management</h2>
+                    <p className="module-description">Upload official guides, government schemes, training manuals, and FPO forms for farmer download access.</p>
+                  </div>
+
+                  <div className="pane-header-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
+                    <div className="search-bar-wrapper" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <div style={{ position: "relative" }}>
+                        <Search size={16} style={{ position: "absolute", left: "10px", top: "10px", color: "var(--admin-text-secondary)" }} />
+                        <input 
+                          type="text" 
+                          placeholder="Search documents..." 
+                          value={searchDoc}
+                          onChange={(e) => setSearchDoc(e.target.value)}
+                          style={{ paddingLeft: "32px", height: "36px", borderRadius: "8px", background: "rgba(255, 255, 255, 0.05)", border: "1px solid var(--admin-border-color)", color: "#fff", outline: "none" }}
+                        />
+                      </div>
+                      <select
+                        value={filterDocCategory}
+                        onChange={(e) => setFilterDocCategory(e.target.value)}
+                        style={{ height: "36px", padding: "0 10px", borderRadius: "8px", background: "rgba(13, 35, 21, 0.9)", border: "1px solid var(--admin-border-color)", color: "#fff", outline: "none", cursor: "pointer" }}
+                      >
+                        <option value="All">All Categories</option>
+                        <option value="Government Schemes">Government Schemes</option>
+                        <option value="Training Manuals">Training Manuals</option>
+                        <option value="Crop Guides">Crop Guides</option>
+                        <option value="FPO Forms">FPO Forms</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <button 
+                      className="btn-action primary" 
+                      onClick={() => {
+                        setDocumentForm({ title: "", description: "", category: "Government Schemes" });
+                        setDocumentFile(null);
+                        setShowDocumentModal(true);
+                      }}
+                      style={{ background: "var(--admin-accent-green)", color: "#fff", border: "none", display: "flex", alignItems: "center", gap: "6px", height: "36px", padding: "0 16px", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
+                    >
+                      <span>+ Upload Document</span>
+                    </button>
+                  </div>
+
+                  {documents.filter(d => {
+                    const matchesSearch = d.title.toLowerCase().includes(searchDoc.toLowerCase()) || (d.description && d.description.toLowerCase().includes(searchDoc.toLowerCase()));
+                    const matchesCat = filterDocCategory === "All" || d.category === filterDocCategory;
+                    return matchesSearch && matchesCat;
+                  }).length === 0 ? (
+                    <div className="glass-panel" style={{ padding: "40px", textAlign: "center", color: "var(--admin-text-secondary)" }}>
+                      <FolderOpen size={48} style={{ color: "var(--admin-accent-green)", marginBottom: "12px", opacity: 0.5 }} />
+                      <h3>No Documents Found</h3>
+                      <p>Upload files to share important resources with registered farmers.</p>
+                    </div>
+                  ) : (
+                    <div className="table-responsive-container glass-panel">
+                      <div className="table-responsive-wrapper">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Document Title</th>
+                              <th>Category</th>
+                              <th>File Details</th>
+                              <th>Uploaded Date</th>
+                              <th style={{ textAlign: "right" }}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {documents.filter(d => {
+                              const matchesSearch = d.title.toLowerCase().includes(searchDoc.toLowerCase()) || (d.description && d.description.toLowerCase().includes(searchDoc.toLowerCase()));
+                              const matchesCat = filterDocCategory === "All" || d.category === filterDocCategory;
+                              return matchesSearch && matchesCat;
+                            }).map((doc) => {
+                              return (
+                                <tr key={doc._id}>
+                                  <td>
+                                    <div className="font-semibold text-primary" style={{ fontSize: "14px", color: "var(--admin-accent-green)" }}>{doc.title}</div>
+                                    <div style={{ fontSize: "11px", color: "var(--admin-text-secondary)", marginTop: "4px" }}>{doc.description || "No description provided."}</div>
+                                  </td>
+                                  <td>
+                                    <span className="trend-badge positive" style={{ textTransform: "capitalize", background: "rgba(46, 125, 50, 0.15)", color: "var(--admin-accent-green)", border: "1px solid rgba(46, 125, 50, 0.2)" }}>
+                                      {doc.category}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <div style={{ fontSize: "13px", fontWeight: "500" }}>{doc.fileName}</div>
+                                    <div style={{ fontSize: "11px", color: "var(--admin-text-secondary)" }}>{doc.fileSize}</div>
+                                  </td>
+                                  <td>
+                                    {new Date(doc.createdAt).toLocaleDateString("en-IN")}
+                                  </td>
+                                  <td style={{ textAlign: "right" }}>
+                                    <div className="action-group" style={{ justifyContent: "flex-end", display: "flex", gap: "8px" }}>
+                                      <a 
+                                        href={`${API_BASE.replace("/api", "")}${doc.fileUrl}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="action-btn edit" 
+                                        title="Download Document"
+                                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "30px", height: "30px", background: "rgba(197, 168, 128, 0.2)", border: "1px solid var(--admin-accent-gold)", color: "var(--admin-accent-gold)", borderRadius: "4px" }}
+                                      >
+                                        <Download size={14} />
+                                      </a>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete Document"
+                                        onClick={() => handleDocumentDelete(doc._id)}
+                                        style={{ width: "30px", height: "30px", background: "rgba(211, 47, 47, 0.2)", border: "1px solid #ff5252", color: "#ff5252", borderRadius: "4px", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Document Modal */}
+                  {showDocumentModal && (
+                    <div className="admin-modal-overlay">
+                      <div className="admin-modal-content glass-panel" style={{ maxWidth: "500px", width: "100%", padding: "24px" }}>
+                        <div className="admin-modal-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                          <h3 style={{ margin: 0, color: "#fff", fontSize: "18px" }}>Upload New Document</h3>
+                          <button onClick={() => setShowDocumentModal(false)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer" }}>
+                            <X size={20} />
+                          </button>
+                        </div>
+                        <form onSubmit={handleDocumentUpload}>
+                          <div style={{ marginBottom: "16px" }}>
+                            <label className="admin-login-label" style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Document Title *</label>
+                            <input 
+                              type="text" 
+                              required 
+                              value={documentForm.title}
+                              onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })}
+                              placeholder="e.g. Organic Farming Guide"
+                              className="admin-login-input"
+                              style={{ width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid var(--admin-border-color)", padding: "10px", borderRadius: "6px", color: "#fff" }}
+                            />
+                          </div>
+
+                          <div style={{ marginBottom: "16px" }}>
+                            <label className="admin-login-label" style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Description</label>
+                            <textarea 
+                              value={documentForm.description}
+                              onChange={(e) => setDocumentForm({ ...documentForm, description: e.target.value })}
+                              placeholder="Brief overview of what this file contains..."
+                              className="admin-login-input"
+                              rows={3}
+                              style={{ width: "100%", background: "rgba(0,0,0,0.3)", border: "1px solid var(--admin-border-color)", padding: "10px", borderRadius: "6px", color: "#fff", resize: "none" }}
+                            />
+                          </div>
+
+                          <div style={{ marginBottom: "16px" }}>
+                            <label className="admin-login-label" style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Category *</label>
+                            <select 
+                              value={documentForm.category}
+                              onChange={(e) => setDocumentForm({ ...documentForm, category: e.target.value })}
+                              className="admin-login-input"
+                              style={{ width: "100%", background: "rgba(13, 35, 21, 0.9)", border: "1px solid var(--admin-border-color)", padding: "10px", borderRadius: "6px", color: "#fff" }}
+                            >
+                              <option value="Government Schemes">Government Schemes</option>
+                              <option value="Training Manuals">Training Manuals</option>
+                              <option value="Crop Guides">Crop Guides</option>
+                              <option value="FPO Forms">FPO Forms</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+
+                          <div style={{ marginBottom: "20px" }}>
+                            <label className="admin-login-label" style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Select File (PDF, DOCX, Images) *</label>
+                            <input 
+                              type="file" 
+                              required 
+                              accept=".pdf,.docx,.doc,image/*"
+                              onChange={(e) => setDocumentFile(e.target.files[0])}
+                              style={{ color: "#fff", fontSize: "13px" }}
+                            />
+                          </div>
+
+                          <div className="admin-modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                            <button 
+                              type="button" 
+                              onClick={() => setShowDocumentModal(false)}
+                              className="btn-action outline"
+                              style={{ padding: "8px 16px", borderRadius: "6px", background: "transparent", border: "1px solid var(--admin-border-color)", color: "#fff", cursor: "pointer" }}
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              type="submit" 
+                              disabled={uploadingDoc}
+                              className="btn-action primary"
+                              style={{ padding: "8px 16px", borderRadius: "6px", background: "var(--admin-accent-green)", border: "none", color: "#fff", cursor: "pointer", opacity: uploadingDoc ? 0.6 : 1 }}
+                            >
+                              {uploadingDoc ? "Uploading..." : "Upload"}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4568,6 +5791,149 @@ const handleDelete = async (type, id) => {
                 </div>
               )}
 
+              {/* 10. Audit Logs Tab */}
+              {activeTab === "audit-logs" && (
+                <div className="tab-pane">
+                  <div className="module-header">
+                    <h2 className="module-title">Audit Trails & Logs</h2>
+                    <p className="module-description">Monitor and audit administrative actions, farmer authentication, and business transaction updates.</p>
+                  </div>
+
+                  {/* Actions Toolbar */}
+                  <div className="pane-header-actions" style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "20px" }}>
+                    <div className="search-bar-wrapper" style={{ flex: "1 1 300px" }}>
+                      <Search size={16} />
+                      <input 
+                        type="text" 
+                        placeholder="Search logs by username, action, or details..." 
+                        value={searchAuditLogsInput}
+                        onChange={(e) => setSearchAuditLogsInput(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="search-bar-wrapper" style={{ minWidth: "180px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", marginRight: "8px", fontWeight: "600" }}>Module:</span>
+                      <select 
+                        value={filterAuditModule}
+                        onChange={(e) => {
+                          setFilterAuditModule(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        style={{ 
+                          background: "transparent", 
+                          border: "none", 
+                          color: "var(--admin-text-primary)", 
+                          outline: "none", 
+                          cursor: "pointer", 
+                          fontSize: "14px", 
+                          fontWeight: "600",
+                          width: "120px"
+                        }}
+                      >
+                        <option value="All" style={{ background: "#0d2315", color: "#fff" }}>All Modules</option>
+                        <option value="Farmers" style={{ background: "#0d2315", color: "#fff" }}>Farmers</option>
+                        <option value="Crops" style={{ background: "#0d2315", color: "#fff" }}>Crops</option>
+                        <option value="Bookings" style={{ background: "#0d2315", color: "#fff" }}>Bookings</option>
+                        <option value="Products" style={{ background: "#0d2315", color: "#fff" }}>Products</option>
+                        <option value="Announcements" style={{ background: "#0d2315", color: "#fff" }}>Announcements</option>
+                        <option value="Market Prices" style={{ background: "#0d2315", color: "#fff" }}>Market Prices</option>
+                        <option value="Documents" style={{ background: "#0d2315", color: "#fff" }}>Documents</option>
+                        <option value="Settings" style={{ background: "#0d2315", color: "#fff" }}>Settings</option>
+                      </select>
+                    </div>
+
+                    <div className="search-bar-wrapper" style={{ minWidth: "180px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--admin-text-secondary)", marginRight: "8px", fontWeight: "600" }}>Action:</span>
+                      <select 
+                        value={filterAuditAction}
+                        onChange={(e) => {
+                          setFilterAuditAction(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        style={{ 
+                          background: "transparent", 
+                          border: "none", 
+                          color: "var(--admin-text-primary)", 
+                          outline: "none", 
+                          cursor: "pointer", 
+                          fontSize: "14px", 
+                          fontWeight: "600",
+                          width: "120px"
+                        }}
+                      >
+                        <option value="All" style={{ background: "#0d2315", color: "#fff" }}>All Actions</option>
+                        <option value="CREATE" style={{ background: "#0d2315", color: "#fff" }}>CREATE</option>
+                        <option value="UPDATE" style={{ background: "#0d2315", color: "#fff" }}>UPDATE</option>
+                        <option value="DELETE" style={{ background: "#0d2315", color: "#fff" }}>DELETE</option>
+                        <option value="APPROVE" style={{ background: "#0d2315", color: "#fff" }}>APPROVE</option>
+                        <option value="REJECT" style={{ background: "#0d2315", color: "#fff" }}>REJECT</option>
+                        <option value="LOGIN" style={{ background: "#0d2315", color: "#fff" }}>LOGIN</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Audit Logs Table */}
+                  {filteredAuditLogs.length === 0 ? (
+                    <EmptyState 
+                      icon={Clock} 
+                      title="No Audit Logs Found" 
+                      message="No audit records match your current search and filters."
+                    />
+                  ) : (
+                    <div className="pane-content-card glass-panel" style={{ padding: "20px" }}>
+                      <div className="table-responsive">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>Timestamp</th>
+                              <th>User</th>
+                              <th>Role</th>
+                              <th>Module / Action</th>
+                              <th>Description</th>
+                              <th>IP Address</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedAuditLogs.map((log) => {
+                              const moduleColorClass = getModuleBadgeClass(log.module);
+                              const actionColorClass = getActionBadgeClass(log.action);
+                              return (
+                                <tr key={log._id}>
+                                  <td className="text-secondary font-semibold" style={{ fontSize: "12px", whiteSpace: "nowrap" }}>
+                                    {new Date(log.createdAt).toLocaleString("en-IN")}
+                                  </td>
+                                  <td className="font-semibold text-primary">{log.user || "System"}</td>
+                                  <td>
+                                    <span className={getStatusBadgeClass(log.userType)}>
+                                      {log.userType || "System"}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className={`badge-status ${moduleColorClass}`} style={{ marginRight: "6px" }}>
+                                      {log.module}
+                                    </span>
+                                    <span className={`badge-status ${actionColorClass}`}>
+                                      {log.action}
+                                    </span>
+                                  </td>
+                                  <td style={{ fontSize: "13px", lineHeight: "1.4", color: "var(--admin-text-primary)" }}>
+                                    {log.details}
+                                  </td>
+                                  <td className="text-secondary" style={{ fontFamily: "monospace", fontSize: "12px" }}>
+                                    {log.ipAddress || "—"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {renderPagination(filteredAuditLogs.length)}
+                    </div>
+                  )}
+                </div>
+              )}
+
             </>
           )}
         </div>
@@ -4582,6 +5948,7 @@ const handleDelete = async (type, id) => {
                 {selectedItem.type === "contact" && "Contact Request Details"}
                 {selectedItem.type === "crop" && "Crop Offer Details"}
                 {selectedItem.type === "booking" && "Equipment Booking Details"}
+                {selectedItem.type === "announcement" && "Announcement Details"}
               </h3>
               <button className="modal-close-btn" onClick={() => setSelectedItem(null)}>
                 <X size={18} />
@@ -4806,6 +6173,45 @@ const handleDelete = async (type, id) => {
                   )}
                 </div>
               )}
+
+              {selectedItem.type === "announcement" && (
+                <div className="details-list">
+                  <div className="detail-item">
+                    <span className="label">Title:</span>
+                    <span className="value font-semibold">{selectedItem.data.title}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Category:</span>
+                    <span className="value text-accent font-semibold">{selectedItem.data.category}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Priority Level:</span>
+                    <span className={`value font-semibold ${selectedItem.data.priority === "high" ? "badge-status danger" : selectedItem.data.priority === "medium" ? "badge-status warning" : "badge-status success"}`}>
+                      {selectedItem.data.priority.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Status:</span>
+                    <span className={`value font-semibold ${selectedItem.data.published ? "badge-status success" : "badge-status danger"}`}>
+                      {selectedItem.data.published ? "Published" : "Draft (Hidden)"}
+                    </span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="label">Publish Date:</span>
+                    <span className="value">{new Date(selectedItem.data.createdAt).toLocaleString("en-IN")}</span>
+                  </div>
+                  {selectedItem.data.imageUrl && (
+                    <div className="detail-item full-width">
+                      <span className="label">Image URL:</span>
+                      <span className="value"><a href={selectedItem.data.imageUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--admin-accent-green)", textDecoration: "underline" }}>{selectedItem.data.imageUrl}</a></span>
+                    </div>
+                  )}
+                  <div className="detail-item full-width">
+                    <span className="label">Notice Content:</span>
+                    <span className="value text-block" style={{ whiteSpace: "pre-wrap" }}>{selectedItem.data.description}</span>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="modal-footer" style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "space-between" }}>
@@ -4837,7 +6243,14 @@ const handleDelete = async (type, id) => {
               </div>
               <button 
                 className="btn-modal-delete"
-                onClick={() => handleDelete(selectedItem.type === "contact" ? "contacts" : selectedItem.type === "crop" ? "crops" : "bookings", selectedItem.data._id)}
+                onClick={() => {
+                  if (selectedItem.type === "announcement") {
+                    handleAnnouncementDelete(selectedItem.data._id);
+                    setSelectedItem(null);
+                  } else {
+                    handleDelete(selectedItem.type === "contact" ? "contacts" : selectedItem.type === "crop" ? "crops" : "bookings", selectedItem.data._id);
+                  }
+                }}
               >
                 Delete Record
               </button>
@@ -4947,37 +6360,15 @@ const handleDelete = async (type, id) => {
                   </select>
                 </div>
 
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">Village *</label>
-                  <input 
-                    type="text" 
-                    className="admin-login-input" 
-                    placeholder="Village name"
-                    value={farmerForm.village}
-                    onChange={(e) => setFarmerForm({ ...farmerForm, village: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">Mandal</label>
-                  <input 
-                    type="text" 
-                    className="admin-login-input" 
-                    placeholder="Mandal name"
-                    value={farmerForm.mandal}
-                    onChange={(e) => setFarmerForm({ ...farmerForm, mandal: e.target.value })}
-                  />
-                </div>
-
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">District</label>
-                  <input 
-                    type="text" 
-                    className="admin-login-input" 
-                    placeholder="District name"
-                    value={farmerForm.district}
-                    onChange={(e) => setFarmerForm({ ...farmerForm, district: e.target.value })}
+                <div style={{ gridColumn: "span 2", marginBottom: "15px" }}>
+                  <LocationSelector
+                    value={{
+                      state: farmerForm.state,
+                      district: farmerForm.district,
+                      mandal: farmerForm.mandal,
+                      village: farmerForm.village
+                    }}
+                    onChange={(loc) => setFarmerForm({ ...farmerForm, ...loc })}
                   />
                 </div>
 
@@ -5141,34 +6532,15 @@ const handleDelete = async (type, id) => {
                   </select>
                 </div>
 
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">Village *</label>
-                  <input 
-                    type="text" 
-                    className="admin-login-input" 
-                    value={editingFarmer.village}
-                    onChange={(e) => setEditingFarmer({ ...editingFarmer, village: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">Mandal</label>
-                  <input 
-                    type="text" 
-                    className="admin-login-input" 
-                    value={editingFarmer.mandal || ""}
-                    onChange={(e) => setEditingFarmer({ ...editingFarmer, mandal: e.target.value })}
-                  />
-                </div>
-
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label">District</label>
-                  <input 
-                    type="text" 
-                    className="admin-login-input" 
-                    value={editingFarmer.district || ""}
-                    onChange={(e) => setEditingFarmer({ ...editingFarmer, district: e.target.value })}
+                <div style={{ gridColumn: "span 2", marginBottom: "15px" }}>
+                  <LocationSelector
+                    value={{
+                      state: editingFarmer.state || "Andhra Pradesh",
+                      district: editingFarmer.district || "",
+                      mandal: editingFarmer.mandal || "",
+                      village: editingFarmer.village || ""
+                    }}
+                    onChange={(loc) => setEditingFarmer({ ...editingFarmer, ...loc })}
                   />
                 </div>
 
@@ -5841,6 +7213,208 @@ const handleDelete = async (type, id) => {
                 Save Changes
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Announcement Modal */}
+      {showAddAnnouncementModal && (
+        <div className="modal-overlay" onClick={() => setShowAddAnnouncementModal(false)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "550px" }}>
+            <div className="modal-header">
+              <h3>Publish FPO Notice / Announcement</h3>
+              <button className="modal-close-icon" onClick={() => setShowAddAnnouncementModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAnnouncementSubmit}>
+              <div className="modal-body form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "20px" }}>
+                
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Notice Title *</label>
+                  <input 
+                    type="text" 
+                    className="admin-login-input" 
+                    placeholder="Enter notice title"
+                    value={announcementForm.title}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Category *</label>
+                  <select 
+                    className="admin-login-input" 
+                    value={announcementForm.category}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, category: e.target.value })}
+                    required
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="Training">Training</option>
+                    <option value="Government Schemes">Government Schemes</option>
+                    <option value="Market Prices">Market Prices</option>
+                    <option value="Events">Events</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Priority Level *</label>
+                  <select 
+                    className="admin-login-input" 
+                    value={announcementForm.priority}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, priority: e.target.value })}
+                    required
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Image URL (Optional)</label>
+                  <input 
+                    type="text" 
+                    className="admin-login-input" 
+                    placeholder="Paste unsplash or web image link"
+                    value={announcementForm.imageUrl}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, imageUrl: e.target.value })}
+                  />
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Published Status</label>
+                  <select 
+                    className="admin-login-input" 
+                    value={announcementForm.published ? "true" : "false"}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, published: e.target.value === "true" })}
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="true">Published (Visible to Farmers)</option>
+                    <option value="false">Draft (Hidden)</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Description / Notice Details *</label>
+                  <textarea 
+                    className="admin-login-input" 
+                    placeholder="Provide full notice details..."
+                    value={announcementForm.description}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, description: e.target.value })}
+                    required
+                    style={{ minHeight: "120px", resize: "vertical", background: "#0d2315", color: "#fff", border: "1px solid rgba(255, 255, 255, 0.12)", padding: "10px", borderRadius: "8px" }}
+                  />
+                </div>
+              </div>
+              
+              <div className="modal-footer" style={{ padding: "16px 20px" }}>
+                <button type="button" className="btn-modal-close" onClick={() => setShowAddAnnouncementModal(false)}>Cancel</button>
+                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Publish Notice</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Announcement Modal */}
+      {showEditAnnouncementModal && (
+        <div className="modal-overlay" onClick={() => setShowEditAnnouncementModal(false)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "550px" }}>
+            <div className="modal-header">
+              <h3>Edit Notice / Announcement</h3>
+              <button className="modal-close-icon" onClick={() => setShowEditAnnouncementModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAnnouncementUpdate}>
+              <div className="modal-body form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "20px" }}>
+                
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Notice Title *</label>
+                  <input 
+                    type="text" 
+                    className="admin-login-input" 
+                    placeholder="Enter notice title"
+                    value={announcementForm.title}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Category *</label>
+                  <select 
+                    className="admin-login-input" 
+                    value={announcementForm.category}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, category: e.target.value })}
+                    required
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="Training">Training</option>
+                    <option value="Government Schemes">Government Schemes</option>
+                    <option value="Market Prices">Market Prices</option>
+                    <option value="Events">Events</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label">Priority Level *</label>
+                  <select 
+                    className="admin-login-input" 
+                    value={announcementForm.priority}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, priority: e.target.value })}
+                    required
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Image URL (Optional)</label>
+                  <input 
+                    type="text" 
+                    className="admin-login-input" 
+                    placeholder="Paste unsplash or web image link"
+                    value={announcementForm.imageUrl}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, imageUrl: e.target.value })}
+                  />
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Published Status</label>
+                  <select 
+                    className="admin-login-input" 
+                    value={announcementForm.published ? "true" : "false"}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, published: e.target.value === "true" })}
+                    style={{ background: "#0d2315", border: "1px solid rgba(255, 255, 255, 0.12)", color: "#fff" }}
+                  >
+                    <option value="true">Published (Visible to Farmers)</option>
+                    <option value="false">Draft (Hidden)</option>
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
+                  <label className="admin-login-label">Description / Notice Details *</label>
+                  <textarea 
+                    className="admin-login-input" 
+                    placeholder="Provide full notice details..."
+                    value={announcementForm.description}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, description: e.target.value })}
+                    required
+                    style={{ minHeight: "120px", resize: "vertical", background: "#0d2315", color: "#fff", border: "1px solid rgba(255, 255, 255, 0.12)", padding: "10px", borderRadius: "8px" }}
+                  />
+                </div>
+              </div>
+              
+              <div className="modal-footer" style={{ padding: "16px 20px" }}>
+                <button type="button" className="btn-modal-close" onClick={() => setShowEditAnnouncementModal(false)}>Cancel</button>
+                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Update Notice</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -4,6 +4,17 @@ const EquipmentBooking = require("../models/EquipmentBooking");
 const auth = require("../middleware/auth");
 const Notification = require("../models/Notification");
 const farmerAuth = require("../middleware/farmerAuth");
+const { logAction } = require("../services/auditLogger");
+
+const getAdminUsername = async (adminId) => {
+  try {
+    const Admin = require("../models/Admin");
+    const adminUser = await Admin.findById(adminId);
+    return adminUser ? adminUser.username : "admin";
+  } catch (err) {
+    return "admin";
+  }
+};
 
 router.post("/", farmerAuth, async (req, res) => {
   try {
@@ -25,6 +36,8 @@ router.post("/", farmerAuth, async (req, res) => {
       duration
     });
     await booking.save();
+
+    await logAction(booking.farmerName, "Farmer", "Bookings", "CREATE", `Booked machinery: ${booking.equipmentName} for ${new Date(booking.bookingDate).toLocaleDateString("en-IN")} (Duration: ${booking.duration})`, req.ip);
 
     // Auto generate notification
     try {
@@ -75,6 +88,9 @@ router.put("/:id/approve", auth, async (req, res) => {
     booking.status = "Approved";
     await booking.save();
 
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Bookings", "APPROVE", `Approved equipment booking for ${booking.farmerName} (Equipment: ${booking.equipmentName}, Date: ${new Date(booking.bookingDate).toLocaleDateString("en-IN")})`, req.ip);
+
     // Create targeted farmer notification
     try {
       await Notification.create({
@@ -110,6 +126,9 @@ router.put("/:id/reject", auth, async (req, res) => {
     }
     await booking.save();
 
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Bookings", "REJECT", `Rejected equipment booking for ${booking.farmerName} (Equipment: ${booking.equipmentName}, Date: ${new Date(booking.bookingDate).toLocaleDateString("en-IN")})${remarks ? `. Remarks: ${remarks}` : ""}`, req.ip);
+
     // Create targeted farmer notification
     try {
       await Notification.create({
@@ -137,6 +156,8 @@ router.delete("/:id", auth, async (req, res) => {
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Bookings", "DELETE", `Deleted equipment booking for ${booking.farmerName} (Equipment: ${booking.equipmentName})`, req.ip);
     res.json({ success: true, message: "Equipment booking deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

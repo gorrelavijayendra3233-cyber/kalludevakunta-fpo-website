@@ -1,18 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Phone, MapPin, Sprout, ShieldCheck, KeyRound, Sprout as SproutIcon } from "lucide-react";
 import toast from "react-hot-toast";
+import LocationSelector from "../components/LocationSelector/LocationSelector";
 import "./FarmerLogin.css"; // Reuse login page styling for consistency
 
 const API_BASE = import.meta.env.DEV
   ? "http://localhost:5000/api"
   : "https://kalludevakunta-fpo-website.onrender.com/api";
-
-const VILLAGE_OPTIONS = [
-  "Kalludevakunta", "Mantralayam", "Madhavaram", "Kosigi",
-  "Nandavaram", "Emmiganur", "Adoni", "Yemmiganur",
-  "Pedakadubur", "Gonegandla", "Kowthalam", "Holagunda", "Other"
-];
 
 const CROP_OPTIONS = [
   "Paddy (Rice)", "Maize", "Red Gram (Tur Dal)", "Groundnut",
@@ -23,11 +18,13 @@ const CROP_OPTIONS = [
 function FarmerRegister() {
   const [form, setForm] = useState({
     farmerName: "",
-    village: "",
-    otherVillage: "",
     phone: "",
     landArea: "",
-    primaryCrop: ""
+    primaryCrop: "",
+    state: "",
+    district: "",
+    mandal: "",
+    village: ""
   });
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -36,6 +33,7 @@ function FarmerRegister() {
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const navigate = useNavigate();
+  const verifyingRef = useRef(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -128,6 +126,8 @@ function FarmerRegister() {
 
   const handleVerifyOtp = (e) => {
     e.preventDefault();
+    if (loading || verifyingRef.current || otpVerified) return;
+
     if (!/^\d{6}$/.test(otp)) {
       toast.error("OTP must be a 6-digit verification code.");
       return;
@@ -138,10 +138,12 @@ function FarmerRegister() {
       return;
     }
 
+    verifyingRef.current = true;
     setLoading(true);
     window.verifyOtp(
       otp,
       (res) => {
+        verifyingRef.current = false;
         setLoading(false);
         const tokenVal = typeof res === "string" ? res : (res?.message || res?.access_token || res?.token || res?.data);
         if (!tokenVal) {
@@ -153,6 +155,7 @@ function FarmerRegister() {
         setOtpToken(tokenVal);
       },
       (err) => {
+        verifyingRef.current = false;
         setLoading(false);
         toast.error(err.message || "Invalid OTP code / తప్పుడు ఓటిపి");
       }
@@ -166,14 +169,8 @@ function FarmerRegister() {
       return;
     }
 
-    if (!form.farmerName || !form.village || !form.phone) {
-      toast.error("Name, Village, and Phone Number are required.");
-      return;
-    }
-
-    const finalVillage = form.village === "Other" ? form.otherVillage : form.village;
-    if (form.village === "Other" && !form.otherVillage) {
-      toast.error("Please specify your village name.");
+    if (!form.farmerName || !form.phone || !form.state || !form.district || !form.mandal || !form.village) {
+      toast.error("Name, Phone, State, District, Mandal, and Village are required.");
       return;
     }
 
@@ -181,7 +178,10 @@ function FarmerRegister() {
     try {
       const payload = {
         farmerName: form.farmerName,
-        village: finalVillage,
+        state: form.state,
+        district: form.district,
+        mandal: form.mandal,
+        village: form.village,
         phone: cleanPhone(form.phone),
         landArea: form.landArea,
         primaryCrop: form.primaryCrop,
@@ -334,45 +334,17 @@ function FarmerRegister() {
           )}
 
           {/* Additional details */}
-          <div className="input-group">
-            <label htmlFor="village">Village / గ్రామం *</label>
-            <div className="input-field-wrapper">
-              <MapPin size={18} className="input-icon" />
-              <select
-                id="village"
-                name="village"
-                value={form.village}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                style={{ width: "100%", height: "52px", padding: "0 16px 0 48px", background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", color: "#ffffff", fontSize: "15px", outline: "none" }}
-              >
-                <option value="" style={{ background: "#0a1f10" }}>Select Village</option>
-                {VILLAGE_OPTIONS.map((v) => (
-                  <option key={v} value={v} style={{ background: "#0a1f10" }}>{v}</option>
-                ))}
-              </select>
-            </div>
+          <div style={{ marginBottom: "20px" }}>
+            <LocationSelector
+              value={{
+                state: form.state,
+                district: form.district,
+                mandal: form.mandal,
+                village: form.village
+              }}
+              onChange={(loc) => setForm({ ...form, ...loc })}
+            />
           </div>
-
-          {form.village === "Other" && (
-            <div className="input-group fade-in">
-              <label htmlFor="otherVillage">Specify Village Name *</label>
-              <div className="input-field-wrapper">
-                <MapPin size={18} className="input-icon" />
-                <input
-                  id="otherVillage"
-                  name="otherVillage"
-                  type="text"
-                  placeholder="Enter village name"
-                  value={form.otherVillage}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-            </div>
-          )}
 
           <div className="input-group">
             <label htmlFor="landArea">Land Area / సాగు భూమి (e.g., 5 Acres)</label>

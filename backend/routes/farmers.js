@@ -3,6 +3,17 @@ const router = express.Router();
 const Farmer = require("../models/Farmer");
 const auth = require("../middleware/auth");
 const Notification = require("../models/Notification");
+const { logAction } = require("../services/auditLogger");
+
+const getAdminUsername = async (adminId) => {
+  try {
+    const Admin = require("../models/Admin");
+    const adminUser = await Admin.findById(adminId);
+    return adminUser ? adminUser.username : "admin";
+  } catch (err) {
+    return "admin";
+  }
+};
 
 // 1. Get Farmer Stats (must be before /:id)
 router.get("/stats", auth, async (req, res) => {
@@ -58,8 +69,18 @@ router.get("/", auth, async (req, res) => {
 // 3. Add Farmer
 router.post("/", auth, async (req, res) => {
   try {
+    const { state, district, mandal, village } = req.body;
+    const { validateLocationHierarchy } = require("./locations");
+    const validation = await validateLocationHierarchy({ state, district, mandal, village });
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, message: validation.message });
+    }
+
     const farmer = new Farmer(req.body);
     await farmer.save();
+
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Farmers", "CREATE", `Manually registered new farmer: ${farmer.name} (Phone: ${farmer.phone}, Village: ${farmer.village})`, req.ip);
     
     // Auto generate notification
     try {
@@ -101,6 +122,29 @@ router.get("/:id", auth, async (req, res) => {
 // 5. Update Farmer
 router.put("/:id", auth, async (req, res) => {
   try {
+    const existingFarmer = await Farmer.findById(req.params.id);
+    if (!existingFarmer) {
+      return res.status(404).json({ success: false, message: "Farmer not found" });
+    }
+
+    if (req.body.state || req.body.district || req.body.mandal || req.body.village) {
+      const updatedState = req.body.state || existingFarmer.state || "Andhra Pradesh";
+      const updatedDistrict = req.body.district || existingFarmer.district;
+      const updatedMandal = req.body.mandal || existingFarmer.mandal;
+      const updatedVillage = req.body.village || existingFarmer.village;
+
+      const { validateLocationHierarchy } = require("./locations");
+      const validation = await validateLocationHierarchy({
+        state: updatedState,
+        district: updatedDistrict,
+        mandal: updatedMandal,
+        village: updatedVillage
+      });
+      if (!validation.valid) {
+        return res.status(400).json({ success: false, message: validation.message });
+      }
+    }
+
     const farmer = await Farmer.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -109,6 +153,10 @@ router.put("/:id", auth, async (req, res) => {
     if (!farmer) {
       return res.status(404).json({ success: false, message: "Farmer not found" });
     }
+
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Farmers", "UPDATE", `Updated details for farmer: ${farmer.name} (Phone: ${farmer.phone})`, req.ip);
+
     res.json({ success: true, data: farmer });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -122,6 +170,10 @@ router.delete("/:id", auth, async (req, res) => {
     if (!farmer) {
       return res.status(404).json({ success: false, message: "Farmer not found" });
     }
+
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Farmers", "DELETE", `Deleted farmer record: ${farmer.name} (Phone: ${farmer.phone})`, req.ip);
+
     res.json({ success: true, message: "Farmer deleted successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

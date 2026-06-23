@@ -3,6 +3,17 @@ const router = express.Router();
 const ProductBooking = require("../models/ProductBooking");
 const Product = require("../models/Product");
 const auth = require("../middleware/auth");
+const { logAction } = require("../services/auditLogger");
+
+const getAdminUsername = async (adminId) => {
+  try {
+    const Admin = require("../models/Admin");
+    const adminUser = await Admin.findById(adminId);
+    return adminUser ? adminUser.username : "admin";
+  } catch (err) {
+    return "admin";
+  }
+};
 
 // helper for error handling
 const handleError = (res, error) => {
@@ -50,6 +61,8 @@ router.post("/", farmerAuth, async (req, res) => {
     });
 
     await booking.save();
+
+    await logAction(booking.farmerName, "Farmer", "Products", "CREATE", `Ordered product: ${booking.productName} (Quantity: ${booking.quantity}, Total Price: ₹${booking.totalPrice})`, req.ip);
 
     // Auto generate notification
     try {
@@ -184,6 +197,9 @@ router.put("/:id", auth, async (req, res) => {
     booking.status = newStatus;
     await booking.save();
 
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Products", "UPDATE", `Updated product booking status for ${booking.farmerName} (Product: ${booking.productName}, Quantity: ${booking.quantity}) from ${oldStatus} to ${newStatus}`, req.ip);
+
     res.json({
       success: true,
       message: "Booking status updated successfully.",
@@ -217,6 +233,9 @@ router.delete("/:id", auth, async (req, res) => {
         console.error("Failed to restore product stock on booking deletion:", err);
       }
     }
+
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Products", "DELETE", `Deleted product booking for ${booking.farmerName} (Product: ${booking.productName}, Quantity: ${booking.quantity})`, req.ip);
 
     res.json({
       success: true,

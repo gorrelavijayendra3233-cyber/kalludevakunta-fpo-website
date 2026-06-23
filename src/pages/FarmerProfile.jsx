@@ -12,17 +12,12 @@ import {
   Loader2
 } from "lucide-react";
 import toast from "react-hot-toast";
+import LocationSelector from "../components/LocationSelector/LocationSelector";
 import "./FarmerDashboard.css"; // Reuse dashboard layout styling
 
 const API_BASE = import.meta.env.DEV
   ? "http://localhost:5000/api"
   : "https://kalludevakunta-fpo-website.onrender.com/api";
-
-const VILLAGE_OPTIONS = [
-  "Kalludevakunta", "Mantralayam", "Madhavaram", "Kosigi",
-  "Nandavaram", "Emmiganur", "Adoni", "Yemmiganur",
-  "Pedakadubur", "Gonegandla", "Kowthalam", "Holagunda", "Other"
-];
 
 const CROP_OPTIONS = [
   "Paddy (Rice)", "Maize", "Red Gram (Tur Dal)", "Groundnut",
@@ -34,10 +29,12 @@ function FarmerProfile() {
   const [farmer, setFarmer] = useState(null);
   const [form, setForm] = useState({
     farmerName: "",
-    village: "",
-    otherVillage: "",
     landArea: "",
-    primaryCrop: ""
+    primaryCrop: "",
+    state: "",
+    district: "",
+    mandal: "",
+    village: ""
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,11 +75,12 @@ function FarmerProfile() {
         if (response.ok && data.success) {
           setFarmer(data.farmer);
           
-          const isStandardVillage = VILLAGE_OPTIONS.includes(data.farmer.village);
           setForm({
             farmerName: data.farmer.farmerName || data.farmer.name || "",
-            village: isStandardVillage ? (data.farmer.village || "") : (data.farmer.village ? "Other" : ""),
-            otherVillage: isStandardVillage ? "" : (data.farmer.village || ""),
+            state: data.farmer.state || "Andhra Pradesh",
+            district: data.farmer.district || "",
+            mandal: data.farmer.mandal || "",
+            village: data.farmer.village || "",
             landArea: data.farmer.landArea || "",
             primaryCrop: data.farmer.primaryCrop || data.farmer.cropType || ""
           });
@@ -112,14 +110,8 @@ function FarmerProfile() {
       return;
     }
 
-    if (!form.farmerName || !form.village) {
-      toast.error("Name and Village are required.");
-      return;
-    }
-
-    const finalVillage = form.village === "Other" ? form.otherVillage : form.village;
-    if (form.village === "Other" && !form.otherVillage) {
-      toast.error("Please specify your village name.");
+    if (!form.farmerName || !form.state || !form.district || !form.mandal || !form.village) {
+      toast.error("Name, State, District, Mandal, and Village are required.");
       return;
     }
 
@@ -133,7 +125,10 @@ function FarmerProfile() {
         },
         body: JSON.stringify({
           farmerName: form.farmerName,
-          village: finalVillage,
+          state: form.state,
+          district: form.district,
+          mandal: form.mandal,
+          village: form.village,
           landArea: form.landArea,
           primaryCrop: form.primaryCrop
         })
@@ -277,31 +272,19 @@ function FarmerProfile() {
                     </div>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }} className="profile-form-grid-2">
-                    {/* Village */}
-                    <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <label className="form-label" htmlFor="village" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
-                        Village / గ్రామం *
-                      </label>
-                      <div className="input-field-wrapper" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                        <MapPin size={18} style={{ position: "absolute", left: "16px", color: "#64748b" }} />
-                        <select
-                          id="village"
-                          name="village"
-                          value={form.village}
-                          onChange={handleChange}
-                          required
-                          disabled={saving}
-                          style={{ width: "100%", height: "48px", padding: "0 16px 0 48px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", fontSize: "14px", outline: "none", appearance: "none" }}
-                        >
-                          <option value="" style={{ background: "#0a1f10" }}>Select Village</option>
-                          {VILLAGE_OPTIONS.map((v) => (
-                            <option key={v} value={v} style={{ background: "#0a1f10" }}>{v}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                  <div style={{ marginBottom: "20px" }}>
+                    <LocationSelector
+                      value={{
+                        state: form.state,
+                        district: form.district,
+                        mandal: form.mandal,
+                        village: form.village
+                      }}
+                      onChange={(loc) => setForm({ ...form, ...loc })}
+                    />
+                  </div>
 
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }} className="profile-form-grid-2">
                     {/* Primary Crop */}
                     <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       <label className="form-label" htmlFor="primaryCrop" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
@@ -324,47 +307,25 @@ function FarmerProfile() {
                         </select>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Other Village (conditional) */}
-                  {form.village === "Other" && (
-                    <div className="form-group fade-in" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <label className="form-label" htmlFor="otherVillage" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
-                        Specify Village Name *
+                    {/* Land Area */}
+                    <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <label className="form-label" htmlFor="landArea" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
+                        Land Area / సాగు భూమి
                       </label>
                       <div className="input-field-wrapper" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                        <MapPin size={18} style={{ position: "absolute", left: "16px", color: "#64748b" }} />
+                        <Sprout size={18} style={{ position: "absolute", left: "16px", color: "#64748b" }} />
                         <input
-                          id="otherVillage"
-                          name="otherVillage"
+                          id="landArea"
+                          name="landArea"
                           type="text"
-                          value={form.otherVillage}
+                          placeholder="e.g. 5 Acres"
+                          value={form.landArea}
                           onChange={handleChange}
-                          required
                           disabled={saving}
                           style={{ width: "100%", height: "48px", padding: "0 16px 0 48px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", fontSize: "14px", outline: "none" }}
                         />
                       </div>
-                    </div>
-                  )}
-
-                  {/* Land Area */}
-                  <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <label className="form-label" htmlFor="landArea" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
-                      Land Area / సాగు భూమి (e.g. 5 Acres)
-                    </label>
-                    <div className="input-field-wrapper" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                      <Sprout size={18} style={{ position: "absolute", left: "16px", color: "#64748b" }} />
-                      <input
-                        id="landArea"
-                        name="landArea"
-                        type="text"
-                        placeholder="e.g. 5 Acres"
-                        value={form.landArea}
-                        onChange={handleChange}
-                        disabled={saving}
-                        style={{ width: "100%", height: "48px", padding: "0 16px 0 48px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", fontSize: "14px", outline: "none" }}
-                      />
                     </div>
                   </div>
 

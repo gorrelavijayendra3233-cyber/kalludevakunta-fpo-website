@@ -2,6 +2,17 @@ const express = require("express");
 const router = express.Router();
 const Notification = require("../models/Notification");
 const auth = require("../middleware/auth");
+const { logAction } = require("../services/auditLogger");
+
+const getAdminUsername = async (adminId) => {
+  try {
+    const Admin = require("../models/Admin");
+    const adminUser = await Admin.findById(adminId);
+    return adminUser ? adminUser.username : "admin";
+  } catch (err) {
+    return "admin";
+  }
+};
 
 // Helper for standardized error messages
 const handleError = (res, error) => {
@@ -39,6 +50,10 @@ router.put("/settings", auth, async (req, res) => {
     if (dashboardEnabled !== undefined) settings.dashboardEnabled = dashboardEnabled;
     if (telegramEnabled !== undefined) settings.telegramEnabled = telegramEnabled;
     await settings.save();
+
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Settings", "UPDATE", `Notification settings updated: dashboardEnabled=${settings.dashboardEnabled}, telegramEnabled=${settings.telegramEnabled}`, req.ip);
+
     res.json({ success: true, data: settings });
   } catch (error) {
     handleError(res, error);

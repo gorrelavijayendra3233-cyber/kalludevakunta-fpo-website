@@ -15,6 +15,7 @@ import {
   DollarSign,
   Lock
 } from "lucide-react";
+import LocationSelector from "../components/LocationSelector/LocationSelector";
 import "./EquipmentBooking.css";
 
 const API_BASE = import.meta.env.DEV
@@ -31,14 +32,8 @@ const EQUIPMENT_LIST = [
   { id: "seeddrill",  icon: <Settings size={24} />, name: "Seed Drill", rateHour: 300,  rateDay: 2000 },
 ];
 
-const VILLAGE_OPTIONS = [
-  "Kalludevakunta", "Mantralayam", "Madhavaram", "Kosigi",
-  "Nandavaram", "Emmiganur", "Adoni", "Yemmiganur",
-  "Pedakadubur", "Gonegandla", "Kowthalam", "Holagunda", "Other"
-];
-
 const INITIAL_FORM = {
-  farmerName: "", mobileNumber: "", village: "", otherVillage: "",
+  farmerName: "", mobileNumber: "", state: "", district: "", mandal: "", village: "",
   bookingDate: "", duration: "", remarks: "",
 };
 
@@ -60,10 +55,17 @@ function validate(form, selectedEquipment) {
   if (!/^[6-9]\d{9}$/.test(form.mobileNumber)) {
     errors.mobileNumber = "Enter a valid 10-digit mobile number"; valid = false;
   }
+  if (!form.state) {
+    errors.state = "State is required"; valid = false;
+  }
+  if (!form.district) {
+    errors.district = "District is required"; valid = false;
+  }
+  if (!form.mandal) {
+    errors.mandal = "Mandal is required"; valid = false;
+  }
   if (!form.village) {
-    errors.village = "Please select your village"; valid = false;
-  } else if (form.village === "Other" && !form.otherVillage.trim()) {
-    errors.otherVillage = "Please specify village name / గ్రామం రాయండి"; valid = false;
+    errors.village = "Village is required"; valid = false;
   }
   if (!form.bookingDate) {
     errors.bookingDate = "Booking date is required"; valid = false;
@@ -97,13 +99,14 @@ function EquipmentBooking() {
       if (infoStr) {
         try {
           const info = JSON.parse(infoStr);
-          const isOption = VILLAGE_OPTIONS.includes(info.village);
           setForm((prev) => ({
             ...prev,
             farmerName: info.name || "",
             mobileNumber: info.phone || "",
-            village: isOption ? (info.village || "") : (info.village ? "Other" : ""),
-            otherVillage: isOption ? "" : (info.village || ""),
+            state: info.state || "",
+            district: info.district || "",
+            mandal: info.mandal || "",
+            village: info.village || "",
           }));
         } catch (e) {
           console.error("Failed to parse farmer info:", e);
@@ -155,6 +158,7 @@ const handleSubmit = async (e) => {
       equipmentName: selectedEquipment.name,
       bookingDate: form.bookingDate,
       phone: form.mobileNumber,
+      duration: form.duration ? `${form.duration} ${durationUnit}` : ""
     };
 
     const headers = {
@@ -364,44 +368,22 @@ const handleSubmit = async (e) => {
                   </div>
                 </div>
 
-                 <div className="form-group">
-                  <label className="form-label" htmlFor="eq-village">
-                    Village / Farm Location <span className="form-label-telugu">/ గ్రామం</span>
-                    <span className="req">*</span>
-                  </label>
-                  <select
-                    id="eq-village"
-                    className={`form-select${errors.village ? " error" : ""}`}
-                    name="village"
-                    value={form.village}
-                    onChange={handleChange}
-                  >
-                    <option value="">Select your village</option>
-                    {VILLAGE_OPTIONS.map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
-                  {errors.village && <span className="form-error">{errors.village}</span>}
+                <div style={{ marginBottom: "20px" }}>
+                  <LocationSelector
+                    value={{
+                      state: form.state,
+                      district: form.district,
+                      mandal: form.mandal,
+                      village: form.village
+                    }}
+                    onChange={(loc) => setForm({ ...form, ...loc })}
+                  />
+                  {(errors.state || errors.district || errors.mandal || errors.village) && (
+                    <span className="form-error" style={{ display: "block", marginTop: "4px" }}>
+                      {errors.state || errors.district || errors.mandal || errors.village}
+                    </span>
+                  )}
                 </div>
-
-                {form.village === "Other" && (
-                  <div className="form-group fade-in">
-                    <label className="form-label" htmlFor="eq-otherVillage">
-                      Specify Village Name <span className="form-label-telugu">/ గ్రామం పేరు రాయండి</span>
-                      <span className="req">*</span>
-                    </label>
-                    <input
-                      id="eq-otherVillage"
-                      type="text"
-                      className={`form-input${errors.otherVillage ? " error" : ""}`}
-                      name="otherVillage"
-                      value={form.otherVillage}
-                      onChange={handleChange}
-                      placeholder="Enter your village name"
-                    />
-                    {errors.otherVillage && <span className="form-error">{errors.otherVillage}</span>}
-                  </div>
-                )}
 
                 <div className="form-divider" />
 

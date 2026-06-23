@@ -4,6 +4,17 @@ const CropSale = require("../models/CropSale");
 const Notification = require("../models/Notification");
 const farmerAuth = require("../middleware/farmerAuth");
 const auth = require("../middleware/auth"); // Admin auth middleware
+const { logAction } = require("../services/auditLogger");
+
+const getAdminUsername = async (adminId) => {
+  try {
+    const Admin = require("../models/Admin");
+    const adminUser = await Admin.findById(adminId);
+    return adminUser ? adminUser.username : "admin";
+  } catch (err) {
+    return "admin";
+  }
+};
 
 // helper to get start of today/week/month
 const getStartDateForPeriod = (period) => {
@@ -56,6 +67,8 @@ router.post("/", farmerAuth, async (req, res) => {
     });
 
     await newSale.save();
+
+    await logAction(newSale.farmerName, "Farmer", "Crops", "CREATE", `Submitted new crop selling request: ${newSale.cropName} (${newSale.quantity} ${newSale.unit}, Expected Price: ₹${newSale.expectedPrice}/unit)`, req.ip);
 
     // Create Admin Notification (farmerId = null means Admin receives it)
     try {
@@ -141,6 +154,9 @@ router.put("/:id/approve", auth, async (req, res) => {
     sale.approvedAt = Date.now();
     await sale.save();
 
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Crops", "APPROVE", `Approved crop selling request for ${sale.farmerName} (${sale.cropName}, ${sale.quantity} ${sale.unit})`, req.ip);
+
     // Create targeted Farmer Notification
     try {
       const farmerNotif = new Notification({
@@ -186,6 +202,9 @@ router.put("/:id/reject", auth, async (req, res) => {
     sale.adminRemarks = adminRemarks;
     await sale.save();
 
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Crops", "REJECT", `Rejected crop selling request for ${sale.farmerName} (${sale.cropName}, ${sale.quantity} ${sale.unit}). Remarks: ${adminRemarks}`, req.ip);
+
     // Create targeted Farmer Notification
     try {
       const farmerNotif = new Notification({
@@ -227,6 +246,9 @@ router.put("/:id/complete", auth, async (req, res) => {
     sale.status = "Completed";
     await sale.save();
 
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Crops", "UPDATE", `Marked crop selling request for ${sale.farmerName} (${sale.cropName}, ${sale.quantity} ${sale.unit}) as Completed`, req.ip);
+
     // Create targeted Farmer Notification
     try {
       const farmerNotif = new Notification({
@@ -264,6 +286,8 @@ router.delete("/:id", auth, async (req, res) => {
     if (!sale) {
       return res.status(404).json({ success: false, message: "Crop sale request not found." });
     }
+    const adminUsername = await getAdminUsername(req.admin.id);
+    await logAction(adminUsername, "Admin", "Crops", "DELETE", `Deleted crop request record for ${sale.farmerName} (${sale.cropName}, ${sale.quantity} ${sale.unit})`, req.ip);
     res.json({ success: true, message: "Crop sale request deleted successfully." });
   } catch (error) {
     console.error("Delete Crop Request Error:", error);

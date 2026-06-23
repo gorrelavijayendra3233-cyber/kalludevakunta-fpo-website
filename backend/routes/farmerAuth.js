@@ -8,6 +8,7 @@ const CropSale = require("../models/CropSale");
 const Notification = require("../models/Notification");
 const jwt = require("jsonwebtoken");
 const farmerAuth = require("../middleware/farmerAuth");
+const { logAction } = require("../services/auditLogger");
 
 // Helper to normalize phone numbers to last 10 digits
 const cleanPhone = (p) => {
@@ -142,6 +143,8 @@ router.post("/login", async (req, res) => {
     }
     await farmer.save();
 
+    await logAction(farmer.name, "Farmer", "Farmers", "LOGIN", `Farmer logged in successfully via phone: ${farmer.phone}`, req.ip);
+
     let token;
     try {
       // Sign JWT token with 30-day expiration
@@ -172,6 +175,9 @@ router.post("/login", async (req, res) => {
         farmerName: farmer.farmerName,
         name: farmer.name,
         phone: farmer.phone,
+        state: farmer.state,
+        district: farmer.district,
+        mandal: farmer.mandal,
         village: farmer.village,
         landArea: farmer.landArea,
         landHolding: farmer.landHolding,
@@ -193,12 +199,21 @@ router.post("/login", async (req, res) => {
 // POST /api/farmer/register
 router.post("/register", async (req, res) => {
   try {
-    const { farmerName, village, phone, landArea, primaryCrop } = req.body;
+    const { farmerName, state, district, mandal, village, phone, landArea, primaryCrop } = req.body;
 
-    if (!farmerName || !village || !phone) {
+    if (!farmerName || !phone || !state || !district || !mandal || !village) {
       return res.status(400).json({
         success: false,
-        message: "Farmer Name, Village, and Phone Number are required."
+        message: "Farmer Name, Phone Number, State, District, Mandal, and Village are required."
+      });
+    }
+
+    const { validateLocationHierarchy } = require("./locations");
+    const validation = await validateLocationHierarchy({ state, district, mandal, village });
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: validation.message
       });
     }
 
@@ -223,6 +238,9 @@ router.post("/register", async (req, res) => {
     const newFarmer = new Farmer({
       farmerName,
       name: farmerName,
+      state,
+      district,
+      mandal,
       village,
       phone: cleanNum,
       landArea,
@@ -233,6 +251,8 @@ router.post("/register", async (req, res) => {
     });
 
     await newFarmer.save();
+
+    await logAction(newFarmer.name, "Farmer", "Farmers", "CREATE", `New farmer registered: ${newFarmer.name} (Phone: ${newFarmer.phone}, State: ${newFarmer.state}, Village: ${newFarmer.village})`, req.ip);
 
     // Sign JWT token with 30-day expiration
     const token = jwt.sign(
@@ -255,6 +275,9 @@ router.post("/register", async (req, res) => {
         farmerName: newFarmer.farmerName,
         name: newFarmer.name,
         phone: newFarmer.phone,
+        state: newFarmer.state,
+        district: newFarmer.district,
+        mandal: newFarmer.mandal,
         village: newFarmer.village,
         landArea: newFarmer.landArea,
         landHolding: newFarmer.landHolding,
@@ -276,7 +299,7 @@ router.post("/register", async (req, res) => {
 // POST /api/farmer/verify-msg91 (For compatibility)
 router.post("/verify-msg91", async (req, res) => {
   try {
-    const { action, otpToken, farmerName, village, landArea, primaryCrop } = req.body;
+    const { action, otpToken, farmerName, state, district, mandal, village, landArea, primaryCrop } = req.body;
 
     if (!otpToken) {
       return res.status(400).json({
@@ -338,10 +361,19 @@ router.post("/verify-msg91", async (req, res) => {
     }
 
     if (action === "register") {
-      if (!farmerName || !village) {
+      if (!farmerName || !state || !district || !mandal || !village) {
         return res.status(400).json({
           success: false,
-          message: "Farmer Name and Village are required for registration."
+          message: "Farmer Name, State, District, Mandal, and Village are required for registration."
+        });
+      }
+
+      const { validateLocationHierarchy } = require("./locations");
+      const validation = await validateLocationHierarchy({ state, district, mandal, village });
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: validation.message
         });
       }
 
@@ -356,6 +388,9 @@ router.post("/verify-msg91", async (req, res) => {
       const newFarmer = new Farmer({
         farmerName,
         name: farmerName,
+        state,
+        district,
+        mandal,
         village,
         phone: cleanExtracted,
         landArea,
@@ -366,6 +401,8 @@ router.post("/verify-msg91", async (req, res) => {
       });
 
       await newFarmer.save();
+
+      await logAction(newFarmer.name, "Farmer", "Farmers", "CREATE", `New farmer registered via verify-msg91: ${newFarmer.name} (Phone: ${newFarmer.phone}, State: ${newFarmer.state}, Village: ${newFarmer.village})`, req.ip);
 
       const token = jwt.sign(
         { farmerId: newFarmer._id },
@@ -383,6 +420,9 @@ router.post("/verify-msg91", async (req, res) => {
           farmerName: newFarmer.farmerName,
           name: newFarmer.name,
           phone: newFarmer.phone,
+          state: newFarmer.state,
+          district: newFarmer.district,
+          mandal: newFarmer.mandal,
           village: newFarmer.village,
           landArea: newFarmer.landArea,
           landHolding: newFarmer.landHolding,
@@ -414,6 +454,8 @@ router.post("/verify-msg91", async (req, res) => {
       }
       await farmer.save();
 
+      await logAction(farmer.name, "Farmer", "Farmers", "LOGIN", `Farmer logged in via verify-msg91 (Phone: ${farmer.phone})`, req.ip);
+
       const token = jwt.sign(
         { farmerId: farmer._id },
         process.env.JWT_SECRET,
@@ -430,6 +472,9 @@ router.post("/verify-msg91", async (req, res) => {
           farmerName: farmer.farmerName,
           name: farmer.name,
           phone: farmer.phone,
+          state: farmer.state,
+          district: farmer.district,
+          mandal: farmer.mandal,
           village: farmer.village,
           landArea: farmer.landArea,
           landHolding: farmer.landHolding,
@@ -461,6 +506,9 @@ router.get("/profile", farmerAuth, async (req, res) => {
         farmerName: farmer.farmerName,
         name: farmer.name,
         phone: farmer.phone,
+        state: farmer.state,
+        district: farmer.district,
+        mandal: farmer.mandal,
         village: farmer.village,
         landArea: farmer.landArea,
         landHolding: farmer.landHolding,
@@ -483,19 +531,41 @@ router.get("/profile", farmerAuth, async (req, res) => {
 router.put("/profile", farmerAuth, async (req, res) => {
   try {
     const farmer = req.farmer;
-    const { farmerName, name, village, landArea, landHolding, primaryCrop, cropType } = req.body;
+    const { farmerName, name, state, district, mandal, village, landArea, landHolding, primaryCrop, cropType } = req.body;
 
     const finalFarmerName = farmerName || name;
-    const finalVillage = village;
     const finalLandArea = landArea;
     const finalPrimaryCrop = primaryCrop || cropType;
+
+    if (state || district || mandal || village) {
+      const updatedState = state || farmer.state || "Andhra Pradesh";
+      const updatedDistrict = district || farmer.district;
+      const updatedMandal = mandal || farmer.mandal;
+      const updatedVillage = village || farmer.village;
+
+      const { validateLocationHierarchy } = require("./locations");
+      const validation = await validateLocationHierarchy({
+        state: updatedState,
+        district: updatedDistrict,
+        mandal: updatedMandal,
+        village: updatedVillage
+      });
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: validation.message
+        });
+      }
+
+      farmer.state = updatedState;
+      farmer.district = updatedDistrict;
+      farmer.mandal = updatedMandal;
+      farmer.village = updatedVillage;
+    }
 
     if (finalFarmerName) {
       farmer.farmerName = finalFarmerName;
       farmer.name = finalFarmerName;
-    }
-    if (finalVillage) {
-      farmer.village = finalVillage;
     }
     if (finalLandArea !== undefined) {
       farmer.landArea = finalLandArea;
@@ -517,6 +587,9 @@ router.put("/profile", farmerAuth, async (req, res) => {
         farmerName: farmer.farmerName,
         name: farmer.name,
         phone: farmer.phone,
+        state: farmer.state,
+        district: farmer.district,
+        mandal: farmer.mandal,
         village: farmer.village,
         landArea: farmer.landArea,
         landHolding: farmer.landHolding,

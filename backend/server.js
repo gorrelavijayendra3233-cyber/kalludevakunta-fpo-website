@@ -13,6 +13,13 @@ const equipmentRatesRoutes = require("./routes/equipments");
 const farmerAuthRoutes = require("./routes/farmerAuth");
 const farmerDashboardRoutes = require("./routes/farmer");
 const cropSalesRoutes = require("./routes/cropSales");
+const announcementRoutes = require("./routes/announcements");
+const marketPriceRoutes = require("./routes/marketPrices");
+const documentRoutes = require("./routes/documents");
+const reportRoutes = require("./routes/reports");
+const auditLogRoutes = require("./routes/auditLogs");
+const locationRoutes = require("./routes/locations").router;
+const path = require("path");
 
 const express = require("express");
 const cors = require("cors");
@@ -55,6 +62,14 @@ app.use("/api/equipments", equipmentRatesRoutes);
 app.use("/api/farmer-auth", farmerAuthRoutes);
 app.use("/api/farmer", farmerAuthRoutes);
 app.use("/api/crop-sales", cropSalesRoutes);
+app.use("/api/announcements", announcementRoutes);
+app.use("/api/market-prices", marketPriceRoutes);
+app.use("/api/documents", documentRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/location", locationRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 app.get("/", (req, res) => {
   res.send("Kalludevakunta FPO Backend Running");
 });
@@ -89,6 +104,7 @@ const seedFarmers = async () => {
         {
           name: "Ramesh Reddy",
           phone: "9848022338",
+          state: "Andhra Pradesh",
           village: "Kalludevakunta",
           mandal: "Mantralayam",
           district: "Kurnool",
@@ -101,6 +117,7 @@ const seedFarmers = async () => {
         {
           name: "Hanumanthu Goud",
           phone: "8985642231",
+          state: "Andhra Pradesh",
           village: "Kosigi",
           mandal: "Kosigi",
           district: "Kurnool",
@@ -113,6 +130,7 @@ const seedFarmers = async () => {
         {
           name: "Saraswathi Devi",
           phone: "7093288114",
+          state: "Andhra Pradesh",
           village: "Mantralayam",
           mandal: "Mantralayam",
           district: "Kurnool",
@@ -283,6 +301,233 @@ const seedEquipments = async () => {
   }
 };
 
+const seedAnnouncements = async () => {
+  try {
+    const Announcement = require("./models/Announcement");
+    const count = await Announcement.countDocuments();
+    if (count === 0) {
+      const defaultAnnouncements = [
+        {
+          title: "FPC Farmer Training Program",
+          description: "We are organizing a training program on organic farming methods, soil health management, and biological pest control on Saturday at the FPO training center. Lunch will be provided for all participating farmers.",
+          category: "Training",
+          priority: "high",
+          imageUrl: "https://images.unsplash.com/photo-1593113598332-cd288d649433?auto=format&fit=crop&w=300",
+          published: true
+        },
+        {
+          title: "PM-Kisan Nidhi Scheme Update",
+          description: "The 18th installment of the PM-Kisan Samman Nidhi Yojana has been released. Farmers are requested to check their Aadhaar linking and e-KYC status to ensure smooth direct benefit transfer to their bank accounts.",
+          category: "Government Schemes",
+          priority: "medium",
+          imageUrl: "",
+          published: true
+        },
+        {
+          title: "Cotton Procurement Prices Peak",
+          description: "Cotton prices in Mantralayam APMC market have reached ₹7,800 per quintal today. FPO members are advised to bring clean, dry crop with low moisture content to secure top rates.",
+          category: "Market Prices",
+          priority: "medium",
+          imageUrl: "",
+          published: true
+        },
+        {
+          title: "Annual Farmers Meet 2026",
+          description: "Kalludevakunta Farmers Producer Company's Annual Farmers Meet will be held on July 10, 2026, at FPO premises. Agriculture scientists will share insights on maximizing yield. All member farmers are cordially invited.",
+          category: "Events",
+          priority: "high",
+          imageUrl: "https://images.unsplash.com/photo-1595273670150-db0d3bf3b7de?auto=format&fit=crop&w=300",
+          published: true
+        },
+        {
+          title: "Monsoon Preparedness Notice",
+          description: "With monsoon season approaching, farmers are requested to prepare proper drainage channels in fields to prevent waterlogging. FPO seed distribution centers now have stocks of certified high-moisture tolerant seeds.",
+          category: "General",
+          priority: "low",
+          imageUrl: "",
+          published: true
+        }
+      ];
+
+      for (const a of defaultAnnouncements) {
+        await Announcement.create(a);
+      }
+      console.log("Default announcements seeded successfully");
+    }
+  } catch (err) {
+    console.error("Error seeding default announcements:", err);
+  }
+};
+
+const seedMarketPrices = async () => {
+  try {
+    const MarketPrice = require("./models/MarketPrice");
+    const count = await MarketPrice.countDocuments();
+    if (count === 0) {
+      const defaultPrices = [
+        {
+          cropName: "Cotton",
+          todayPrice: 7600,
+          yesterdayPrice: 7550,
+          trend: "up",
+          recommendedPrice: 7800
+        },
+        {
+          cropName: "Paddy (Grade A)",
+          todayPrice: 2200,
+          yesterdayPrice: 2200,
+          trend: "stable",
+          recommendedPrice: 2350
+        },
+        {
+          cropName: "Groundnut",
+          todayPrice: 6800,
+          yesterdayPrice: 6900,
+          trend: "down",
+          recommendedPrice: 7000
+        },
+        {
+          cropName: "Maize",
+          todayPrice: 2100,
+          yesterdayPrice: 2050,
+          trend: "up",
+          recommendedPrice: 2200
+        }
+      ];
+
+      for (const p of defaultPrices) {
+        await MarketPrice.create(p);
+      }
+      console.log("Default market prices seeded successfully");
+    }
+  } catch (err) {
+    console.error("Error seeding default market prices:", err);
+  }
+};
+
+const seedDocuments = async () => {
+  try {
+    const Document = require("./models/Document");
+    const count = await Document.countDocuments();
+    if (count === 0) {
+      const defaultDocs = [
+        {
+          title: "PM Kisan Samman Nidhi Guidelines",
+          description: "Official guide and registration steps for PM Kisan Samman Nidhi scheme.",
+          category: "Government Schemes",
+          fileUrl: "/uploads/pm_kisan_guide.pdf",
+          fileName: "pm_kisan_guide.pdf",
+          fileSize: "1.45 MB",
+          uploadedBy: "Admin"
+        },
+        {
+          title: "Organic Pest Control Manual",
+          description: "Comprehensive handbook for implementing natural organic pest repellents.",
+          category: "Training Manuals",
+          fileUrl: "/uploads/pest_control_manual.pdf",
+          fileName: "pest_control_manual.pdf",
+          fileSize: "2.80 MB",
+          uploadedBy: "Admin"
+        },
+        {
+          title: "BT Cotton Crop Guide 2026",
+          description: "Sowing instructions, pest schedules, and yield maximization checklist.",
+          category: "Crop Guides",
+          fileUrl: "/uploads/bt_cotton_guide.pdf",
+          fileName: "bt_cotton_guide.pdf",
+          fileSize: "950 KB",
+          uploadedBy: "Admin"
+        },
+        {
+          title: "FPO Share Capital Membership Form",
+          description: "Application form to register as a shareholder in Kalludevakunta FPO.",
+          category: "FPO Forms",
+          fileUrl: "/uploads/fpo_membership_form.pdf",
+          fileName: "fpo_membership_form.pdf",
+          fileSize: "420 KB",
+          uploadedBy: "Admin"
+        }
+      ];
+
+      const fs = require("fs");
+      const path = require("path");
+      const uploadDir = path.join(__dirname, "uploads");
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      
+      for (const doc of defaultDocs) {
+        const filePath = path.join(uploadDir, doc.fileName);
+        if (!fs.existsSync(filePath)) {
+          fs.writeFileSync(filePath, "Mock PDF document content for " + doc.title);
+        }
+        await Document.create(doc);
+      }
+      console.log("Default documents seeded successfully");
+    }
+  } catch (err) {
+    console.error("Error seeding default documents:", err);
+  }
+};
+
+const seedAuditLogs = async () => {
+  try {
+    const AuditLog = require("./models/AuditLog");
+    const count = await AuditLog.countDocuments();
+    if (count === 0) {
+      const defaultLogs = [
+        {
+          user: "admin",
+          userType: "Admin",
+          module: "Settings",
+          action: "UPDATE",
+          details: "Notification settings updated: enabled telegram dispatch status alerts.",
+          ipAddress: "127.0.0.1"
+        },
+        {
+          user: "Ramesh Reddy",
+          userType: "Farmer",
+          module: "Farmers",
+          action: "CREATE",
+          details: "New farmer Ramesh Reddy registered successfully via OTP verification.",
+          ipAddress: "192.168.1.10"
+        },
+        {
+          user: "admin",
+          userType: "Admin",
+          module: "Announcements",
+          action: "CREATE",
+          details: "Published announcement notice: 'FPC Farmer Training Program'.",
+          ipAddress: "127.0.0.1"
+        },
+        {
+          user: "Hanumanthu Goud",
+          userType: "Farmer",
+          module: "Crops",
+          action: "CREATE",
+          details: "Submitted new selling request for 50 bags of Cotton.",
+          ipAddress: "192.168.1.15"
+        },
+        {
+          user: "admin",
+          userType: "Admin",
+          module: "Crops",
+          action: "APPROVE",
+          details: "Approved crop selling request for farmer Saraswathi Devi (Groundnut, 30 Bags).",
+          ipAddress: "127.0.0.1"
+        }
+      ];
+
+      for (const log of defaultLogs) {
+        await AuditLog.create(log);
+      }
+      console.log("Default audit logs seeded successfully");
+    }
+  } catch (err) {
+    console.error("Error seeding default audit logs:", err);
+  }
+};
+
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
@@ -292,6 +537,10 @@ mongoose
     await seedProducts();
     await seedSettings();
     await seedEquipments();
+    await seedAnnouncements();
+    await seedMarketPrices();
+    await seedDocuments();
+    await seedAuditLogs();
 
     try {
       const Notification = require("./models/Notification");

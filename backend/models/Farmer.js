@@ -18,6 +18,10 @@ const farmerSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    state: {
+      type: String,
+      default: "Andhra Pradesh",
+    },
     village: {
       type: String,
       required: true,
