@@ -213,11 +213,6 @@ function Admin() {
   // ── Theme State ──
   const [theme, setTheme] = useState("dark");
 
-  // ── Market Prices States ──
-  const [marketPrices, setMarketPrices] = useState([]);
-  const [editingPriceId, setEditingPriceId] = useState(null);
-  const [editingTodayPrice, setEditingTodayPrice] = useState("");
-  const [editingRecPrice, setEditingRecPrice] = useState("");
 
   // ── Document Center States ──
   const [documents, setDocuments] = useState([]);
@@ -394,7 +389,7 @@ function Admin() {
     try {
       const signal = AbortSignal.timeout(30000);
 
-      const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes, equipmentsRes, announcementsRes, marketPricesRes, documentsRes, auditLogsRes] =
+      const [contactsRes, cropsRes, bookingsRes, farmersRes, productsRes, analyticsRes, monthlyRes, categoryRes, notificationsRes, settingsRes, telegramRes, productBookingsRes, equipmentsRes, announcementsRes, documentsRes, auditLogsRes] =
         await Promise.all([
           fetch(`${API_BASE}/contact`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/crop-sales`, { headers: getAuthHeaders(), signal }),
@@ -410,7 +405,6 @@ function Admin() {
           fetch(`${API_BASE}/product-bookings`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/equipments`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/announcements/admin`, { headers: getAuthHeaders(), signal }),
-          fetch(`${API_BASE}/market-prices`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/documents`, { headers: getAuthHeaders(), signal }),
           fetch(`${API_BASE}/audit-logs`, { headers: getAuthHeaders(), signal })
         ]);
@@ -438,7 +432,7 @@ function Admin() {
         return;
       }
 
-      if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok || !equipmentsRes.ok || !announcementsRes.ok || !marketPricesRes.ok || !documentsRes.ok || !auditLogsRes.ok) {
+      if (!contactsRes.ok || !cropsRes.ok || !bookingsRes.ok || !farmersRes.ok || !productsRes.ok || !analyticsRes.ok || !monthlyRes.ok || !categoryRes.ok || !notificationsRes.ok || !settingsRes.ok || !telegramRes.ok || !productBookingsRes.ok || !equipmentsRes.ok || !announcementsRes.ok || !documentsRes.ok || !auditLogsRes.ok) {
         throw new Error("Failed to fetch data");
       }
 
@@ -456,7 +450,6 @@ function Admin() {
       const productBookingsData = await productBookingsRes.json();
       const equipmentsData = await equipmentsRes.json();
       const announcementsData = await announcementsRes.json();
-      const marketPricesData = await marketPricesRes.json();
       const documentsData = await documentsRes.json();
       const auditLogsData = await auditLogsRes.json();
 
@@ -477,7 +470,6 @@ function Admin() {
       setProductBookings(Array.isArray(productBookingsData) ? productBookingsData : (productBookingsData?.data || []));
       setEquipments(equipmentsData);
       setAnnouncements(announcementsData);
-      setMarketPrices(marketPricesData);
       setDocuments(documentsData);
       setAuditLogs(auditLogsData);
       setIsOffline(false);
@@ -536,51 +528,6 @@ function Admin() {
     }
   };
 
-  const handleUpdateMarketPrice = async (id) => {
-    if (!editingTodayPrice || !editingRecPrice) {
-      toast.error("Prices cannot be empty");
-      return;
-    }
-    try {
-      const response = await fetch(`${API_BASE}/market-prices/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({
-          todayPrice: Number(editingTodayPrice),
-          recommendedPrice: Number(editingRecPrice)
-        })
-      });
-
-      if (response.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error("Failed to update market price");
-      }
-
-      const resData = await response.json();
-      if (resData.success) {
-        toast.success("Market price updated successfully!");
-        setEditingPriceId(null);
-        fetchData();
-        triggerSystemNotification(
-          "Market Price Updated",
-          `Market price updated to ₹${editingTodayPrice}/Qtl.`,
-          "low"
-        );
-      } else {
-        toast.error(resData.message || "Failed to update price");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Failed to update price");
-    }
-  };
 
   const handleDocumentUpload = async (e) => {
     e.preventDefault();
@@ -3582,100 +3529,6 @@ const handleDelete = async (type, id) => {
                     </div>
                   </div>
 
-                  {/* Market Prices Management Section */}
-                  <div className="glass-panel" style={{ padding: "24px", marginBottom: "24px" }}>
-                    <h3 className="section-title" style={{ fontSize: "16px", color: "var(--admin-accent-green)", marginBottom: "16px", fontWeight: "600", borderBottom: "1px solid var(--admin-border-color)", paddingBottom: "8px" }}>
-                      Market Prices Management
-                    </h3>
-                    <div className="table-responsive-container" style={{ border: "none", boxShadow: "none", background: "transparent" }}>
-                      <table className="admin-table">
-                        <thead>
-                          <tr>
-                            <th>Crop Name</th>
-                            <th>Yesterday's Price (₹/Qtl)</th>
-                            <th>Today's Price (₹/Qtl)</th>
-                            <th>Recommended Price (₹/Qtl)</th>
-                            <th>Trend</th>
-                            <th>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {marketPrices.map((mp) => {
-                            const isEditing = editingPriceId === mp._id;
-                            return (
-                              <tr key={mp._id}>
-                                <td className="font-semibold">{mp.cropName}</td>
-                                <td>₹{mp.yesterdayPrice || 0}</td>
-                                <td>
-                                  {isEditing ? (
-                                    <input 
-                                      type="number" 
-                                      value={editingTodayPrice} 
-                                      onChange={(e) => setEditingTodayPrice(e.target.value)} 
-                                      className="admin-login-input" 
-                                      style={{ padding: "4px 8px", width: "100px", margin: 0, background: "rgba(0, 0, 0, 0.4)", border: "1px solid var(--admin-accent-green)", color: "#fff", borderRadius: "4px" }}
-                                    />
-                                  ) : (
-                                    <span>₹{mp.todayPrice}</span>
-                                  )}
-                                </td>
-                                <td>
-                                  {isEditing ? (
-                                    <input 
-                                      type="number" 
-                                      value={editingRecPrice} 
-                                      onChange={(e) => setEditingRecPrice(e.target.value)} 
-                                      className="admin-login-input" 
-                                      style={{ padding: "4px 8px", width: "100px", margin: 0, background: "rgba(0, 0, 0, 0.4)", border: "1px solid var(--admin-accent-green)", color: "#fff", borderRadius: "4px" }}
-                                    />
-                                  ) : (
-                                    <span>₹{mp.recommendedPrice}</span>
-                                  )}
-                                </td>
-                                <td>
-                                  <span className={`trend-badge ${mp.trend === 'up' ? 'positive' : mp.trend === 'down' ? 'negative' : 'neutral'}`} style={{ textTransform: "capitalize" }}>
-                                    {mp.trend}
-                                  </span>
-                                </td>
-                                <td>
-                                  {isEditing ? (
-                                    <div style={{ display: "flex", gap: "8px" }}>
-                                      <button 
-                                        className="btn-action small pdf" 
-                                        onClick={() => handleUpdateMarketPrice(mp._id)}
-                                        style={{ background: "var(--admin-accent-green)", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
-                                      >
-                                        Save
-                                      </button>
-                                      <button 
-                                        className="btn-action small csv" 
-                                        onClick={() => setEditingPriceId(null)}
-                                        style={{ background: "#d32f2f", color: "#fff", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button 
-                                      className="btn-action small excel" 
-                                      onClick={() => {
-                                        setEditingPriceId(mp._id);
-                                        setEditingTodayPrice(mp.todayPrice);
-                                        setEditingRecPrice(mp.recommendedPrice);
-                                      }}
-                                      style={{ background: "rgba(197, 168, 128, 0.2)", border: "1px solid var(--admin-accent-gold)", color: "var(--admin-accent-gold)", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
-                                    >
-                                      Edit Price
-                                    </button>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
 
                   {/* 3. Charts Row */}
                   <div className="charts-row" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px" }}>

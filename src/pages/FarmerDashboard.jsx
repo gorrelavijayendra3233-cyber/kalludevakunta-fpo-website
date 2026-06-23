@@ -36,7 +36,6 @@ function FarmerDashboard() {
   const [orders, setOrders] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [marketPrices, setMarketPrices] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [searchDoc, setSearchDoc] = useState("");
   const [filterDocCategory, setFilterDocCategory] = useState("All");
@@ -93,13 +92,12 @@ function FarmerDashboard() {
         setFarmer(profileData.farmer);
 
         // Fetch user transaction history, notifications, and announcements
-        const [cropsRes, bookingsRes, ordersRes, notifsRes, announcementsRes, marketPricesRes, documentsRes] = await Promise.all([
+        const [cropsRes, bookingsRes, ordersRes, notifsRes, announcementsRes, documentsRes] = await Promise.all([
           fetch(`${API_BASE}/farmer/crop-requests`, { headers }),
           fetch(`${API_BASE}/farmer/bookings`, { headers }),
           fetch(`${API_BASE}/farmer/orders`, { headers }),
           fetch(`${API_BASE}/farmer/notifications`, { headers }),
           fetch(`${API_BASE}/announcements`, { headers }),
-          fetch(`${API_BASE}/market-prices`, { headers }),
           fetch(`${API_BASE}/documents`, { headers })
         ]);
 
@@ -117,7 +115,6 @@ function FarmerDashboard() {
         if (ordersRes.ok) setOrders(await ordersRes.json());
         if (notifsRes.ok) setNotifications(await notifsRes.json());
         if (announcementsRes.ok) setAnnouncements(await announcementsRes.json());
-        if (marketPricesRes.ok) setMarketPrices(await marketPricesRes.json());
         if (documentsRes.ok) setDocuments(await documentsRes.json());
 
       } catch (error) {
@@ -409,61 +406,7 @@ function FarmerDashboard() {
                 </div>
               </div>
 
-              {/* Live Market Prices Section */}
-              <div className="market-prices-section" style={{ marginTop: "30px", marginBottom: "25px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "15px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Coins size={18} style={{ color: "var(--harvest-lt)" }} /> Live Market Prices / ప్రస్తుత మార్కెట్ ధరలు
-                </h3>
-                {marketPrices.length === 0 ? (
-                  <div className="glass-panel" style={{ padding: "20px", textAlign: "center", color: "var(--text-secondary)", borderRadius: "12px" }}>
-                    No market prices available.
-                  </div>
-                ) : (
-                  <div className="summary-cards-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
-                    {marketPrices.map((mp) => {
-                      const isUp = mp.trend === "up";
-                      const isDown = mp.trend === "down";
-                      const trendColor = isUp ? "#34d399" : isDown ? "#f87171" : "#fbbf24";
-                      
-                      return (
-                        <div key={mp._id} className="summary-card glass-panel" style={{ background: "rgba(13, 35, 21, 0.45)", border: "1px solid rgba(255, 255, 255, 0.08)", padding: "20px", borderRadius: "12px" }}>
-                          <div className="card-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                            <span style={{ fontSize: "16px", fontWeight: "bold", color: "#fff" }}>{mp.cropName}</span>
-                            <span style={{
-                              fontSize: "11px",
-                              fontWeight: "bold",
-                              color: trendColor,
-                              padding: "2px 8px",
-                              borderRadius: "10px",
-                              background: isUp ? "rgba(52, 211, 153, 0.1)" : isDown ? "rgba(248, 113, 113, 0.1)" : "rgba(251, 191, 36, 0.1)",
-                              border: `1px solid ${trendColor}22`,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px"
-                            }}>
-                              {isUp ? "▲" : isDown ? "▼" : "●"} {mp.trend.toUpperCase()}
-                            </span>
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                              <span style={{ color: "var(--text-secondary)" }}>Today's Price:</span>
-                              <span style={{ fontWeight: "700", color: "#fff" }}>₹{mp.todayPrice}/Qtl</span>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                              <span style={{ color: "var(--text-secondary)" }}>Recommended:</span>
-                              <span style={{ fontWeight: "700", color: "var(--harvest-lt)" }}>₹{mp.recommendedPrice}/Qtl</span>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "8px", color: "rgba(255, 255, 255, 0.4)" }}>
-                              <span>Yesterday:</span>
-                              <span>₹{mp.yesterdayPrice || 0}/Qtl</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+
 
               {/* Farmer Notice Board */}
               <div className="notice-board-section" style={{ marginTop: "30px", marginBottom: "25px" }}>
