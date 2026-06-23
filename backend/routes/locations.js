@@ -101,8 +101,9 @@ async function validateLocationHierarchy({ state, district, mandal, village }) {
 
   try {
     const data = await getStateData(state);
+    const districtsArray = Array.isArray(data) ? data : (data.districts || []);
 
-    const distObj = data.find(
+    const distObj = districtsArray.find(
       (d) => d.district.trim().toLowerCase() === district.trim().toLowerCase()
     );
     if (!distObj) {
@@ -144,7 +145,8 @@ router.get("/districts", async (req, res) => {
 
   try {
     const data = await getStateData(state);
-    const districts = data.map((d) => d.district).sort();
+    const districtsArray = Array.isArray(data) ? data : (data.districts || []);
+    const districts = districtsArray.map((d) => d.district).sort();
     res.json({ success: true, districts });
   } catch (err) {
     console.error(err);
@@ -161,7 +163,8 @@ router.get("/mandals", async (req, res) => {
 
   try {
     const data = await getStateData(state);
-    const distObj = data.find(
+    const districtsArray = Array.isArray(data) ? data : (data.districts || []);
+    const distObj = districtsArray.find(
       (d) => d.district.trim().toLowerCase() === district.trim().toLowerCase()
     );
 
@@ -186,7 +189,8 @@ router.get("/villages", async (req, res) => {
 
   try {
     const data = await getStateData(state);
-    const distObj = data.find(
+    const districtsArray = Array.isArray(data) ? data : (data.districts || []);
+    const distObj = districtsArray.find(
       (d) => d.district.trim().toLowerCase() === district.trim().toLowerCase()
     );
 

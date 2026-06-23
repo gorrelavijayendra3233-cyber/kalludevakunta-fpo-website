@@ -25,3 +25,7 @@ dist-ssr
 # Environment files
 .env
 backend/.env
+
+# Local data cache
+backend/data/
+
