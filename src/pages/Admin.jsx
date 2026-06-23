@@ -728,7 +728,7 @@ function Admin() {
 
       const interval = setInterval(() => {
         fetchData();
-      }, 30000);
+      }, 120000);
 
       return () => clearInterval(interval);
     }
