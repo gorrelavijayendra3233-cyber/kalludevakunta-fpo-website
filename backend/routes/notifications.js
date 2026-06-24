@@ -92,6 +92,19 @@ router.get("/telegram-status", auth, async (req, res) => {
   }
 });
 
+// C-2. Debug telegram credentials
+router.get("/debug-telegram", auth, (req, res) => {
+  const token = process.env.TELEGRAM_BOT_TOKEN || "";
+  const chatId = process.env.TELEGRAM_CHAT_ID || "";
+  res.json({
+    success: true,
+    tokenConfigured: !!token,
+    chatIdConfigured: !!chatId,
+    tokenPrefix: token ? token.substring(0, 10) + "..." : "none",
+    chatId: chatId
+  });
+});
+
 // D. Send test Telegram notification
 router.post("/test-telegram", auth, async (req, res) => {
   try {
