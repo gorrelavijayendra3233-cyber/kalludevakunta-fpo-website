@@ -63,17 +63,14 @@ router.put("/settings", auth, async (req, res) => {
 // C. Get telegram connection status
 router.get("/telegram-status", auth, async (req, res) => {
   try {
+    const { checkTelegramConnection } = require("../services/telegram");
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     
     let connected = false;
     if (token && chatId) {
       try {
-        const response = await fetch(`https://api.telegram.org/bot${token}/getMe`, { signal: AbortSignal.timeout(5000) });
-        const data = response.ok ? await response.json() : null;
-        if (data && data.ok) {
-          connected = true;
-        }
+        connected = await checkTelegramConnection();
       } catch (err) {
         console.error("Telegram status check failed:", err);
         const lastSent = await NotificationLog.findOne({ status: "Sent" });

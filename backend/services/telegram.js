@@ -1,65 +1,143 @@
+const https = require("https");
 const NotificationLog = require("../models/NotificationLog");
 
-const sendTelegramMessage = async (message, type = "system") => {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-console.log("=== TELEGRAM FUNCTION CALLED ===");
-console.log("TOKEN EXISTS:", !!process.env.TELEGRAM_BOT_TOKEN);
-console.log("CHAT ID:", process.env.TELEGRAM_CHAT_ID);
-  if (!token || !chatId) {
-    console.warn("Telegram bot token or chat ID is not configured in .env");
-    await NotificationLog.create({
-      type,
-      message,
-      status: "Failed",
-      error: "Telegram credentials missing in environment"
-    });
-    return false;
-  }
+const sendTelegramMessage = (message, type = "system") => {
+  return new Promise((resolve) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
 
-  try {
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message
-      }),
-      signal: AbortSignal.timeout(10000)
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.ok) {
-      await NotificationLog.create({
-        type,
-        message,
-        status: "Sent"
-      });
-      return true;
-    } else {
-      const errMsg = data.description || "Unknown error";
-      await NotificationLog.create({
+    if (!token || !chatId) {
+      console.warn("Telegram bot token or chat ID is not configured in .env");
+      NotificationLog.create({
         type,
         message,
         status: "Failed",
-        error: `Telegram API error: ${errMsg}`
-      });
-      console.error("Telegram API sending failed:", data);
-      return false;
+        error: "Telegram credentials missing in environment"
+      }).catch(console.error);
+      return resolve(false);
     }
-  } catch (err) {
-    await NotificationLog.create({
-      type,
-      message,
-      status: "Failed",
-      error: err.message || "Network error"
+
+    const payload = JSON.stringify({
+      chat_id: chatId,
+      text: message
     });
-    console.error("Failed to send Telegram message:", err);
-    return false;
-  }
+
+    const options = {
+      hostname: "api.telegram.org",
+      port: 443,
+      path: `/bot${token}/sendMessage`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload)
+      },
+      timeout: 15000 // 15 seconds timeout
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        try {
+          const json = JSON.parse(data);
+          if (res.statusCode >= 200 && res.statusCode < 300 && json.ok) {
+            NotificationLog.create({
+              type,
+              message,
+              status: "Sent"
+            }).catch(console.error);
+            resolve(true);
+          } else {
+            const errMsg = json.description || `HTTP Status ${res.statusCode}`;
+            NotificationLog.create({
+              type,
+              message,
+              status: "Failed",
+              error: `Telegram API error: ${errMsg}`
+            }).catch(console.error);
+            console.error("Telegram API sending failed:", json);
+            resolve(false);
+          }
+        } catch (err) {
+          NotificationLog.create({
+            type,
+            message,
+            status: "Failed",
+            error: `Parsing response failed: ${err.message}`
+          }).catch(console.error);
+          resolve(false);
+        }
+      });
+    });
+
+    req.on("error", (err) => {
+      NotificationLog.create({
+        type,
+        message,
+        status: "Failed",
+        error: err.message || "Network error"
+      }).catch(console.error);
+      console.error("Failed to send Telegram message:", err);
+      resolve(false);
+    });
+
+    req.on("timeout", () => {
+      req.destroy();
+      NotificationLog.create({
+        type,
+        message,
+        status: "Failed",
+        error: "Request timed out after 15s"
+      }).catch(console.error);
+      console.error("Telegram request timed out");
+      resolve(false);
+    });
+
+    req.write(payload);
+    req.end();
+  });
 };
 
-module.exports = { sendTelegramMessage };
+const checkTelegramConnection = () => {
+  return new Promise((resolve) => {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return resolve(false);
+
+    const options = {
+      hostname: "api.telegram.org",
+      port: 443,
+      path: `/bot${token}/getMe`,
+      method: "GET",
+      timeout: 5000
+    };
+
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        try {
+          const json = JSON.parse(data);
+          resolve(res.statusCode === 200 && json.ok);
+        } catch (err) {
+          resolve(false);
+        }
+      });
+    });
+
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.end();
+  });
+};
+
+module.exports = {
+  sendTelegramMessage,
+  checkTelegramConnection
+};
