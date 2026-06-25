@@ -241,10 +241,12 @@ function Admin() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetForm, setResetForm] = useState({
     username: "bheemaiah",
+    oldPassword: "",
     newPassword: "",
     confirmPassword: ""
   });
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [showResetOldPassword, setShowResetOldPassword] = useState(false);
   const [showResetNewPassword, setShowResetNewPassword] = useState(false);
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
@@ -536,8 +538,8 @@ function Admin() {
   const handleForgotPasswordReset = async (e) => {
     e.preventDefault();
 
-    if (!resetForm.newPassword || !resetForm.confirmPassword) {
-      toast.error("Password fields are required");
+    if (!resetForm.oldPassword || !resetForm.newPassword || !resetForm.confirmPassword) {
+      toast.error("All password fields are required");
       return;
     }
 
@@ -562,6 +564,7 @@ function Admin() {
         },
         body: JSON.stringify({
           username: resetForm.username,
+          oldPassword: resetForm.oldPassword,
           newPassword: resetForm.newPassword
         }),
         signal: AbortSignal.timeout(10000)
@@ -580,6 +583,7 @@ function Admin() {
         setShowForgotPassword(false);
         setResetForm({
           username: "bheemaiah",
+          oldPassword: "",
           newPassword: "",
           confirmPassword: ""
         });
@@ -3089,6 +3093,29 @@ const handleDelete = async (type, id) => {
                   <option value="director" style={{ background: "#0d2315", color: "#fff" }}>Director</option>
                   <option value="admin" style={{ background: "#0d2315", color: "#fff" }}>Admin</option>
                 </select>
+              </div>
+
+              {/* Old Password Field */}
+              <div className="admin-login-input-group" style={{ position: "relative" }}>
+                <label className="admin-login-label">Old Password</label>
+                <div style={{ position: "relative" }}>
+                  <input 
+                    type={showResetOldPassword ? "text" : "password"} 
+                    value={resetForm.oldPassword}
+                    onChange={(e) => setResetForm(prev => ({ ...prev, oldPassword: e.target.value }))}
+                    className="admin-login-input" 
+                    style={{ width: "100%", paddingRight: "40px" }}
+                    placeholder="Enter old password"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowResetOldPassword(!showResetOldPassword)}
+                    style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  >
+                    {showResetOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               {/* New Password Field */}

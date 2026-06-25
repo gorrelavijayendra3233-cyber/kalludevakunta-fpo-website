@@ -57,15 +57,26 @@ router.post("/login", async (req, res) => {
 // POST /api/admin/reset-password
 router.post("/reset-password", async (req, res) => {
   try {
-    const { username, newPassword } = req.body;
+    const { username, oldPassword, newPassword } = req.body;
 
-    if (!username || !newPassword) {
-      return res.status(400).json({ success: false, message: "Username and new password are required" });
+    if (!username || !oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Username, old password, and new password are required" });
     }
 
     const normalizedUsername = username.trim().toLowerCase();
     if (!["bheemaiah", "director", "admin"].includes(normalizedUsername)) {
       return res.status(400).json({ success: false, message: "This username is not authorized for password recovery" });
+    }
+
+    const admin = await Admin.findOne({ username: normalizedUsername });
+    if (!admin) {
+      return res.status(404).json({ success: false, message: "Admin account not found" });
+    }
+
+    // Verify the old password
+    const isMatch = await bcrypt.compare(oldPassword, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: "Current password is incorrect" });
     }
 
     // Minimum password rules check
@@ -75,11 +86,6 @@ router.post("/reset-password", async (req, res) => {
         success: false,
         message: "Password must be at least 8 characters long, contain at least 1 uppercase letter, 1 number, and 1 special character."
       });
-    }
-
-    const admin = await Admin.findOne({ username: normalizedUsername });
-    if (!admin) {
-      return res.status(404).json({ success: false, message: "Admin account not found" });
     }
 
     // Hash the new password
