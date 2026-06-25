@@ -235,17 +235,7 @@ function Admin() {
   const [filterAuditModule, setFilterAuditModule] = useState("All");
   const [filterAuditAction, setFilterAuditAction] = useState("All");
 
-  // ── Admin Profile & Password Change States ──
-  const [adminProfile, setAdminProfile] = useState(null);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: ""
-  });
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [updatingPassword, setUpdatingPassword] = useState(false);
+
 
   // ── Forgot Password States ──
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -506,29 +496,6 @@ function Admin() {
     }
   }
 
-  const fetchAdminProfile = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/admin/me`, {
-        headers: getAuthHeaders()
-      });
-      if (response.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-      const data = response.ok ? await response.json() : null;
-      if (data && data.success) {
-        setAdminProfile(data.admin);
-      }
-    } catch (err) {
-      console.error("Failed to fetch admin profile:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchAdminProfile();
-    }
-  }, [isAuthenticated]);
 
   const getPasswordStrength = (pwd) => {
     if (!pwd) return "";
@@ -564,73 +531,7 @@ function Admin() {
     }
   };
 
-  const handlePasswordUpdate = async (e) => {
-    e.preventDefault();
 
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      toast.error("All password fields are required");
-      return;
-    }
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("New passwords do not match");
-      return;
-    }
-
-    // Minimum password rules check
-    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-    if (!passwordRegex.test(passwordForm.newPassword)) {
-      toast.error("Password must be at least 8 characters long, contain at least 1 uppercase letter, 1 number, and 1 special character.");
-      return;
-    }
-
-    try {
-      setUpdatingPassword(true);
-      const response = await fetch(`${API_BASE}/admin/change-password`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword
-        }),
-        signal: AbortSignal.timeout(10000)
-      });
-
-      if (response.status === 401) {
-        handleUnauthorized();
-        return;
-      }
-
-      const data = await response.json();
-      if (!data.success) {
-        toast.error(data.message || "Failed to update password");
-        return;
-      }
-
-      toast.success("Password updated successfully. Please login again.");
-      
-      // Logout and redirect to login screen
-      setTimeout(() => {
-        localStorage.removeItem("fpo_admin_token");
-        localStorage.removeItem("adminToken");
-        setIsAuthenticated(false);
-        setPasswordForm({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: ""
-        });
-      }, 1500);
-
-    } catch (error) {
-      console.error(error);
-      toast.error(error.message || "Failed to update password");
-    } finally {
-      setUpdatingPassword(false);
-    }
-  };
 
   const handleForgotPasswordReset = async (e) => {
     e.preventDefault();
@@ -6206,157 +6107,6 @@ const handleDelete = async (type, id) => {
                       >
                         {sendingTest ? "Sending..." : "Send Test Telegram Notification"}
                       </button>
-                    </div>
-
-                    {/* Change Password & Security Panel */}
-                    <div className="settings-section" style={{ borderTop: "1px solid var(--admin-border-color)", paddingTop: "24px", marginTop: "24px" }}>
-                      <div className="password-security-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "30px" }}>
-                        
-                        {/* Change Password Card */}
-                        <div className="password-change-card">
-                          <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", color: "var(--admin-accent-orange)" }}>Change Password</h3>
-                          <p style={{ fontSize: "13px", color: "var(--admin-text-secondary)", marginBottom: "20px" }}>
-                            Update your admin security credentials. Must contain at least 8 characters, 1 uppercase letter, 1 number, and 1 special symbol.
-                          </p>
-                          
-                          <form onSubmit={handlePasswordUpdate} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                            {/* Current Password Field */}
-                            <div className="form-group" style={{ position: "relative" }}>
-                              <label style={{ display: "block", fontSize: "12px", color: "var(--admin-text-secondary)", marginBottom: "6px", fontWeight: "600" }}>Current Password</label>
-                              <div style={{ position: "relative" }}>
-                                <input 
-                                  type={showCurrentPassword ? "text" : "password"} 
-                                  value={passwordForm.currentPassword}
-                                  onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                                  className="admin-login-input" 
-                                  style={{ width: "100%", paddingRight: "40px" }}
-                                  placeholder="Enter current password"
-                                />
-                                <button 
-                                  type="button" 
-                                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                  style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                                >
-                                  {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* New Password Field */}
-                            <div className="form-group" style={{ position: "relative" }}>
-                              <label style={{ display: "block", fontSize: "12px", color: "var(--admin-text-secondary)", marginBottom: "6px", fontWeight: "600" }}>New Password</label>
-                              <div style={{ position: "relative" }}>
-                                <input 
-                                  type={showNewPassword ? "text" : "password"} 
-                                  value={passwordForm.newPassword}
-                                  onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                                  className="admin-login-input" 
-                                  style={{ width: "100%", paddingRight: "40px" }}
-                                  placeholder="Enter new password"
-                                />
-                                <button 
-                                  type="button" 
-                                  onClick={() => setShowNewPassword(!showNewPassword)}
-                                  style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                                >
-                                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
-                              </div>
-                              
-                              {/* Password Strength Indicator */}
-                              {passwordForm.newPassword && (
-                                <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-                                  <span style={{ fontSize: "11px", color: "var(--admin-text-muted)", fontWeight: "600" }}>Strength:</span>
-                                  <span style={{ 
-                                    fontSize: "11px", 
-                                    fontWeight: "700", 
-                                    color: getPasswordStrengthColor(getPasswordStrength(passwordForm.newPassword))
-                                  }}>
-                                    {getPasswordStrength(passwordForm.newPassword)}
-                                  </span>
-                                  <div style={{ flex: 1, height: "4px", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden", display: "flex" }}>
-                                    <div style={{ 
-                                      width: getPasswordStrength(passwordForm.newPassword) === "Weak" ? "33%" : getPasswordStrength(passwordForm.newPassword) === "Medium" ? "66%" : "100%", 
-                                      height: "100%", 
-                                      backgroundColor: getPasswordStrengthColor(getPasswordStrength(passwordForm.newPassword)),
-                                      transition: "width 0.3s ease" 
-                                    }}></div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Confirm Password Field */}
-                            <div className="form-group" style={{ position: "relative" }}>
-                              <label style={{ display: "block", fontSize: "12px", color: "var(--admin-text-secondary)", marginBottom: "6px", fontWeight: "600" }}>Confirm Password</label>
-                              <div style={{ position: "relative" }}>
-                                <input 
-                                  type={showConfirmPassword ? "text" : "password"} 
-                                  value={passwordForm.confirmPassword}
-                                  onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                                  className="admin-login-input" 
-                                  style={{ width: "100%", paddingRight: "40px" }}
-                                  placeholder="Confirm new password"
-                                />
-                                <button 
-                                  type="button" 
-                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                  style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                                >
-                                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
-                              </div>
-                            </div>
-
-                            <button 
-                              type="submit"
-                              className="btn-action primary" 
-                              style={{ marginTop: "8px", alignSelf: "flex-start", padding: "10px 20px" }}
-                              disabled={updatingPassword}
-                            >
-                              {updatingPassword ? "Updating..." : "Update Password"}
-                            </button>
-                          </form>
-                        </div>
-
-                        {/* Security Card */}
-                        <div className="security-status-card" style={{ display: "flex", flexDirection: "column", gap: "20px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--admin-border-color)", padding: "20px", borderRadius: "12px" }}>
-                          <h3 style={{ fontSize: "16px", fontWeight: "600", color: "var(--admin-text-primary)", borderBottom: "1px solid var(--admin-border-color)", paddingBottom: "8px" }}>Security</h3>
-                          
-                          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                            <div>
-                              <span style={{ display: "block", fontSize: "11px", color: "var(--admin-text-muted)", textTransform: "uppercase", fontWeight: "600" }}>Last Password Change</span>
-                              <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--admin-text-primary)", display: "block", marginTop: "4px" }}>
-                                {formatSecurityDate(adminProfile?.lastPasswordChange)}
-                              </span>
-                            </div>
-
-                            <div>
-                              <span style={{ display: "block", fontSize: "11px", color: "var(--admin-text-muted)", textTransform: "uppercase", fontWeight: "600" }}>Session Status</span>
-                              <span style={{ 
-                                fontSize: "14px", 
-                                fontWeight: "700", 
-                                color: "#4caf50",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                marginTop: "4px"
-                              }}>
-                                <span style={{
-                                  width: "8px",
-                                  height: "8px",
-                                  borderRadius: "50%",
-                                  backgroundColor: "#4caf50",
-                                  display: "inline-block",
-                                  boxShadow: "0 0 6px #4caf50"
-                                }}></span>
-                                Active
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
                     </div>
                   </div>
                 </div>
