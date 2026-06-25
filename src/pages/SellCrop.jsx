@@ -6,7 +6,6 @@ import {
   CheckCircle, 
   Clock, 
   Phone, 
-  CreditCard, 
   Calendar, 
   FileText,
   User,
@@ -506,13 +505,7 @@ const handleSubmit = async (e) => {
                 </div>
               </div>
               
-              <div className="info-row">
-                <div className="info-row-icon"><CreditCard size={16} /></div>
-                <div className="info-row-text">
-                  <div className="info-row-label">Payout</div>
-                  <div className="info-value">Direct bank transfer within 3 days</div>
-                </div>
-              </div>
+
               
               <a
                 href="https://wa.me/919014488562?text=Hello%20Kalludevakunta%20FPC%2C%20I%20want%20to%20sell%20my%20crops."
