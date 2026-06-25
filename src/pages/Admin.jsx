@@ -249,6 +249,8 @@ function Admin() {
   const [showResetOldPassword, setShowResetOldPassword] = useState(false);
   const [showResetNewPassword, setShowResetNewPassword] = useState(false);
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+  const [credentialsVerified, setCredentialsVerified] = useState(false);
+  const [verifyingCredentials, setVerifyingCredentials] = useState(false);
 
   // ── Search States ──
   const [searchContact, setSearchContact] = useState("");
@@ -535,6 +537,45 @@ function Admin() {
 
 
 
+  const handleVerifyCredentials = async (e) => {
+    e.preventDefault();
+
+    if (!resetForm.oldPassword) {
+      toast.error("Please enter your old/last password");
+      return;
+    }
+
+    try {
+      setVerifyingCredentials(true);
+      const response = await fetch(`${API_BASE}/admin/verify-old-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username: resetForm.username,
+          oldPassword: resetForm.oldPassword
+        }),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        toast.error(data.message || "Invalid credentials");
+        return;
+      }
+
+      toast.success("Credentials verified. Please set your new password.");
+      setCredentialsVerified(true);
+
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to verify credentials");
+    } finally {
+      setVerifyingCredentials(false);
+    }
+  };
+
   const handleForgotPasswordReset = async (e) => {
     e.preventDefault();
 
@@ -581,6 +622,7 @@ function Admin() {
       // Go back to login screen
       setTimeout(() => {
         setShowForgotPassword(false);
+        setCredentialsVerified(false);
         setResetForm({
           username: "bheemaiah",
           oldPassword: "",
@@ -3079,7 +3121,7 @@ const handleDelete = async (type, id) => {
               <span className="admin-login-subtitle">FPO Admin Password Recovery</span>
             </div>
 
-            <form onSubmit={handleForgotPasswordReset} className="admin-login-form">
+            <form onSubmit={credentialsVerified ? handleForgotPasswordReset : handleVerifyCredentials} className="admin-login-form">
               <div className="admin-login-input-group">
                 <label className="admin-login-label">Username</label>
                 <select 
@@ -3087,6 +3129,7 @@ const handleDelete = async (type, id) => {
                   value={resetForm.username}
                   onChange={(e) => setResetForm(prev => ({ ...prev, username: e.target.value }))}
                   style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--admin-border-color)", color: "#fff" }}
+                  disabled={credentialsVerified}
                   required
                 >
                   <option value="bheemaiah" style={{ background: "#0d2315", color: "#fff" }}>Bheemaiah</option>
@@ -3106,93 +3149,115 @@ const handleDelete = async (type, id) => {
                     className="admin-login-input" 
                     style={{ width: "100%", paddingRight: "40px" }}
                     placeholder="Enter old password"
+                    disabled={credentialsVerified}
                     required
                   />
                   <button 
                     type="button" 
                     onClick={() => setShowResetOldPassword(!showResetOldPassword)}
                     style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                    disabled={credentialsVerified}
                   >
                     {showResetOldPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
 
-              {/* New Password Field */}
-              <div className="admin-login-input-group" style={{ position: "relative" }}>
-                <label className="admin-login-label">New Password</label>
-                <div style={{ position: "relative" }}>
-                  <input 
-                    type={showResetNewPassword ? "text" : "password"} 
-                    value={resetForm.newPassword}
-                    onChange={(e) => setResetForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                    className="admin-login-input" 
-                    style={{ width: "100%", paddingRight: "40px" }}
-                    placeholder="Enter new password"
-                    required
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowResetNewPassword(!showResetNewPassword)}
-                    style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                  >
-                    {showResetNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                
-                {/* Password Strength Indicator */}
-                {resetForm.newPassword && (
-                  <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "11px", color: "var(--admin-text-muted)", fontWeight: "600" }}>Strength:</span>
-                    <span style={{ 
-                      fontSize: "11px", 
-                      fontWeight: "700", 
-                      color: getPasswordStrengthColor(getPasswordStrength(resetForm.newPassword))
-                    }}>
-                      {getPasswordStrength(resetForm.newPassword)}
-                    </span>
-                    <div style={{ flex: 1, height: "4px", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden", display: "flex" }}>
-                      <div style={{ 
-                        width: getPasswordStrength(resetForm.newPassword) === "Weak" ? "33%" : getPasswordStrength(resetForm.newPassword) === "Medium" ? "66%" : "100%", 
-                        height: "100%", 
-                        backgroundColor: getPasswordStrengthColor(getPasswordStrength(resetForm.newPassword)),
-                        transition: "width 0.3s ease" 
-                      }}></div>
+              {/* New Password Fields - only visible if credentialsVerified is true */}
+              {credentialsVerified && (
+                <>
+                  {/* New Password Field */}
+                  <div className="admin-login-input-group" style={{ position: "relative" }}>
+                    <label className="admin-login-label">New Password</label>
+                    <div style={{ position: "relative" }}>
+                      <input 
+                        type={showResetNewPassword ? "text" : "password"} 
+                        value={resetForm.newPassword}
+                        onChange={(e) => setResetForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                        className="admin-login-input" 
+                        style={{ width: "100%", paddingRight: "40px" }}
+                        placeholder="Enter new password"
+                        required
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowResetNewPassword(!showResetNewPassword)}
+                        style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                      >
+                        {showResetNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    
+                    {/* Password Strength Indicator */}
+                    {resetForm.newPassword && (
+                      <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--admin-text-muted)", fontWeight: "600" }}>Strength:</span>
+                        <span style={{ 
+                          fontSize: "11px", 
+                          fontWeight: "700", 
+                          color: getPasswordStrengthColor(getPasswordStrength(resetForm.newPassword))
+                        }}>
+                          {getPasswordStrength(resetForm.newPassword)}
+                        </span>
+                        <div style={{ flex: 1, height: "4px", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden", display: "flex" }}>
+                          <div style={{ 
+                            width: getPasswordStrength(resetForm.newPassword) === "Weak" ? "33%" : getPasswordStrength(resetForm.newPassword) === "Medium" ? "66%" : "100%", 
+                            height: "100%", 
+                            backgroundColor: getPasswordStrengthColor(getPasswordStrength(resetForm.newPassword)),
+                            transition: "width 0.3s ease" 
+                          }}></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confirm Password Field */}
+                  <div className="admin-login-input-group" style={{ position: "relative" }}>
+                    <label className="admin-login-label">Confirm Password</label>
+                    <div style={{ position: "relative" }}>
+                      <input 
+                        type={showResetConfirmPassword ? "text" : "password"} 
+                        value={resetForm.confirmPassword}
+                        onChange={(e) => setResetForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        className="admin-login-input" 
+                        style={{ width: "100%", paddingRight: "40px" }}
+                        placeholder="Confirm new password"
+                        required
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                        style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                      >
+                        {showResetConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
-
-              {/* Confirm Password Field */}
-              <div className="admin-login-input-group" style={{ position: "relative" }}>
-                <label className="admin-login-label">Confirm Password</label>
-                <div style={{ position: "relative" }}>
-                  <input 
-                    type={showResetConfirmPassword ? "text" : "password"} 
-                    value={resetForm.confirmPassword}
-                    onChange={(e) => setResetForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    className="admin-login-input" 
-                    style={{ width: "100%", paddingRight: "40px" }}
-                    placeholder="Confirm new password"
-                    required
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
-                    style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
-                  >
-                    {showResetConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
+                </>
+              )}
 
               <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
-                <button type="submit" className="admin-login-btn" style={{ flex: 1, margin: 0 }} disabled={resettingPassword}>
-                  {resettingPassword ? "Resetting..." : "Reset Password"}
-                </button>
+                {credentialsVerified ? (
+                  <button type="submit" className="admin-login-btn" style={{ flex: 1, margin: 0 }} disabled={resettingPassword}>
+                    {resettingPassword ? "Updating..." : "Update Password"}
+                  </button>
+                ) : (
+                  <button type="submit" className="admin-login-btn" style={{ flex: 1, margin: 0 }} disabled={verifyingCredentials}>
+                    {verifyingCredentials ? "Checking..." : "Verify Credentials"}
+                  </button>
+                )}
                 <button 
                   type="button" 
-                  onClick={() => setShowForgotPassword(false)} 
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setCredentialsVerified(false);
+                    setResetForm({
+                      username: "bheemaiah",
+                      oldPassword: "",
+                      newPassword: "",
+                      confirmPassword: ""
+                    });
+                  }} 
                   className="admin-login-btn" 
                   style={{ flex: 1, margin: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff" }}
                 >

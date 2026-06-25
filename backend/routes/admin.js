@@ -116,4 +116,36 @@ router.post("/reset-password", async (req, res) => {
   }
 });
 
+// POST /api/admin/verify-old-password
+router.post("/verify-old-password", async (req, res) => {
+  try {
+    const { username, oldPassword } = req.body;
+
+    if (!username || !oldPassword) {
+      return res.status(400).json({ success: false, message: "Username and old password are required" });
+    }
+
+    const normalizedUsername = username.trim().toLowerCase();
+    if (!["bheemaiah", "director", "admin"].includes(normalizedUsername)) {
+      return res.status(400).json({ success: false, message: "This username is not authorized for password recovery" });
+    }
+
+    const admin = await Admin.findOne({ username: normalizedUsername });
+    if (!admin) {
+      return res.status(404).json({ success: false, message: "Admin account not found" });
+    }
+
+    // Verify the old password
+    const isMatch = await bcrypt.compare(oldPassword, admin.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: "Current password is incorrect" });
+    }
+
+    res.json({ success: true, message: "Credentials verified successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;
