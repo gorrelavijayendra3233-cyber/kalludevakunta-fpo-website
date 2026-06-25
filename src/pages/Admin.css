@@ -106,6 +106,7 @@
   top: 0;
   z-index: 100;
   transition: transform var(--transition-smooth), background-color var(--transition-smooth), border-color var(--transition-smooth);
+  overflow-y: auto;
 }
 
 .admin-sidebar-header {
@@ -933,6 +934,65 @@
 }
 
 @media (max-width: 768px) {
+  /* Hide the logout button in header since it's already in the sidebar */
+  .admin-header .logout-btn {
+    display: none !important;
+  }
+
+  /* Hide the profile name in header on mobile to prevent wrapping/crowding */
+  .admin-header .profile-name {
+    display: none !important;
+  }
+
+  /* Adjust gap and alignment in header */
+  .admin-header .header-right {
+    gap: 8px !important;
+  }
+
+  /* Tighter header padding for mobile viewports */
+  .admin-header {
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* Tighter content viewport padding for mobile viewports */
+  .admin-content-viewport {
+    padding: 1rem 0.75rem !important;
+  }
+
+  /* Reduce heading title font size so it doesn't wrap excessively */
+  .admin-header .header-title {
+    font-size: 15px !important;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  /* Force main viewport scrolling on mobile screens */
+  .admin-main {
+    height: auto !important;
+    overflow-y: visible !important;
+  }
+  
+  .admin-container {
+    min-height: 100vh;
+    height: auto !important;
+  }
+
+  /* Wrap action buttons gracefully on mobile */
+  .button-actions-group, .pane-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .button-actions-group .btn-action, .pane-actions .btn-action {
+    flex: 1 1 auto !important;
+    min-width: 120px !important;
+    justify-content: center !important;
+    margin-left: 0 !important;
+    margin-top: 4px !important;
+  }
+
   .admin-sidebar {
     position: fixed;
     top: 0;

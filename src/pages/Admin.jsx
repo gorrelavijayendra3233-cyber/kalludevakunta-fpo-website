@@ -3007,6 +3007,13 @@ const handleDelete = async (type, id) => {
   // ── 2. Render Dashboard UI if authenticated ──
   return (
     <div className="admin-container">
+      {/* Sidebar Backdrop for Mobile */}
+      {mobileMenuOpen && (
+        <div 
+          className="sidebar-backdrop open" 
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
       {/* ── Sidebar ── */}
       <aside className={`admin-sidebar ${mobileMenuOpen ? "open" : ""}`}>
         <div className="admin-sidebar-header">
@@ -4906,23 +4913,22 @@ const handleDelete = async (type, id) => {
                         <button className="clear-search-btn" onClick={() => setSearchEquipmentInput("")}><X size={14} /></button>
                       )}
                     </div>
-                    <div className="pane-actions">
+                    <div className="button-actions-group" style={{ display: "flex", gap: "12px" }}>
                       <button 
-                        className="action-btn csv-export" 
+                        className="btn-action outline" 
                         onClick={() => exportCSV("equipments", filteredEquipments)}
                         disabled={filteredEquipments.length === 0}
                       >
                         <Download size={15} /> Export CSV
                       </button>
                       <button 
-                        className="action-btn csv-export" 
+                        className="btn-action outline" 
                         onClick={() => exportPDF("equipments", filteredEquipments)}
                         disabled={filteredEquipments.length === 0}
-                        style={{ marginLeft: "8px" }}
                       >
                         <FileText size={15} /> Export PDF
                       </button>
-                      <button className="action-btn add-new" onClick={() => setShowEquipmentModal(true)}>
+                      <button className="btn-action primary" onClick={() => setShowEquipmentModal(true)}>
                         + Add Equipment
                       </button>
                     </div>
