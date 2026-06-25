@@ -78,21 +78,24 @@ const PORT = 5000;
 
 const seedAdmin = async () => {
   try {
-    const adminExists = await Admin.findOne({ username: "admin" });
-    const hashedPassword = await bcrypt.hash("KDKFPO@2026", 10);
-    if (!adminExists) {
-      await Admin.create({
-        username: "admin",
-        password: hashedPassword,
-      });
-      console.log("Default admin created");
-    } else {
-      adminExists.password = hashedPassword;
-      await adminExists.save();
-      console.log("Default admin password verified/reset");
+    const defaultPassword = "KDKFPO@2026";
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    
+    const adminsToSeed = ["admin", "bheemaiah", "director"];
+    
+    for (const username of adminsToSeed) {
+      const adminExists = await Admin.findOne({ username });
+      if (!adminExists) {
+        await Admin.create({
+          username,
+          password: hashedPassword,
+          lastPasswordChange: new Date()
+        });
+        console.log(`Admin account '${username}' seeded successfully.`);
+      }
     }
   } catch (err) {
-    console.error("Error seeding default admin:", err);
+    console.error("Error seeding default admins:", err);
   }
 };
 

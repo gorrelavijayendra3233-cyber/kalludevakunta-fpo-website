@@ -247,6 +247,17 @@ function Admin() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
+  // ── Forgot Password States ──
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetForm, setResetForm] = useState({
+    username: "bheemaiah",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [showResetNewPassword, setShowResetNewPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+
   // ── Search States ──
   const [searchContact, setSearchContact] = useState("");
   const [searchCrop, setSearchCrop] = useState("");
@@ -618,6 +629,66 @@ function Admin() {
       toast.error(error.message || "Failed to update password");
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  const handleForgotPasswordReset = async (e) => {
+    e.preventDefault();
+
+    if (!resetForm.newPassword || !resetForm.confirmPassword) {
+      toast.error("Password fields are required");
+      return;
+    }
+
+    if (resetForm.newPassword !== resetForm.confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    // Minimum password rules check
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!passwordRegex.test(resetForm.newPassword)) {
+      toast.error("Password must be at least 8 characters long, contain at least 1 uppercase letter, 1 number, and 1 special character.");
+      return;
+    }
+
+    try {
+      setResettingPassword(true);
+      const response = await fetch(`${API_BASE}/admin/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username: resetForm.username,
+          newPassword: resetForm.newPassword
+        }),
+        signal: AbortSignal.timeout(10000)
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        toast.error(data.message || "Failed to reset password");
+        return;
+      }
+
+      toast.success("Password reset successfully. Please login with your new password.");
+      
+      // Go back to login screen
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setResetForm({
+          username: "bheemaiah",
+          newPassword: "",
+          confirmPassword: ""
+        });
+      }, 1500);
+
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to reset password");
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -3091,6 +3162,121 @@ const handleDelete = async (type, id) => {
 
   // ── 1. Protected Route check (Return Login Screen if not authenticated) ──
   if (!isAuthenticated) {
+    if (showForgotPassword) {
+      return (
+        <div className="admin-login-overlay">
+          <div className="admin-login-card glass-panel" style={{ maxWidth: "400px", width: "100%" }}>
+            <div className="admin-login-header">
+              <div className="admin-login-logo">
+                <Sprout size={32} />
+              </div>
+              <h2 className="admin-login-title">Reset Password</h2>
+              <span className="admin-login-subtitle">FPO Admin Password Recovery</span>
+            </div>
+
+            <form onSubmit={handleForgotPasswordReset} className="admin-login-form">
+              <div className="admin-login-input-group">
+                <label className="admin-login-label">Username</label>
+                <select 
+                  className="admin-login-input"
+                  value={resetForm.username}
+                  onChange={(e) => setResetForm(prev => ({ ...prev, username: e.target.value }))}
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--admin-border-color)", color: "#fff" }}
+                  required
+                >
+                  <option value="bheemaiah" style={{ background: "#0d2315", color: "#fff" }}>Bheemaiah</option>
+                  <option value="director" style={{ background: "#0d2315", color: "#fff" }}>Director</option>
+                  <option value="admin" style={{ background: "#0d2315", color: "#fff" }}>Admin</option>
+                </select>
+              </div>
+
+              {/* New Password Field */}
+              <div className="admin-login-input-group" style={{ position: "relative" }}>
+                <label className="admin-login-label">New Password</label>
+                <div style={{ position: "relative" }}>
+                  <input 
+                    type={showResetNewPassword ? "text" : "password"} 
+                    value={resetForm.newPassword}
+                    onChange={(e) => setResetForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="admin-login-input" 
+                    style={{ width: "100%", paddingRight: "40px" }}
+                    placeholder="Enter new password"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowResetNewPassword(!showResetNewPassword)}
+                    style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  >
+                    {showResetNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                
+                {/* Password Strength Indicator */}
+                {resetForm.newPassword && (
+                  <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "11px", color: "var(--admin-text-muted)", fontWeight: "600" }}>Strength:</span>
+                    <span style={{ 
+                      fontSize: "11px", 
+                      fontWeight: "700", 
+                      color: getPasswordStrengthColor(getPasswordStrength(resetForm.newPassword))
+                    }}>
+                      {getPasswordStrength(resetForm.newPassword)}
+                    </span>
+                    <div style={{ flex: 1, height: "4px", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden", display: "flex" }}>
+                      <div style={{ 
+                        width: getPasswordStrength(resetForm.newPassword) === "Weak" ? "33%" : getPasswordStrength(resetForm.newPassword) === "Medium" ? "66%" : "100%", 
+                        height: "100%", 
+                        backgroundColor: getPasswordStrengthColor(getPasswordStrength(resetForm.newPassword)),
+                        transition: "width 0.3s ease" 
+                      }}></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Confirm Password Field */}
+              <div className="admin-login-input-group" style={{ position: "relative" }}>
+                <label className="admin-login-label">Confirm Password</label>
+                <div style={{ position: "relative" }}>
+                  <input 
+                    type={showResetConfirmPassword ? "text" : "password"} 
+                    value={resetForm.confirmPassword}
+                    onChange={(e) => setResetForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="admin-login-input" 
+                    style={{ width: "100%", paddingRight: "40px" }}
+                    placeholder="Confirm new password"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                    style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--admin-text-muted)", cursor: "pointer", display: "flex", alignItems: "center" }}
+                  >
+                    {showResetConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
+                <button type="submit" className="admin-login-btn" style={{ flex: 1, margin: 0 }} disabled={resettingPassword}>
+                  {resettingPassword ? "Resetting..." : "Reset Password"}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setShowForgotPassword(false)} 
+                  className="admin-login-btn" 
+                  style={{ flex: 1, margin: 0, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff" }}
+                >
+                  Back to Login
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="admin-login-overlay">
         <div className="admin-login-card glass-panel">
@@ -3131,6 +3317,16 @@ const handleDelete = async (type, id) => {
                 onChange={(e) => setPasswordInput(e.target.value)}
                 required
               />
+            </div>
+
+            <div style={{ textAlign: "right", marginTop: "-8px", marginBottom: "15px" }}>
+              <button 
+                type="button" 
+                onClick={() => setShowForgotPassword(true)}
+                style={{ background: "none", border: "none", color: "var(--admin-accent-orange)", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+              >
+                Forgot Password?
+              </button>
             </div>
 
             <button type="submit" className="admin-login-btn">
