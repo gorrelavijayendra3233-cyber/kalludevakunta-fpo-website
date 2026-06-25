@@ -5247,7 +5247,7 @@ const handleDelete = async (type, id) => {
                             <ShoppingCart size={16} style={{ color: "var(--admin-accent-green)" }} />
                             <span>Product Orders Report</span>
                           </h4>
-                          <p style={{ fontSize: "12px", color: "var(--admin-text-secondary)", marginBottom: "15px" }}>Log of seeds, fertilizers, and pesticide orders submitted by farmers, with quantities and payment statuses.</p>
+                          <p style={{ fontSize: "12px", color: "var(--admin-text-secondary)", marginBottom: "15px" }}>Log of seeds, fertilizers, and pesticide orders submitted by farmers, with quantities and booking statuses.</p>
                         </div>
                         <div className="action-buttons-stack" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                           <button className="btn-action small pdf" style={{ flex: "1 1 0" }} onClick={() => handleExportReport("orders", "pdf")}>PDF</button>

@@ -509,7 +509,7 @@ const handleSubmit = async (e) => {
               <div className="info-row">
                 <div className="info-row-icon"><CreditCard size={16} /></div>
                 <div className="info-row-text">
-                  <div className="info-row-label">Payment</div>
+                  <div className="info-row-label">Payout</div>
                   <div className="info-value">Direct bank transfer within 3 days</div>
                 </div>
               </div>
