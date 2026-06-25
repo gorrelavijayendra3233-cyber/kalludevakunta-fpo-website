@@ -11,6 +11,10 @@ const adminSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    lastPasswordChange: {
+      type: Date,
+      default: Date.now
+    },
   },
   {
     timestamps: true,
