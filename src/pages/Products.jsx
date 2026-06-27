@@ -220,6 +220,36 @@ function BookingModal({ product, onClose }) {
         </div>
 
         <div className="modal-body">
+          {/* Detailed Product Information Section */}
+          <div style={{ marginBottom: "20px", padding: "16px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px" }}>
+            <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+              {product.imageUrl && (
+                <img 
+                  src={product.imageUrl.startsWith("http") ? product.imageUrl : `${API_BASE.replace("/api", "")}${product.imageUrl}`} 
+                  alt={product.name} 
+                  style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.05)" }} 
+                />
+              )}
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: "0 0 6px 0", fontSize: "16px", color: "#fff", fontWeight: "700" }}>{product.name}</h4>
+                <span style={{ fontSize: "11px", background: "rgba(255,255,255,0.06)", padding: "2px 8px", borderRadius: "12px", color: "var(--text-secondary)" }}>
+                  {product.category}
+                </span>
+                <div style={{ marginTop: "10px", fontSize: "14px", fontWeight: "600", color: "var(--harvest-lt || #22c55e)" }}>
+                  ₹{(product.price || 0).toLocaleString("en-IN")} {product.unit ? `/ ${product.unit}` : ""}
+                </div>
+                <div style={{ marginTop: "4px", fontSize: "12px", color: product.stock > 0 ? "#22c55e" : "#ef4444" }}>
+                  ● {product.stock > 0 ? `In Stock (${product.stock} available)` : "Out of Stock"}
+                </div>
+              </div>
+            </div>
+            {(product.description || product.desc) && (
+              <p style={{ marginTop: "12px", marginBottom: "0", fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+                {product.description || product.desc}
+              </p>
+            )}
+          </div>
+
           {!token ? (
             <div style={{ textAlign: "center", padding: "1.5rem 1rem" }}>
               <div style={{ width: "50px", height: "50px", background: "rgba(230, 81, 0, 0.1)", border: "1px solid rgba(230, 81, 0, 0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyItems: "center", justifyContent: "center", margin: "0 auto 1.25rem" }}>
@@ -322,8 +352,13 @@ function BookingModal({ product, onClose }) {
                 <span style={{ fontSize: "14px", color: "var(--text-secondary)", fontWeight: "600" }}>Total Price:</span>
                 <span style={{ fontSize: "18px", color: "var(--harvest-lt || #16a34a)", fontWeight: "700" }}>₹{totalPrice.toLocaleString("en-IN")}</span>
               </div>
-              <button className="form-submit" type="submit" disabled={loading}>
-                {loading ? "Submitting Booking…" : "Confirm Booking"}
+              <button 
+                className="form-submit" 
+                type="submit" 
+                disabled={loading || product.stock <= 0}
+                style={product.stock <= 0 ? { background: "rgba(255, 255, 255, 0.03)", color: "var(--text-muted)", border: "1px solid rgba(255, 255, 255, 0.03)", cursor: "not-allowed" } : {}}
+              >
+                {product.stock <= 0 ? "Currently Out of Stock" : (loading ? "Submitting Booking…" : "Confirm Booking")}
               </button>
             </form>
           )}
@@ -464,7 +499,12 @@ function Products() {
               const slug = categorySlug(product.category);
               const hasStock = product.stock > 0;
               return (
-                <div className="product-card-item glass-panel fade-up" key={product._id || product.id} style={{ animationDelay: `${idx * 0.05}s` }}>
+                <div 
+                  className="product-card-item glass-panel fade-up" 
+                  key={product._id || product.id} 
+                  style={{ animationDelay: `${idx * 0.05}s`, cursor: "pointer" }}
+                  onClick={() => setEnquiryProduct(product)}
+                >
                   <div className={`product-card-item__stripe stripe--${slug}`} />
                   <div className={`product-card-item__img img-bg--${slug}`}>
                     {product.imageUrl ? (
@@ -497,11 +537,13 @@ function Products() {
                     </div>
                     <button
                       className="product-card-item__enquire"
-                      disabled={!hasStock}
-                      onClick={() => setEnquiryProduct(product)}
-                      style={!hasStock ? { background: "rgba(255, 255, 255, 0.03)", color: "var(--text-muted)", border: "1px solid rgba(255, 255, 255, 0.03)", cursor: "not-allowed" } : {}}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEnquiryProduct(product);
+                      }}
+                      style={!hasStock ? { background: "rgba(255, 68, 68, 0.08)", color: "#ff4444", border: "1px solid rgba(255, 68, 68, 0.15)", cursor: "pointer" } : {}}
                     >
-                      {hasStock ? <><Phone size={14} /> Book Now</> : "Out of Stock"}
+                      {hasStock ? <><Phone size={14} /> Book Now</> : "View Details (Out of Stock)"}
                     </button>
                   </div>
                 </div>
