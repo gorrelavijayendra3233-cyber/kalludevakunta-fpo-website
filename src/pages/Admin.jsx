@@ -540,6 +540,11 @@ function Admin() {
   const handleVerifyCredentials = async (e) => {
     e.preventDefault();
 
+    if (!resetForm.username || !resetForm.username.trim()) {
+      toast.error("Please enter your username");
+      return;
+    }
+
     if (!resetForm.oldPassword) {
       toast.error("Please enter your old/last password");
       return;
@@ -559,7 +564,15 @@ function Admin() {
         signal: AbortSignal.timeout(10000)
       });
 
-      const data = await response.json();
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        console.error("Failed to parse JSON response:", parseErr);
+        toast.error(`Server connection issue (status ${response.status}). Please try again shortly.`);
+        return;
+      }
+
       if (!response.ok || !data.success) {
         toast.error(data.message || "Invalid credentials");
         return;
@@ -611,7 +624,15 @@ function Admin() {
         signal: AbortSignal.timeout(10000)
       });
 
-      const data = await response.json();
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        console.error("Failed to parse JSON response:", parseErr);
+        toast.error(`Server connection issue (status ${response.status}). Please try again shortly.`);
+        return;
+      }
+
       if (!response.ok || !data.success) {
         toast.error(data.message || "Failed to reset password");
         return;
