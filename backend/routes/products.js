@@ -3,6 +3,29 @@ const router = express.Router();
 const Product = require("../models/Product");
 const auth = require("../middleware/auth");
 const Notification = require("../models/Notification");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+
+const uploadDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 // Helper for standardized error messages
 const handleError = (res, error) => {
@@ -240,6 +263,20 @@ router.delete("/:id", auth, async (req, res) => {
     });
   } catch (error) {
     handleError(res, error);
+  }
+});
+
+// POST /api/products/upload-image (Admin only) - Upload product image
+router.post("/upload-image", auth, upload.single("image"), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No image file provided" });
+    }
+    const imageUrl = `/uploads/${req.file.filename}`;
+    res.json({ success: true, imageUrl });
+  } catch (error) {
+    console.error("Failed to upload product image:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

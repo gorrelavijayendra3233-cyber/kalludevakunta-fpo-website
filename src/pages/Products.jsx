@@ -203,7 +203,7 @@ function BookingModal({ product, onClose }) {
               <span className="modal-product-icon">
                 {product.imageUrl ? (
                   <img 
-                    src={product.imageUrl} 
+                    src={product.imageUrl.startsWith("http") ? product.imageUrl : `${API_BASE.replace("/api", "")}${product.imageUrl}`} 
                     alt={product.name} 
                     style={{ width: "24px", height: "24px", borderRadius: "50%", objectFit: "cover", verticalAlign: "middle" }} 
                   />
@@ -469,7 +469,7 @@ function Products() {
                   <div className={`product-card-item__img img-bg--${slug}`}>
                     {product.imageUrl ? (
                       <img 
-                        src={product.imageUrl} 
+                        src={product.imageUrl.startsWith("http") ? product.imageUrl : `${API_BASE.replace("/api", "")}${product.imageUrl}`} 
                         alt={product.name} 
                         style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "10px 10px 0 0" }} 
                       />

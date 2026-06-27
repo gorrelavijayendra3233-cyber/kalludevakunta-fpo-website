@@ -225,6 +225,7 @@ function Admin() {
   });
   const [documentFile, setDocumentFile] = useState(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
   const [searchDoc, setSearchDoc] = useState("");
   const [filterDocCategory, setFilterDocCategory] = useState("All");
 
@@ -7198,14 +7199,45 @@ const handleDelete = async (type, id) => {
                 </div>
 
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
-                  <label className="admin-login-label">Image URL</label>
+                  <label className="admin-login-label">Product Image</label>
                   <input 
-                    type="text" 
+                    type="file" 
+                    accept="image/*"
                     className="admin-login-input" 
-                    placeholder="https://example.com/image.jpg"
-                    value={productForm.imageUrl}
-                    onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                    style={{ color: "#fff", fontSize: "13px" }}
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      setUploadingProductImage(true);
+                      const formData = new FormData();
+                      formData.append("image", file);
+                      try {
+                        const res = await fetch(`${API_BASE}/products/upload-image`, {
+                          method: "POST",
+                          headers: { ...getAuthHeaders() },
+                          body: formData
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setProductForm(prev => ({ ...prev, imageUrl: data.imageUrl }));
+                          toast.success("Product image uploaded successfully!");
+                        } else {
+                          toast.error(data.message || "Failed to upload image");
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Failed to upload image");
+                      } finally {
+                        setUploadingProductImage(false);
+                      }
+                    }}
                   />
+                  {productForm.imageUrl && (
+                    <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "11px", color: "var(--admin-accent-green)", fontWeight: "600" }}>✓ Image Selected:</span>
+                      <img src={`${API_BASE.replace("/api", "")}${productForm.imageUrl}`} alt="Preview" style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "4px" }} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
@@ -7222,7 +7254,9 @@ const handleDelete = async (type, id) => {
               
               <div className="modal-footer" style={{ padding: "16px 20px" }}>
                 <button type="button" className="btn-modal-close" onClick={() => setShowProductModal(false)}>Cancel</button>
-                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Save Product</button>
+                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px", opacity: uploadingProductImage ? 0.6 : 1 }} disabled={uploadingProductImage}>
+                  {uploadingProductImage ? "Uploading Image..." : "Save Product"}
+                </button>
               </div>
             </form>
           </div>
@@ -7241,7 +7275,7 @@ const handleDelete = async (type, id) => {
               {viewingProduct.imageUrl && (
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
                   <img 
-                    src={viewingProduct.imageUrl} 
+                    src={viewingProduct.imageUrl.startsWith("http") ? viewingProduct.imageUrl : `${API_BASE.replace("/api", "")}${viewingProduct.imageUrl}`} 
                     alt={viewingProduct.name} 
                     style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "8px", objectFit: "cover" }} 
                   />
@@ -7447,13 +7481,45 @@ const handleDelete = async (type, id) => {
                 </div>
 
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
-                  <label className="admin-login-label">Image URL</label>
+                  <label className="admin-login-label">Product Image</label>
                   <input 
-                    type="text" 
+                    type="file" 
+                    accept="image/*"
                     className="admin-login-input" 
-                    value={editingProduct.imageUrl || ""}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, imageUrl: e.target.value })}
+                    style={{ color: "#fff", fontSize: "13px" }}
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      setUploadingProductImage(true);
+                      const formData = new FormData();
+                      formData.append("image", file);
+                      try {
+                        const res = await fetch(`${API_BASE}/products/upload-image`, {
+                          method: "POST",
+                          headers: { ...getAuthHeaders() },
+                          body: formData
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setEditingProduct(prev => ({ ...prev, imageUrl: data.imageUrl }));
+                          toast.success("Product image uploaded successfully!");
+                        } else {
+                          toast.error(data.message || "Failed to upload image");
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Failed to upload image");
+                      } finally {
+                        setUploadingProductImage(false);
+                      }
+                    }}
                   />
+                  {editingProduct.imageUrl && (
+                    <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "11px", color: "var(--admin-accent-green)", fontWeight: "600" }}>✓ Image Selected:</span>
+                      <img src={`${API_BASE.replace("/api", "")}${editingProduct.imageUrl}`} alt="Preview" style={{ width: "32px", height: "32px", objectFit: "cover", borderRadius: "4px" }} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="admin-login-input-group" style={{ gridColumn: "span 2" }}>
@@ -7469,7 +7535,9 @@ const handleDelete = async (type, id) => {
               
               <div className="modal-footer" style={{ padding: "16px 20px" }}>
                 <button type="button" className="btn-modal-close" onClick={() => setEditingProduct(null)}>Cancel</button>
-                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Update Product</button>
+                <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px", opacity: uploadingProductImage ? 0.6 : 1 }} disabled={uploadingProductImage}>
+                  {uploadingProductImage ? "Uploading Image..." : "Update Product"}
+                </button>
               </div>
             </form>
           </div>

@@ -167,7 +167,7 @@ const seedProducts = async () => {
           price: 1200,
           stock: 50,
           status: "In Stock",
-          imageUrl: "https://images.unsplash.com/photo-1579613832125-5d34a13ffe2a?auto=format&fit=crop&q=80&w=300"
+          imageUrl: ""
         },
         {
           name: "Neem Fertilizer",
@@ -177,7 +177,7 @@ const seedProducts = async () => {
           price: 350,
           stock: 100,
           status: "In Stock",
-          imageUrl: "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&q=80&w=300"
+          imageUrl: ""
         },
         {
           name: "Organic Compost",
