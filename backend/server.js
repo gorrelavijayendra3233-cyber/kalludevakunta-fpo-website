@@ -11,7 +11,6 @@ const notificationRoutes = require("./routes/notifications");
 const productBookingRoutes = require("./routes/productBookings");
 const equipmentRatesRoutes = require("./routes/equipments");
 const farmerAuthRoutes = require("./routes/farmerAuth");
-const farmerDashboardRoutes = require("./routes/farmer");
 const cropSalesRoutes = require("./routes/cropSales");
 const announcementRoutes = require("./routes/announcements");
 const marketPriceRoutes = require("./routes/marketPrices");
