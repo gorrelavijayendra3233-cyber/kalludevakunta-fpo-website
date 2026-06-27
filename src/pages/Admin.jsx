@@ -638,19 +638,14 @@ function Admin() {
         return;
       }
 
-      toast.success("Password reset successfully. Please login with your new password.");
-      
-      // Go back to login screen
-      setTimeout(() => {
-        setShowForgotPassword(false);
-        setCredentialsVerified(false);
-        setResetForm({
-          username: "",
-          oldPassword: "",
-          newPassword: "",
-          confirmPassword: ""
-        });
-      }, 1500);
+      setShowForgotPassword(false);
+      setCredentialsVerified(false);
+      setResetForm({
+        username: "",
+        oldPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      });
 
     } catch (error) {
       console.error(error);
