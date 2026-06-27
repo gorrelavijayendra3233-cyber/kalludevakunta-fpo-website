@@ -240,7 +240,7 @@ function Admin() {
   // ── Forgot Password States ──
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetForm, setResetForm] = useState({
-    username: "bheemaiah",
+    username: "",
     oldPassword: "",
     newPassword: "",
     confirmPassword: ""
@@ -624,7 +624,7 @@ function Admin() {
         setShowForgotPassword(false);
         setCredentialsVerified(false);
         setResetForm({
-          username: "bheemaiah",
+          username: "",
           oldPassword: "",
           newPassword: "",
           confirmPassword: ""
@@ -3124,18 +3124,15 @@ const handleDelete = async (type, id) => {
             <form onSubmit={credentialsVerified ? handleForgotPasswordReset : handleVerifyCredentials} className="admin-login-form">
               <div className="admin-login-input-group">
                 <label className="admin-login-label">Username</label>
-                <select 
+                <input 
+                  type="text"
+                  placeholder="Enter username"
                   className="admin-login-input"
                   value={resetForm.username}
                   onChange={(e) => setResetForm(prev => ({ ...prev, username: e.target.value }))}
-                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--admin-border-color)", color: "#fff" }}
                   disabled={credentialsVerified}
                   required
-                >
-                  <option value="bheemaiah" style={{ background: "#0d2315", color: "#fff" }}>Bheemaiah</option>
-                  <option value="director" style={{ background: "#0d2315", color: "#fff" }}>Director</option>
-                  <option value="admin" style={{ background: "#0d2315", color: "#fff" }}>Admin</option>
-                </select>
+                />
               </div>
 
               {/* Old Password Field */}
@@ -3252,7 +3249,7 @@ const handleDelete = async (type, id) => {
                     setShowForgotPassword(false);
                     setCredentialsVerified(false);
                     setResetForm({
-                      username: "bheemaiah",
+                      username: "",
                       oldPassword: "",
                       newPassword: "",
                       confirmPassword: ""
