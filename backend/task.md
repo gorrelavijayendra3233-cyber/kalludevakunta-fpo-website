@@ -1,0 +1,51 @@
+# Security Hardening Tasks
+
+- [ ] Core Server Hardening (`backend/server.js`)
+  - [ ] Strict CORS check matching `allowedOrigins` or empty
+  - [ ] Configure Helmet with HSTS (production-only) and cross-origin resource policy
+  - [ ] Configure payload size limits (1mb for JSON and urlencoded)
+  - [ ] Add `compression` middleware
+  - [ ] Add `hpp` (HTTP Parameter Pollution) middleware
+  - [ ] Add `express-mongo-sanitize` middleware
+  - [ ] Add safe `morgan` request logger
+  - [ ] Create `authLimiter` and apply to sensitive routes
+  - [ ] Create `generalWriteLimiter` and apply to write/inquiry routes
+  - [ ] Create central error handling middleware
+- [ ] Authentication Middleware Hardening (`backend/middleware/auth.js`)
+  - [ ] Verify `role === "admin"` in token payload
+  - [ ] Verify admin ID exists in MongoDB database
+- [ ] Route-level Hardening, Input Validation & Central Error Handling
+  - [ ] `/api/admin` (`backend/routes/admin.js`)
+    - [ ] Sign token with `role: "admin"`
+    - [ ] Audit log failed and successful logins
+    - [ ] Delegate errors to `next(err)`
+  - [ ] `/api/documents` (`backend/routes/documents.js`)
+    - [ ] Validate `ObjectId` before queries
+    - [ ] Configure strict `multer` fileFilter (allowed extensions, mime types, double extensions block)
+    - [ ] Sanitize title and input parameters
+    - [ ] Delegate errors to `next(err)`
+  - [ ] `/api/products` (`backend/routes/products.js`)
+    - [ ] Validate `ObjectId` before queries
+    - [ ] Apply strict image validation to `/upload-image` multer uploader
+    - [ ] Validate stock, price, category inputs
+    - [ ] Delegate errors to `next(err)`
+  - [ ] `/api/contact` (`backend/routes/contact.js`)
+    - [ ] Validate `ObjectId` before queries
+    - [ ] Validate required name, 10-digit phone, non-empty message
+    - [ ] Delegate errors to `next(err)`
+  - [ ] `/api/bookings` (`backend/routes/bookings.js`)
+    - [ ] Validate `ObjectId` before queries
+    - [ ] Validate equipmentName, bookingDate, positive integer duration
+    - [ ] Delegate errors to `next(err)`
+  - [ ] `/api/crop-sales` (`backend/routes/cropSales.js`)
+    - [ ] Validate `ObjectId` before queries
+    - [ ] Validate positive expectedPrice, positive quantity, cropName
+    - [ ] Delegate errors to `next(err)`
+  - [ ] `/api/product-bookings` (`backend/routes/productBookings.js`)
+    - [ ] Validate `ObjectId` before queries
+    - [ ] Validate positive integer quantity, bookingDate, valid productId
+    - [ ] Delegate errors to `next(err)`
+  - [ ] `/api/farmer-auth` (`backend/routes/farmerAuth.js`)
+    - [ ] Validate `ObjectId` before queries
+    - [ ] Validate phone, landHolding, locations, gender enum, aadhaarLast4
+    - [ ] Delegate errors to `next(err)`

@@ -8,12 +8,11 @@ const ProductBooking = require("../models/ProductBooking");
 const Contact = require("../models/Contact");
 const Equipment = require("../models/Equipment");
 
-// helper for error handling
 const handleError = (res, error) => {
   console.error(error);
   return res.status(500).json({
     success: false,
-    message: error.message || "An unexpected error occurred."
+    message: "Internal Server Error"
   });
 };
 

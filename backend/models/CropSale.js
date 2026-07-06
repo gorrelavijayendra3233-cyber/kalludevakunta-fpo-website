@@ -65,6 +65,10 @@ const cropSaleSchema = new mongoose.Schema(
   }
 );
 
+cropSaleSchema.index({ farmerId: 1 });
+cropSaleSchema.index({ status: 1 });
+cropSaleSchema.index({ createdAt: -1 });
+
 cropSaleSchema.pre("save", async function () {
   // Automatically calculate estimated value
   this.estimatedValue = this.quantity * this.expectedPrice;

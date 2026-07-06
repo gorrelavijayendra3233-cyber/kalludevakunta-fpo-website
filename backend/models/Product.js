@@ -42,6 +42,9 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+productSchema.index({ category: 1 });
+productSchema.index({ name: 1 });
+
 productSchema.pre("save", async function () {
   if (this.isNew) {
     const lastProduct = await this.constructor.findOne().sort({ productId: -1 });

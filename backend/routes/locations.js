@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const fs = require("fs");
 const path = require("path");
+const asyncHandler = require("../utils/asyncHandler");
 
 const CACHE_DIR = path.join(__dirname, "../data/cache");
 if (!fs.existsSync(CACHE_DIR)) {
@@ -137,82 +138,67 @@ router.get("/states", (req, res) => {
 });
 
 // 2. GET /api/location/districts?state=StateName
-router.get("/districts", async (req, res) => {
+router.get("/districts", asyncHandler(async (req, res) => {
   const { state } = req.query;
   if (!state) {
     return res.status(400).json({ success: false, message: "State parameter is required" });
   }
 
-  try {
-    const data = await getStateData(state);
-    const districtsArray = Array.isArray(data) ? data : (data.districts || []);
-    const districts = districtsArray.map((d) => d.district).sort();
-    res.json({ success: true, districts });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+  const data = await getStateData(String(state));
+  const districtsArray = Array.isArray(data) ? data : (data.districts || []);
+  const districts = districtsArray.map((d) => d.district).sort();
+  res.json({ success: true, districts });
+}));
 
 // 3. GET /api/location/mandals?state=StateName&district=DistrictName
-router.get("/mandals", async (req, res) => {
+router.get("/mandals", asyncHandler(async (req, res) => {
   const { state, district } = req.query;
   if (!state || !district) {
     return res.status(400).json({ success: false, message: "State and District parameters are required" });
   }
 
-  try {
-    const data = await getStateData(state);
-    const districtsArray = Array.isArray(data) ? data : (data.districts || []);
-    const distObj = districtsArray.find(
-      (d) => d.district.trim().toLowerCase() === district.trim().toLowerCase()
-    );
+  const data = await getStateData(String(state));
+  const districtsArray = Array.isArray(data) ? data : (data.districts || []);
+  const distObj = districtsArray.find(
+    (d) => d.district.trim().toLowerCase() === String(district).trim().toLowerCase()
+  );
 
-    if (!distObj) {
-      return res.status(404).json({ success: false, message: "District not found in the selected State" });
-    }
-
-    const mandals = distObj.subDistricts.map((s) => s.subDistrict).sort();
-    res.json({ success: true, mandals });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+  if (!distObj) {
+    return res.status(404).json({ success: false, message: "District not found in the selected State" });
   }
-});
+
+  const mandals = distObj.subDistricts.map((s) => s.subDistrict).sort();
+  res.json({ success: true, mandals });
+}));
 
 // 4. GET /api/location/villages?state=StateName&district=DistrictName&mandal=MandalName
-router.get("/villages", async (req, res) => {
+router.get("/villages", asyncHandler(async (req, res) => {
   const { state, district, mandal } = req.query;
   if (!state || !district || !mandal) {
     return res.status(400).json({ success: false, message: "State, District, and Mandal parameters are required" });
   }
 
-  try {
-    const data = await getStateData(state);
-    const districtsArray = Array.isArray(data) ? data : (data.districts || []);
-    const distObj = districtsArray.find(
-      (d) => d.district.trim().toLowerCase() === district.trim().toLowerCase()
-    );
+  const data = await getStateData(String(state));
+  const districtsArray = Array.isArray(data) ? data : (data.districts || []);
+  const distObj = districtsArray.find(
+    (d) => d.district.trim().toLowerCase() === String(district).trim().toLowerCase()
+  );
 
-    if (!distObj) {
-      return res.status(404).json({ success: false, message: "District not found in the selected State" });
-    }
-
-    const mandalObj = distObj.subDistricts.find(
-      (s) => s.subDistrict.trim().toLowerCase() === mandal.trim().toLowerCase()
-    );
-
-    if (!mandalObj) {
-      return res.status(404).json({ success: false, message: "Mandal not found in the selected District" });
-    }
-
-    const villages = mandalObj.villages.sort();
-    res.json({ success: true, villages });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+  if (!distObj) {
+    return res.status(404).json({ success: false, message: "District not found in the selected State" });
   }
-});
+
+  const mandalObj = distObj.subDistricts.find(
+    (s) => s.subDistrict.trim().toLowerCase() === String(mandal).trim().toLowerCase()
+  );
+
+  if (!mandalObj) {
+    return res.status(404).json({ success: false, message: "Mandal not found in the selected District" });
+  }
+
+  const villages = mandalObj.villages.sort();
+  res.json({ success: true, villages });
+}));
 
 module.exports = {
   router,

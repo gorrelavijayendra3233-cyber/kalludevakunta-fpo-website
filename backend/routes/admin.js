@@ -3,9 +3,11 @@ const router = express.Router();
 const Admin = require("../models/Admin");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const auth = require("../middleware/auth");
+const { authLimiter } = require("../middleware/rateLimiters");
+const { logAction } = require("../services/auditLogger");
 
-router.post("/login", async (req, res) => {
+// POST /api/admin/login
+router.post("/login", authLimiter, async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
@@ -16,19 +18,27 @@ router.post("/login", async (req, res) => {
     const normalizedUsername = username.trim().toLowerCase();
     const admin = await Admin.findOne({ username: normalizedUsername });
     if (!admin) {
+      // Audit log failed login
+      await logAction(normalizedUsername, "Admin", "AdminAuth", "LOGIN_FAIL", `Failed admin login: username not found`, req.ip);
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
+      // Audit log failed login
+      await logAction(admin.username, "Admin", "AdminAuth", "LOGIN_FAIL", `Failed admin login: incorrect password`, req.ip);
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    // Include explicit 'role' field in token payload for role-based authorization
     const token = jwt.sign(
-      { id: admin._id },
+      { id: admin._id, role: "admin" },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
+
+    // Audit log successful login
+    await logAction(admin.username, "Admin", "AdminAuth", "LOGIN_SUCCESS", `Successful admin login`, req.ip);
 
     try {
       const Notification = require("../models/Notification");
@@ -44,18 +54,12 @@ router.post("/login", async (req, res) => {
 
     res.json({ token });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: error.message
-    });
+    next(error);
   }
 });
 
-
-
 // POST /api/admin/reset-password
-router.post("/reset-password", async (req, res) => {
+router.post("/reset-password", authLimiter, async (req, res, next) => {
   try {
     const { username, oldPassword, newPassword } = req.body;
 
@@ -95,29 +99,23 @@ router.post("/reset-password", async (req, res) => {
     await admin.save();
 
     // Log action to audit logs
-    try {
-      const { logAction } = require("../services/auditLogger");
-      await logAction(
-        admin.username,
-        "Admin",
-        "Settings",
-        "UPDATE",
-        "Password Reset",
-        req.ip
-      );
-    } catch (err) {
-      console.error("Failed to log password reset:", err);
-    }
+    await logAction(
+      admin.username,
+      "Admin",
+      "Settings",
+      "UPDATE",
+      "Password Reset",
+      req.ip
+    );
 
     res.json({ success: true, message: "Password reset successfully" });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
 // POST /api/admin/verify-old-password
-router.post("/verify-old-password", async (req, res) => {
+router.post("/verify-old-password", authLimiter, async (req, res, next) => {
   try {
     const { username, oldPassword } = req.body;
 
@@ -143,8 +141,7 @@ router.post("/verify-old-password", async (req, res) => {
 
     res.json({ success: true, message: "Credentials verified successfully" });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 

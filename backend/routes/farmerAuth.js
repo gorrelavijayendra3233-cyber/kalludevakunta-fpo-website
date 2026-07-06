@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Farmer = require("../models/Farmer");
 const CropRequest = require("../models/CropRequest");
 const EquipmentBooking = require("../models/EquipmentBooking");
@@ -9,29 +10,15 @@ const Notification = require("../models/Notification");
 const jwt = require("jsonwebtoken");
 const farmerAuth = require("../middleware/farmerAuth");
 const { logAction } = require("../services/auditLogger");
-
-// Helper to normalize phone numbers to last 10 digits
-const cleanPhone = (p) => {
-  let s = String(p).trim().replace(/\D/g, "");
-  if (s.length > 10) {
-    s = s.substring(s.length - 10);
-  }
-  return s;
-};
+const { authLimiter } = require("../middleware/rateLimiters");
+const { cleanPhone } = require("../utils/helpers");
+const asyncHandler = require("../utils/asyncHandler");
+const { isValidObjectId } = require("../utils/validators");
 
 // POST /api/farmer/login
-router.post("/login", async (req, res) => {
-  try {
-    // 3. Add logging at the top:
-    console.log("LOGIN BODY:", req.body);
-
+router.post("/login", authLimiter, asyncHandler(async (req, res, next) => {
     const { phone, otpToken } = req.body;
 
-    // 4. Log:
-    console.log("PHONE:", phone);
-    console.log("OTP TOKEN:", otpToken);
-
-    // 7. Before any validation add:
     if (!phone) {
       return res.status(400).json({
         success: false,
@@ -68,9 +55,6 @@ router.post("/login", async (req, res) => {
 
     const verifyData = await response.json();
     response.data = verifyData;
-
-    // 8. Log full MSG91 verification response:
-    console.log("MSG91 VERIFY:", response.data);
 
     // Write raw response to file for diagnostics
     try {
@@ -158,11 +142,7 @@ router.post("/login", async (req, res) => {
         }
       );
     } catch (jwtErr) {
-      // 11. If JWT creation fails, return actual error.
-      return res.status(500).json({
-        success: false,
-        message: `JWT creation failed: ${jwtErr.message}`
-      });
+      return next(jwtErr);
     }
 
     res.json({
@@ -187,17 +167,9 @@ router.post("/login", async (req, res) => {
         status: farmer.status
       }
     });
-  } catch (error) {
-    console.error("Farmer Login Error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "An error occurred during login."
-    });
-  }
-});
-
+}));
 // POST /api/farmer/register
-router.post("/register", async (req, res) => {
+router.post("/register", authLimiter, async (req, res, next) => {
   try {
     const { farmerName, state, district, mandal, village, phone, landArea, primaryCrop } = req.body;
 
@@ -206,6 +178,23 @@ router.post("/register", async (req, res) => {
         success: false,
         message: "Farmer Name, Phone Number, State, District, Mandal, and Village are required."
       });
+    }
+
+    if (typeof farmerName !== "string" || farmerName.trim() === "" || farmerName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid farmer name (maximum 100 characters)."
+      });
+    }
+
+    if (landArea !== undefined) {
+      const numArea = parseFloat(landArea);
+      if (isNaN(numArea) || numArea < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Land holding area must be a non-negative number."
+        });
+      }
     }
 
     const { validateLocationHierarchy } = require("./locations");
@@ -236,15 +225,15 @@ router.post("/register", async (req, res) => {
 
     // Create farmer
     const newFarmer = new Farmer({
-      farmerName,
-      name: farmerName,
-      state,
-      district,
-      mandal,
-      village,
+      farmerName: farmerName.trim(),
+      name: farmerName.trim(),
+      state: String(state).trim(),
+      district: String(district).trim(),
+      mandal: String(mandal).trim(),
+      village: String(village).trim(),
       phone: cleanNum,
-      landArea,
-      primaryCrop,
+      landArea: landArea ? String(landArea).trim() : "",
+      primaryCrop: primaryCrop ? String(primaryCrop).trim() : "",
       isVerified: true,
       status: "Active",
       lastLogin: new Date()
@@ -288,16 +277,12 @@ router.post("/register", async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Farmer Registration Error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "An error occurred during registration."
-    });
+    next(error);
   }
 });
 
 // POST /api/farmer/verify-msg91 (For compatibility)
-router.post("/verify-msg91", async (req, res) => {
+router.post("/verify-msg91", authLimiter, async (req, res, next) => {
   try {
     const { action, otpToken, farmerName, state, district, mandal, village, landArea, primaryCrop } = req.body;
 
@@ -368,6 +353,10 @@ router.post("/verify-msg91", async (req, res) => {
         });
       }
 
+      if (typeof farmerName !== "string" || farmerName.trim() === "" || farmerName.length > 100) {
+        return res.status(400).json({ success: false, message: "Invalid farmer name (maximum 100 characters)." });
+      }
+
       const { validateLocationHierarchy } = require("./locations");
       const validation = await validateLocationHierarchy({ state, district, mandal, village });
       if (!validation.valid) {
@@ -386,15 +375,15 @@ router.post("/verify-msg91", async (req, res) => {
       }
 
       const newFarmer = new Farmer({
-        farmerName,
-        name: farmerName,
-        state,
-        district,
-        mandal,
-        village,
+        farmerName: farmerName.trim(),
+        name: farmerName.trim(),
+        state: String(state).trim(),
+        district: String(district).trim(),
+        mandal: String(mandal).trim(),
+        village: String(village).trim(),
         phone: cleanExtracted,
-        landArea,
-        primaryCrop,
+        landArea: landArea ? String(landArea).trim() : "",
+        primaryCrop: primaryCrop ? String(primaryCrop).trim() : "",
         isVerified: true,
         status: "Active",
         lastLogin: new Date()
@@ -486,16 +475,12 @@ router.post("/verify-msg91", async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("verify-msg91 error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "An unexpected error occurred during verification."
-    });
+    next(error);
   }
 });
 
 // GET /api/farmer/profile
-router.get("/profile", farmerAuth, async (req, res) => {
+router.get("/profile", farmerAuth, async (req, res, next) => {
   try {
     const farmer = req.farmer;
     res.json({
@@ -519,23 +504,30 @@ router.get("/profile", farmerAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Fetch Farmer Profile Error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "An error occurred fetching profile."
-    });
+    next(error);
   }
 });
 
 // PUT /api/farmer/profile
-router.put("/profile", farmerAuth, async (req, res) => {
+router.put("/profile", farmerAuth, async (req, res, next) => {
   try {
     const farmer = req.farmer;
-    const { farmerName, name, state, district, mandal, village, landArea, landHolding, primaryCrop, cropType } = req.body;
+    const { farmerName, name, state, district, mandal, village, landArea, primaryCrop, cropType } = req.body;
 
     const finalFarmerName = farmerName || name;
     const finalLandArea = landArea;
     const finalPrimaryCrop = primaryCrop || cropType;
+
+    if (finalFarmerName !== undefined && (typeof finalFarmerName !== "string" || finalFarmerName.trim() === "" || finalFarmerName.length > 100)) {
+      return res.status(400).json({ success: false, message: "Invalid farmer name (maximum 100 characters)." });
+    }
+
+    if (finalLandArea !== undefined) {
+      const numArea = parseFloat(finalLandArea);
+      if (isNaN(numArea) || numArea < 0) {
+        return res.status(400).json({ success: false, message: "Land area must be a non-negative number." });
+      }
+    }
 
     if (state || district || mandal || village) {
       const updatedState = state || farmer.state || "Andhra Pradesh";
@@ -564,16 +556,16 @@ router.put("/profile", farmerAuth, async (req, res) => {
     }
 
     if (finalFarmerName) {
-      farmer.farmerName = finalFarmerName;
-      farmer.name = finalFarmerName;
+      farmer.farmerName = finalFarmerName.trim();
+      farmer.name = finalFarmerName.trim();
     }
     if (finalLandArea !== undefined) {
-      farmer.landArea = finalLandArea;
+      farmer.landArea = String(finalLandArea).trim();
       farmer.landHolding = parseFloat(finalLandArea) || 0;
     }
     if (finalPrimaryCrop) {
-      farmer.primaryCrop = finalPrimaryCrop;
-      farmer.cropType = finalPrimaryCrop;
+      farmer.primaryCrop = String(finalPrimaryCrop).trim();
+      farmer.cropType = String(finalPrimaryCrop).trim();
     }
 
     await farmer.save();
@@ -600,16 +592,12 @@ router.put("/profile", farmerAuth, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Update Farmer Profile Error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message || "An error occurred updating profile."
-    });
+    next(error);
   }
 });
 
 // GET /api/farmer/crop-requests
-router.get("/crop-requests", farmerAuth, async (req, res) => {
+router.get("/crop-requests", farmerAuth, async (req, res, next) => {
   try {
     const cropSales = await CropSale.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
     // Map to include 'price' field for backward compatibility
@@ -619,43 +607,50 @@ router.get("/crop-requests", farmerAuth, async (req, res) => {
     }));
     res.json(mapped);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
 // GET /api/farmer/bookings
-router.get("/bookings", farmerAuth, async (req, res) => {
+router.get("/bookings", farmerAuth, async (req, res, next) => {
   try {
     const bookings = await EquipmentBooking.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
 // GET /api/farmer/orders
-router.get("/orders", farmerAuth, async (req, res) => {
+router.get("/orders", farmerAuth, async (req, res, next) => {
   try {
     const orders = await ProductBooking.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
     res.json(orders);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
 // GET /api/farmer/notifications (Farmer targeted notifications)
-router.get("/notifications", farmerAuth, async (req, res) => {
+router.get("/notifications", farmerAuth, async (req, res, next) => {
   try {
     const notifications = await Notification.find({ farmerId: req.farmer.farmerId }).sort({ createdAt: -1 });
     res.json(notifications);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
 // PUT /api/farmer/notifications/:id/read (Mark single notification as read)
-router.put("/notifications/:id/read", farmerAuth, async (req, res) => {
+router.put("/notifications/:id/read", farmerAuth, async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Notification ID format."
+      });
+    }
+
     const notif = await Notification.findOneAndUpdate(
       { _id: req.params.id, farmerId: req.farmer.farmerId },
       { read: true, isRead: true },
@@ -666,12 +661,12 @@ router.put("/notifications/:id/read", farmerAuth, async (req, res) => {
     }
     res.json({ success: true, data: notif });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 
 // PUT /api/farmer/notifications/read-all (Mark all notifications as read)
-router.put("/notifications/read-all", farmerAuth, async (req, res) => {
+router.put("/notifications/read-all", farmerAuth, async (req, res, next) => {
   try {
     await Notification.updateMany(
       { farmerId: req.farmer.farmerId, read: false },
@@ -679,7 +674,7 @@ router.put("/notifications/read-all", farmerAuth, async (req, res) => {
     );
     res.json({ success: true, message: "All notifications marked as read." });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    next(error);
   }
 });
 

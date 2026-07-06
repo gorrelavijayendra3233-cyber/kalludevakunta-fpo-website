@@ -4,18 +4,11 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const Document = require("../models/Document");
-const auth = require("../middleware/auth"); // Admin auth middleware
+const auth = require("../middleware/auth");
 const { logAction } = require("../services/auditLogger");
-
-const getAdminUsername = async (adminId) => {
-  try {
-    const Admin = require("../models/Admin");
-    const adminUser = await Admin.findById(adminId);
-    return adminUser ? adminUser.username : "admin";
-  } catch (err) {
-    return "admin";
-  }
-};
+const asyncHandler = require("../utils/asyncHandler");
+const { isValidObjectId } = require("../utils/validators");
+const { getAdminUsername } = require("../utils/helpers");
 
 // Setup multer storage
 const uploadDir = path.join(__dirname, "../uploads");
@@ -37,38 +30,43 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|docx|doc|jpg|jpeg|png/;
-    const ext = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowedTypes.test(file.mimetype);
-    if (ext && mime) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only PDF, DOCX, and Images are allowed."));
+    // 1. Double extension validation
+    const parts = file.originalname.split(".");
+    if (parts.length > 2) {
+      return cb(new Error("Double extensions are not allowed."));
     }
+
+    // 2. Strict extension validation
+    const allowedExtensions = ["pdf", "docx", "doc", "jpg", "jpeg", "png"];
+    const ext = path.extname(file.originalname).toLowerCase().replace(".", "");
+    if (!allowedExtensions.includes(ext)) {
+      return cb(new Error("Invalid file extension. Only PDF, DOCX, and Images are allowed."));
+    }
+
+    // 3. Strict MIME type validation
+    const allowedMimeTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "image/jpeg",
+      "image/png"
+    ];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      return cb(new Error("Invalid file MIME type. Only PDF, DOCX, and Images are allowed."));
+    }
+
+    cb(null, true);
   }
 });
-
-// Helper for standardized error messages
-const handleError = (res, error) => {
-  console.error(error);
-  return res.status(500).json({
-    success: false,
-    message: error.message || "An unexpected error occurred."
-  });
-};
 
 // 1. GET /api/documents (Public/Farmer/Admin) - Fetch all documents
-router.get("/", async (req, res) => {
-  try {
-    const docs = await Document.find().sort({ createdAt: -1 });
-    res.json(docs);
-  } catch (error) {
-    handleError(res, error);
-  }
-});
+router.get("/", asyncHandler(async (req, res) => {
+  const docs = await Document.find().sort({ createdAt: -1 }).lean();
+  res.json(docs);
+}));
 
 // 2. POST /api/documents/upload (Admin only) - Upload a new document
-router.post("/upload", auth, (req, res) => {
+router.post("/upload", auth, (req, res, next) => {
   upload.single("file")(req, res, async (err) => {
     if (err) {
       return res.status(400).json({
@@ -87,14 +85,23 @@ router.post("/upload", auth, (req, res) => {
 
       const { title, description, category } = req.body;
 
-      if (!title) {
-        // Remove uploaded file if validation fails
+      if (!title || typeof title !== "string" || title.trim() === "") {
         if (fs.existsSync(req.file.path)) {
           fs.unlinkSync(req.file.path);
         }
         return res.status(400).json({
           success: false,
-          message: "Document Title is required."
+          message: "Document Title is required and must be a valid string."
+        });
+      }
+
+      if (title.length > 200) {
+        if (fs.existsSync(req.file.path)) {
+          fs.unlinkSync(req.file.path);
+        }
+        return res.status(400).json({
+          success: false,
+          message: "Document Title is too long (maximum 200 characters)."
         });
       }
 
@@ -113,9 +120,9 @@ router.post("/upload", auth, (req, res) => {
       const fileUrl = `/uploads/${req.file.filename}`;
 
       const newDoc = new Document({
-        title,
-        description,
-        category: category || "Other",
+        title: title.trim(),
+        description: description ? String(description).trim() : "",
+        category: category ? String(category).trim() : "Other",
         fileUrl,
         fileName: req.file.originalname,
         fileSize: fileSizeStr,
@@ -136,40 +143,43 @@ router.post("/upload", auth, (req, res) => {
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
-      handleError(res, error);
+      next(error);
     }
   });
 });
 
 // 3. DELETE /api/documents/:id (Admin only) - Delete a document
-router.delete("/:id", auth, async (req, res) => {
-  try {
-    const doc = await Document.findById(req.params.id);
-    if (!doc) {
-      return res.status(404).json({
-        success: false,
-        message: "Document not found"
-      });
-    }
-
-    // Delete file from filesystem
-    const filePath = path.join(__dirname, "../uploads", path.basename(doc.fileUrl));
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    await Document.findByIdAndDelete(req.params.id);
-
-    const adminUsername = await getAdminUsername(req.admin.id);
-    await logAction(adminUsername, "Admin", "Documents", "DELETE", `Deleted document: ${doc.title} (${doc.fileName})`, req.ip);
-
-    res.json({
-      success: true,
-      message: "Document deleted successfully"
+router.delete("/:id", auth, asyncHandler(async (req, res) => {
+  if (!isValidObjectId(req.params.id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid Document ID format."
     });
-  } catch (error) {
-    handleError(res, error);
   }
-});
+
+  const doc = await Document.findById(req.params.id).lean();
+  if (!doc) {
+    return res.status(404).json({
+      success: false,
+      message: "Document not found"
+    });
+  }
+
+  // Delete file from filesystem safely
+  const filePath = path.join(__dirname, "../uploads", path.basename(doc.fileUrl));
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  await Document.findByIdAndDelete(req.params.id);
+
+  const adminUsername = await getAdminUsername(req.admin.id);
+  await logAction(adminUsername, "Admin", "Documents", "DELETE", `Deleted document: ${doc.title} (${doc.fileName})`, req.ip);
+
+  res.json({
+    success: true,
+    message: "Document deleted successfully"
+  });
+}));
 
 module.exports = router;

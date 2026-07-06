@@ -14,7 +14,7 @@ const handleError = (res, error) => {
   console.error(error);
   return res.status(500).json({
     success: false,
-    message: error.message || "An unexpected error occurred."
+    message: "Internal Server Error"
   });
 };
 
@@ -40,7 +40,7 @@ const getTimeframeQuery = (timeframe) => {
 };
 
 const getEquipmentBookingRevenue = async (query, equipments) => {
-  const bookings = await EquipmentBooking.find(query);
+  const bookings = await EquipmentBooking.find(query).select("status equipmentName duration").lean();
   let total = 0;
   for (const b of bookings) {
     if (b.status === "Rejected" || b.status === "Cancelled") continue;
@@ -164,7 +164,7 @@ router.get("/", auth, async (req, res) => {
 
     const estimatedCropValue = cropValueResult[0]?.total || 0;
 
-    const equipments = await Equipment.find();
+    const equipments = await Equipment.find().lean();
     const revenueBreakdown = await getRevenueAnalytics(equipments);
 
     res.json({
@@ -245,7 +245,7 @@ router.get("/dashboard", auth, async (req, res) => {
 
     const estimatedCropValue = cropValueResult[0]?.total || 0;
 
-    const equipments = await Equipment.find();
+    const equipments = await Equipment.find().lean();
     const revenueBreakdown = await getRevenueAnalytics(equipments);
 
     res.json({

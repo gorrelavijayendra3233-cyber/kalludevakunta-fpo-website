@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
+const Admin = require("../models/Admin");
 
-const auth = (req, res, next) => {
+const auth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -24,6 +25,23 @@ const auth = (req, res, next) => {
       token,
       process.env.JWT_SECRET
     );
+
+    // Ensure token is signed for admin role
+    if (decoded.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin authorization required."
+      });
+    }
+
+    // Database verification: verify admin account exists
+    const adminExists = await Admin.findById(decoded.id);
+    if (!adminExists) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token. Admin account not found."
+      });
+    }
 
     req.admin = decoded;
 

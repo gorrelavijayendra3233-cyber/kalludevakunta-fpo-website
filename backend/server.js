@@ -28,10 +28,74 @@ const Farmer = require("./models/Farmer");
 const Product = require("./models/Product");
 const bcrypt = require("bcryptjs");
 
+// Security dependencies
+const helmet = require("helmet");
+const compression = require("compression");
+const morgan = require("morgan");
+const hpp = require("hpp");
+
+// Custom Express 5 compatible NoSQL Injection Sanitizer
+const sanitizeObject = (obj) => {
+  if (obj && typeof obj === "object") {
+    for (const key in obj) {
+      if (key.startsWith("$")) {
+        delete obj[key];
+      } else if (typeof obj[key] === "object") {
+        sanitizeObject(obj[key]);
+      }
+    }
+  }
+};
+
+const customMongoSanitize = (req, res, next) => {
+  if (req.body) sanitizeObject(req.body);
+  if (req.params) sanitizeObject(req.params);
+  if (req.query) sanitizeObject(req.query);
+  next();
+};
+
 const app = express();
 
+// 1. Enable Compression
+app.use(compression());
+
+// 2. Safe request logging (logs method, path, status, and response time, never sensitive request body fields)
+app.use(morgan(":remote-addr - :method :url :status - :response-time ms"));
+
+// 3. Request payload limit (protects against DOS from oversized request bodies)
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+
+// 4. Sanitize database queries against NoSQL Injection (Express 5 compatible)
+app.use(customMongoSanitize);
+
+// 5. HTTP Parameter Pollution protection
+app.use(hpp());
+
+// 6. Helmet headers configuration
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // API-only backend (React client handles CSP)
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allows React client to fetch static files (uploads)
+    referrerPolicy: { policy: "no-referrer" },
+    hsts: process.env.NODE_ENV === "production" ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
+  })
+);
+
+// Explicit supplementary security headers
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+  next();
+});
+
+// 7. Hardened CORS configuration
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://[::1]:5173",
   "https://kalludevakunta-fpo-website.vercel.app",
   "https://kalludevakunta-fpo-website-git-main-fieldmind.vercel.app"
 ];
@@ -39,14 +103,19 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow all origins to prevent CORS blockages on custom preview URLs, alternative ports, and local network IPs
-      return callback(null, true);
+      // Allow requests with no origin (like Postman, curl, or server-to-server calls)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.error("CORS REJECTED ORIGIN:", origin);
+        return callback(new Error("CORS policy violation: origin not allowed."));
+      }
     },
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
 );
-app.use(express.json());
 
 app.use("/api/contact", contactRoutes);
 app.use("/api/crops", cropRoutes);
@@ -557,6 +626,18 @@ mongoose
     }
   })
   .catch((err) => console.log(err));
+
+// Centralized Express Error Handling Middleware
+app.use((err, req, res, next) => {
+  // Logs detailed error details only on the server
+  console.error("Unhandled Server Error:", err);
+  
+  // Return generic JSON response to clients
+  res.status(err.status || 500).json({
+    success: false,
+    message: "Internal Server Error"
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

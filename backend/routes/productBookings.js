@@ -1,9 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const ProductBooking = require("../models/ProductBooking");
 const Product = require("../models/Product");
 const auth = require("../middleware/auth");
 const { logAction } = require("../services/auditLogger");
+const { generalWriteLimiter } = require("../middleware/rateLimiters");
 
 const getAdminUsername = async (adminId) => {
   try {
@@ -15,19 +17,10 @@ const getAdminUsername = async (adminId) => {
   }
 };
 
-// helper for error handling
-const handleError = (res, error) => {
-  console.error(error);
-  return res.status(500).json({
-    success: false,
-    message: error.message || "An unexpected error occurred."
-  });
-};
-
 const farmerAuth = require("../middleware/farmerAuth");
 
 // 1. Submit product booking (Protected)
-router.post("/", farmerAuth, async (req, res) => {
+router.post("/", farmerAuth, generalWriteLimiter, async (req, res, next) => {
   try {
     const { productId, quantity, bookingDate } = req.body;
 
@@ -35,6 +28,38 @@ router.post("/", farmerAuth, async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Product ID, Quantity, and Booking Date are required."
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Product ID format."
+      });
+    }
+
+    const numQuantity = Number(quantity);
+    if (isNaN(numQuantity) || numQuantity <= 0 || !Number.isInteger(numQuantity)) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity must be a positive integer."
+      });
+    }
+
+    const parsedDate = Date.parse(bookingDate);
+    if (isNaN(parsedDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid booking date."
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(parsedDate) < today) {
+      return res.status(400).json({
+        success: false,
+        message: "Booking date cannot be in the past."
       });
     }
 
@@ -47,7 +72,7 @@ router.post("/", farmerAuth, async (req, res) => {
       });
     }
 
-    const totalPrice = product.price * Number(quantity);
+    const totalPrice = product.price * numQuantity;
 
     const booking = new ProductBooking({
       farmerId: req.farmer.farmerId,
@@ -55,9 +80,9 @@ router.post("/", farmerAuth, async (req, res) => {
       phone: req.farmer.phone,
       productId: product.productId,
       productName: product.name,
-      quantity: Number(quantity),
+      quantity: numQuantity,
       totalPrice,
-      bookingDate
+      bookingDate: new Date(parsedDate)
     });
 
     await booking.save();
@@ -87,26 +112,37 @@ router.post("/", farmerAuth, async (req, res) => {
       data: booking
     });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 2. Get All Bookings (Admin only)
-router.get("/", auth, async (req, res) => {
+router.get("/", auth, async (req, res, next) => {
   try {
     const bookings = await ProductBooking.find().sort({ createdAt: -1 });
     res.json(bookings);
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 3. Update Booking Status (Admin only)
-router.put("/:id", auth, async (req, res) => {
+router.put("/:id", auth, async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product booking ID format."
+      });
+    }
+
     const { status } = req.body;
-    if (!status) {
+    if (!status || typeof status !== "string") {
       return res.status(400).json({ success: false, message: "Status is required." });
+    }
+
+    if (!["Pending", "Confirmed", "Cancelled", "Completed"].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status value." });
     }
 
     const booking = await ProductBooking.findById(req.params.id);
@@ -206,13 +242,20 @@ router.put("/:id", auth, async (req, res) => {
       data: booking
     });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 4. Delete Booking (Admin only)
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", auth, async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product booking ID format."
+      });
+    }
+
     const booking = await ProductBooking.findByIdAndDelete(req.params.id);
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found." });
@@ -242,7 +285,7 @@ router.delete("/:id", auth, async (req, res) => {
       message: "Booking deleted successfully."
     });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 

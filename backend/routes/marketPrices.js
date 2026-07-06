@@ -19,7 +19,7 @@ const handleError = (res, error) => {
   console.error(error);
   return res.status(500).json({
     success: false,
-    message: error.message || "An unexpected error occurred."
+    message: "Internal Server Error"
   });
 };
 

@@ -43,6 +43,10 @@ const productBookingSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+productBookingSchema.index({ farmerId: 1 });
+productBookingSchema.index({ productId: 1 });
+productBookingSchema.index({ createdAt: -1 });
+
 productBookingSchema.pre("save", async function () {
   if (this.isNew) {
     const lastBooking = await this.constructor.findOne().sort({ bookingId: -1 });

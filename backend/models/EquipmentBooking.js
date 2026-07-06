@@ -20,6 +20,10 @@ const EquipmentBookingSchema = new mongoose.Schema({
   },
 });
 
+EquipmentBookingSchema.index({ farmerId: 1 });
+EquipmentBookingSchema.index({ bookingDate: 1 });
+EquipmentBookingSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model(
   "EquipmentBooking",
   EquipmentBookingSchema

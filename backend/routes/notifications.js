@@ -14,20 +14,12 @@ const getAdminUsername = async (adminId) => {
   }
 };
 
-// Helper for standardized error messages
-const handleError = (res, error) => {
-  console.error(error);
-  return res.status(500).json({
-    success: false,
-    message: error.message || "An unexpected error occurred."
-  });
-};
-
+const mongoose = require("mongoose");
 const NotificationSettings = require("../models/NotificationSettings");
 const NotificationLog = require("../models/NotificationLog");
 
 // A. Get notification settings
-router.get("/settings", auth, async (req, res) => {
+router.get("/settings", auth, async (req, res, next) => {
   try {
     let settings = await NotificationSettings.findOne();
     if (!settings) {
@@ -35,12 +27,12 @@ router.get("/settings", auth, async (req, res) => {
     }
     res.json(settings);
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // B. Update notification settings
-router.put("/settings", auth, async (req, res) => {
+router.put("/settings", auth, async (req, res, next) => {
   try {
     const { dashboardEnabled, telegramEnabled } = req.body;
     let settings = await NotificationSettings.findOne();
@@ -56,12 +48,12 @@ router.put("/settings", auth, async (req, res) => {
 
     res.json({ success: true, data: settings });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // C. Get telegram connection status
-router.get("/telegram-status", auth, async (req, res) => {
+router.get("/telegram-status", auth, async (req, res, next) => {
   try {
     const { checkTelegramConnection } = require("../services/telegram");
     const token = process.env.TELEGRAM_BOT_TOKEN;
@@ -88,14 +80,12 @@ router.get("/telegram-status", auth, async (req, res) => {
       lastNotificationSent: lastSentLog ? lastSentLog.createdAt : null
     });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
-
-
 // D. Send test Telegram notification
-router.post("/test-telegram", auth, async (req, res) => {
+router.post("/test-telegram", auth, async (req, res, next) => {
   try {
     const { sendTelegramMessage } = require("../services/telegram");
     const message = "Test notification from Kalludevakunta FPO";
@@ -107,37 +97,60 @@ router.post("/test-telegram", auth, async (req, res) => {
       res.status(400).json({ success: false, message: "Failed to send test telegram message. Check credentials." });
     }
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
-// 1. Get All Notifications (Sorted by newest first with limit)
-router.get("/", auth, async (req, res) => {
+// 1. Get All Notifications (Sorted by newest first with limit/pagination)
+router.get("/", auth, async (req, res, next) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
-    const notifications = await Notification.find()
-      .sort({ createdAt: -1 })
-      .limit(limit);
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 50;
+
+    let queryObj = Notification.find().sort({ createdAt: -1 }).lean();
+    if (limit > 0) {
+      queryObj = queryObj.skip((page - 1) * limit).limit(limit);
+    }
+
+    const [notifications, total] = await Promise.all([
+      queryObj,
+      Notification.countDocuments()
+    ]);
+
+    if (limit > 0) {
+      res.setHeader("X-Total-Count", total);
+      res.setHeader("X-Total-Pages", Math.ceil(total / limit));
+      res.setHeader("X-Page", page);
+      res.setHeader("X-Limit", limit);
+    }
+
     res.json(notifications);
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 1b. Create Custom Notification (useful for system/logger notifications)
-router.post("/", auth, async (req, res) => {
+router.post("/", auth, async (req, res, next) => {
   try {
     const notification = new Notification(req.body);
     await notification.save();
     res.status(201).json({ success: true, data: notification });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 2. Mark Single Notification as Read
-router.put("/:id/read", auth, async (req, res) => {
+router.put("/:id/read", auth, async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Notification ID format."
+      });
+    }
+
     const notification = await Notification.findByIdAndUpdate(
       req.params.id,
       { isRead: true },
@@ -151,33 +164,40 @@ router.put("/:id/read", auth, async (req, res) => {
     }
     res.json({ success: true, data: notification });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 3. Mark All Notifications as Read
-router.put("/read-all", auth, async (req, res) => {
+router.put("/read-all", auth, async (req, res, next) => {
   try {
     await Notification.updateMany({ isRead: false }, { isRead: true });
     res.json({ success: true, message: "All notifications marked as read" });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 3.5. Clear All Notifications
-router.delete("/clear-all", auth, async (req, res) => {
+router.delete("/clear-all", auth, async (req, res, next) => {
   try {
     await Notification.deleteMany({});
     res.json({ success: true, message: "All notifications cleared" });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 
 // 4. Delete Single Notification
-router.delete("/:id", auth, async (req, res) => {
+router.delete("/:id", auth, async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Notification ID format."
+      });
+    }
+
     const notification = await Notification.findByIdAndDelete(req.params.id);
     if (!notification) {
       return res.status(404).json({
@@ -187,7 +207,7 @@ router.delete("/:id", auth, async (req, res) => {
     }
     res.json({ success: true, message: "Notification deleted successfully" });
   } catch (error) {
-    handleError(res, error);
+    next(error);
   }
 });
 

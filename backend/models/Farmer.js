@@ -71,6 +71,9 @@ const farmerSchema = new mongoose.Schema(
   }
 );
 
+farmerSchema.index({ village: 1 });
+farmerSchema.index({ name: 1 });
+
 farmerSchema.pre("save", async function () {
   if (this.farmerName && !this.name) {
     this.name = this.farmerName;
