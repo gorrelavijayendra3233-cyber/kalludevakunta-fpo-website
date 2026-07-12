@@ -11,7 +11,8 @@ import {
   Lock,
   Loader2,
   KeyRound,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown
 } from "lucide-react";
 import toast from "react-hot-toast";
 import LocationSelector from "../components/LocationSelector/LocationSelector";
@@ -41,6 +42,7 @@ function FarmerProfile() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -101,6 +103,18 @@ function FarmerProfile() {
 
     fetchProfile();
   }, [navigate]);
+
+  // Click outside to close profile dropdown
+  useEffect(() => {
+    if (!showProfileDropdown) return;
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest(".farmer-profile-summary")) {
+        setShowProfileDropdown(false);
+      }
+    };
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, [showProfileDropdown]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -182,14 +196,84 @@ function FarmerProfile() {
     <div className="farmer-dashboard-container">
       {/* ── Sidebar ── */}
       <aside className="farmer-sidebar glass-panel">
-        <div className="farmer-profile-summary">
-          <div className="avatar-wrap">
-            <User size={28} />
+        <div 
+          className="farmer-profile-summary clickable" 
+          onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+          style={{ 
+            position: "relative", 
+            cursor: "pointer", 
+            userSelect: "none", 
+            display: "flex", 
+            alignItems: "center", 
+            gap: "12px", 
+            padding: "12px 16px",
+            borderRadius: "10px",
+            transition: "all 0.3s ease",
+            background: showProfileDropdown ? "rgba(255, 255, 255, 0.05)" : "transparent"
+          }}
+        >
+          <div className="avatar-wrap" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "40px", height: "40px", borderRadius: "50%", background: "linear-gradient(135deg, #16a34a 0%, #15803d 100%)", color: "#fff" }}>
+            <User size={20} />
           </div>
-          <div className="farmer-meta">
-            <h4>{farmer.farmerName || farmer.name}</h4>
-            <span className="farmer-id">{farmer.farmerId}</span>
+          <div className="farmer-meta" style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
+            <h4 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: 0, fontSize: "14px", fontWeight: "600", color: "#fff", width: "100%" }}>
+              <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "100px" }}>{farmer.farmerName || farmer.name}</span>
+              <ChevronDown size={14} style={{ transition: "transform 0.3s ease", transform: showProfileDropdown ? "rotate(180deg)" : "none", color: "rgba(255,255,255,0.6)" }} />
+            </h4>
+            <span className="farmer-id" style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>{farmer.farmerId}</span>
           </div>
+
+          {showProfileDropdown && (
+            <div className="profile-dropdown-menu glass-panel" style={{
+              position: "absolute",
+              top: "calc(100% + 8px)",
+              left: "0",
+              right: "0",
+              zIndex: 999,
+              background: "rgba(10, 25, 15, 0.95)",
+              border: "1px solid rgba(34, 197, 94, 0.25)",
+              borderRadius: "12px",
+              padding: "6px 0",
+              boxShadow: "0 10px 30px -8px rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "2px",
+              backdropFilter: "blur(12px)",
+              animation: "slideDown 0.2s ease-out"
+            }} onClick={(e) => e.stopPropagation()}>
+              <button 
+                onClick={() => { navigate("/farmer-profile"); setShowProfileDropdown(false); }} 
+                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 16px", background: "none", border: "none", color: "#e2e8f0", width: "100%", textAlign: "left", cursor: "pointer", fontSize: "13px", fontWeight: "500", transition: "all 0.2s" }}
+                className="dropdown-item"
+                onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.05)"}
+                onMouseLeave={(e) => e.target.style.background = "none"}
+              >
+                <User size={15} style={{ color: "#22c55e" }} />
+                <span>My Profile / నా ప్రొఫైల్</span>
+              </button>
+              <button 
+                onClick={() => { navigate("/my-crop-requests"); setShowProfileDropdown(false); }} 
+                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 16px", background: "none", border: "none", color: "#e2e8f0", width: "100%", textAlign: "left", cursor: "pointer", fontSize: "13px", fontWeight: "500", transition: "all 0.2s" }}
+                className="dropdown-item"
+                onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.05)"}
+                onMouseLeave={(e) => e.target.style.background = "none"}
+              >
+                <Sprout size={15} style={{ color: "#22c55e" }} />
+                <span>My Crop Requests / నా పంటలు</span>
+              </button>
+              <div style={{ height: "1px", background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
+              <button 
+                onClick={handleLogout} 
+                style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 16px", background: "none", border: "none", color: "#f87171", width: "100%", textAlign: "left", cursor: "pointer", fontSize: "13px", fontWeight: "600", transition: "all 0.2s" }}
+                className="dropdown-item logout"
+                onMouseEnter={(e) => e.target.style.background = "rgba(239, 68, 68, 0.08)"}
+                onMouseLeave={(e) => e.target.style.background = "none"}
+              >
+                <LogOut size={15} />
+                <span>Logout / లాగ్అవుట్</span>
+              </button>
+            </div>
+          )}
         </div>
 
         <nav className="farmer-sidebar-nav">
