@@ -94,6 +94,7 @@ router.post("/", auth, asyncHandler(async (req, res) => {
     const numLand = parseFloat(finalLand);
     if (isNaN(numLand) || numLand < 0) {
       return res.status(400).json({ success: false, message: "Land holding must be a non-negative number." });
+    }
   }
 
   if (req.body.aadharNumber !== undefined && req.body.aadharNumber !== null && req.body.aadharNumber.trim() !== "") {
@@ -194,6 +195,7 @@ router.put("/:id", auth, asyncHandler(async (req, res) => {
     const numLand = parseFloat(finalLand);
     if (isNaN(numLand) || numLand < 0) {
       return res.status(400).json({ success: false, message: "Land holding must be a non-negative number." });
+    }
   }
 
   if (req.body.aadharNumber !== undefined && req.body.aadharNumber !== null && req.body.aadharNumber.trim() !== "") {
