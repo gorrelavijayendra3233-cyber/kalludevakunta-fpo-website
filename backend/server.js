@@ -96,6 +96,8 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://[::1]:5173",
+  "https://kalludevakuntafpcl.in",
+  "https://www.kalludevakuntafpcl.in",
   "https://kalludevakunta-fpo-website.vercel.app",
   "https://kalludevakunta-fpo-website-git-main-fieldmind.vercel.app"
 ];
@@ -103,7 +105,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
@@ -112,8 +113,9 @@ app.use(
         return callback(new Error("CORS policy violation: origin not allowed."));
       }
     },
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
+    optionsSuccessStatus: 200,
   })
 );
 
