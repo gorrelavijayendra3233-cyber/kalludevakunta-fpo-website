@@ -4,6 +4,7 @@ import { User, Phone, MapPin, Sprout, ShieldCheck, KeyRound, Sprout as SproutIco
 import toast from "react-hot-toast";
 import LocationSelector from "../components/LocationSelector/LocationSelector";
 import "./FarmerLogin.css"; // Reuse login page styling for consistency
+import useDocumentMetadata from "../hooks/useDocumentMetadata";
 
 const API_BASE = import.meta.env.DEV
   ? "http://localhost:5000/api"
@@ -16,6 +17,7 @@ const CROP_OPTIONS = [
 ];
 
 function FarmerRegister() {
+  useDocumentMetadata("Farmer Registration", "Register as a member of Kalludevakunta Farmers Producer Company Limited (KDKFPCL) to start selling crops and renting farm equipment online.");
   const [form, setForm] = useState({
     farmerName: "",
     phone: "",

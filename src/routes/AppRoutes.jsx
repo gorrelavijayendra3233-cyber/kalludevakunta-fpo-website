@@ -14,6 +14,11 @@ import FarmerDashboard from "../pages/FarmerDashboard";
 import FarmerProfile   from "../pages/FarmerProfile";
 import MyCropRequests  from "../pages/MyCropRequests";
 import ProtectedRoute from "../components/ProtectedRoute";
+import NotFound        from "../pages/NotFound";
+import PrivacyPolicy   from "../pages/PrivacyPolicy";
+import TermsConditions from "../pages/TermsConditions";
+import CookiePolicy    from "../pages/CookiePolicy";
+import Disclaimer      from "../pages/Disclaimer";
 
 function AppRoutes() {
   return (
@@ -27,6 +32,10 @@ function AppRoutes() {
       <Route path="/sell-crop"         element={<SellCrops />}        />
       <Route path="/equipment-booking" element={<EquipmentBooking />} />
       <Route path="/admin"             element={<Admin />}            />
+      <Route path="/privacy"           element={<PrivacyPolicy />}    />
+      <Route path="/terms"             element={<TermsConditions />}  />
+      <Route path="/cookie-policy"     element={<CookiePolicy />}     />
+      <Route path="/disclaimer"        element={<Disclaimer />}       />
       
       {/* Farmer Auth & Portal Routes */}
       <Route path="/farmer-login"      element={<FarmerLogin />} />
@@ -41,6 +50,7 @@ function AppRoutes() {
       <Route path="/my-bookings"       element={<Navigate to="/farmer-dashboard" replace />} />
       <Route path="/my-orders"         element={<Navigate to="/farmer-dashboard" replace />} />
       <Route path="/my-profile"        element={<Navigate to="/farmer-dashboard" replace />} />
+      <Route path="*"                  element={<NotFound />} />
     </Routes>
   );
 }

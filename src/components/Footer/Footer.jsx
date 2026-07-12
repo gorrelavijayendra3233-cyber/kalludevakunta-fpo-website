@@ -32,6 +32,17 @@ function Footer() {
           </ul>
         </div>
 
+        {/* Legal Policies */}
+        <div>
+          <div className="footer__col-title">Legal Policies</div>
+          <ul className="footer__links">
+            <li><Link to="/privacy">Privacy Policy</Link></li>
+            <li><Link to="/terms">Terms &amp; Conditions</Link></li>
+            <li><Link to="/cookie-policy">Cookie Policy</Link></li>
+            <li><Link to="/disclaimer">Disclaimer</Link></li>
+          </ul>
+        </div>
+
         {/* Contact */}
         <div>
           <div className="footer__col-title">Contact</div>

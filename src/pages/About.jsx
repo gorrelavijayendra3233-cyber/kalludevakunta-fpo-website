@@ -1,5 +1,6 @@
 import { Target, Eye, ClipboardList, Heart, Sprout } from "lucide-react";
 import "./About.css";
+import useDocumentMetadata from "../hooks/useDocumentMetadata";
 
 const pillars = [
   {
@@ -52,6 +53,7 @@ const services = [
 ];
 
 function About() {
+  useDocumentMetadata("About", "Learn more about the mission, vision, values, and objectives of Kalludevakunta Farmers Producer Company Limited (KDKFPCL).");
   return (
     <main>
       {/* Hero Section */}

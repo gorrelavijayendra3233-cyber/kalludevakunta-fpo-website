@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import useDocumentMetadata from "../hooks/useDocumentMetadata";
 import { 
   Store, 
   FlaskConical, 
@@ -370,6 +371,7 @@ function BookingModal({ product, onClose }) {
 
 // ── Main Component ─────────────────────────────────────────────
 function Products() {
+  useDocumentMetadata("Products", "Browse high-quality agricultural products including seeds, fertilizers, crop protection chemicals, and organic nutrients available at Kalludevakunta FPC.");
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [errorProducts, setErrorProducts] = useState(null);

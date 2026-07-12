@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Phone, Sprout, ShieldAlert, KeyRound } from "lucide-react";
 import toast from "react-hot-toast";
 import "./FarmerLogin.css";
+import useDocumentMetadata from "../hooks/useDocumentMetadata";
 
 const API_BASE = import.meta.env.DEV
   ? "http://localhost:5000/api"
   : "https://kalludevakunta-fpo-website.onrender.com/api";
 
 function FarmerLogin() {
+  useDocumentMetadata("Farmer Login", "Access the secure farmer dashboard of Kalludevakunta FPC. Log in with your registered mobile number and OTP code to request crop selling or book farm machinery.");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState(1); // 1 = Request OTP, 2 = Verify OTP

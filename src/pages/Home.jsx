@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import useDocumentMetadata from "../hooks/useDocumentMetadata";
 import { 
   Handshake, 
   CheckCircle2, 
@@ -91,6 +92,7 @@ const DEFAULT_EQUIPMENT_SHOWCASE = [
 /* ── Component ─────────────────────────────────────────────── */
 
 function Home() {
+  useDocumentMetadata("", "Kalludevakunta Farmers Producer Company Limited (KDKFPCL) empowers local farmers with direct marketplace crop selling, custom hiring center machinery bookings, and quality agricultural products.");
   const [showcase, setShowcase] = useState(DEFAULT_EQUIPMENT_SHOWCASE);
   const [announcement] = useState(() => {
     return localStorage.getItem("fpo_announcement") || "Kharif 2026 begins — Fresh seeds and fertilizers now available for the upcoming season.";

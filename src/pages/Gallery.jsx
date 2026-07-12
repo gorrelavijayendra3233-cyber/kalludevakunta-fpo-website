@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Image, X, ZoomIn, Calendar } from "lucide-react";
 import "./Gallery.css";
+import useDocumentMetadata from "../hooks/useDocumentMetadata";
 
 const items = [
   { 
@@ -42,6 +43,7 @@ const items = [
 ];
 
 function Gallery() {
+  useDocumentMetadata("Gallery", "Take a look at the activities, member farmer training sessions, crop harvests, and machinery demos of Kalludevakunta Farmers Producer Company Limited.");
   const [activeItem, setActiveItem] = useState(null);
 
   return (

@@ -1,14 +1,34 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import Navbar    from "./components/Navbar/Navbar";
 import Footer    from "./components/Footer/Footer";
 import AppRoutes from "./routes/AppRoutes";
 import { useLocation } from "react-router-dom";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
 import "./index.css";
 
 function App() {
   const location = useLocation();
   const isAdminPage = location.pathname.startsWith("/admin");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success("Internet connection restored! / ఇంటర్నెట్ కనెక్టివిటీ పునరుద్ధరించబడింది.");
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.error("You are currently offline. / మీరు ప్రస్తుతం ఆఫ్‌లైన్‌లో ఉన్నారు.", { id: "offline-toast", duration: 5000 });
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     // Scroll to top on page change
@@ -99,6 +119,25 @@ function App() {
           }
         }}
       />
+      {!isOnline && (
+        <div style={{
+          background: "#ef4444",
+          color: "#fff",
+          textAlign: "center",
+          padding: "8px 16px",
+          fontSize: "13px",
+          fontWeight: "600",
+          position: "sticky",
+          top: 0,
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px"
+        }}>
+          <span>⚠️ You are currently offline. Working in offline mode. / మీరు ప్రస్తుతం ఆఫ్‌లైన్‌లో ఉన్నారు.</span>
+        </div>
+      )}
       {!isAdminPage && <Navbar />}
       <AppRoutes />
       {!isAdminPage && <Footer />}

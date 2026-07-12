@@ -75,10 +75,21 @@ app.use(hpp());
 // 6. Helmet headers configuration
 app.use(
   helmet({
-    contentSecurityPolicy: false, // API-only backend (React client handles CSP)
-    crossOriginResourcePolicy: { policy: "cross-origin" }, // Allows React client to fetch static files (uploads)
-    referrerPolicy: { policy: "no-referrer" },
-    hsts: process.env.NODE_ENV === "production" ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://verify.msg91.com"],
+        connectSrc: ["'self'", "https://control.msg91.com", "https://verify.msg91.com", "https://kalludevakunta-fpo-website.onrender.com", "http://localhost:5000", "http://localhost:5173", "https://kalludevakuntafpcl.in", "https://www.kalludevakuntafpcl.in"],
+        imgSrc: ["'self'", "data:", "blob:", "https://*"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: []
+      }
+    },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true }
   })
 );
 
@@ -139,6 +150,15 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    database: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+    server: "Running",
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.get("/", (req, res) => {
   res.send("Kalludevakunta FPO Backend Running");

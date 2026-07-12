@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MapPin, Phone, Mail, CheckCircle, MessageCircle, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import "./Contact.css";
+import useDocumentMetadata from "../hooks/useDocumentMetadata";
 
 const API_BASE = import.meta.env.DEV
   ? "http://localhost:5000/api"
@@ -37,6 +38,7 @@ const INITIAL_ERRORS = {
 };
 
 function Contact() {
+  useDocumentMetadata("Contact", "Get in touch with Kalludevakunta Farmers Producer Company Limited (KDKFPCL). Visit our office, email us, call our helpline, or submit an online enquiry form.");
   const [form, setForm] = useState(INITIAL_FORM);
   const [errors, setErrors] = useState(INITIAL_ERRORS);
   const [submitted, setSubmitted] = useState(false);
@@ -223,6 +225,20 @@ const handleSubmit = async (e) => {
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />
+            </div>
+
+            <div className="contact__socials glass-panel fade-up-4" style={{
+              display: "flex",
+              justifyContent: "space-around",
+              alignItems: "center",
+              padding: "16px",
+              marginTop: "16px",
+              gap: "12px"
+            }}>
+              <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--harvest-lt, #22c55e)" }}>Follow Us:</span>
+              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" style={{ color: "#e2e8f0", textDecoration: "none", fontSize: "13px", fontWeight: "500" }} className="social-link">Facebook</a>
+              <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" style={{ color: "#e2e8f0", textDecoration: "none", fontSize: "13px", fontWeight: "500" }} className="social-link">Instagram</a>
+              <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" style={{ color: "#e2e8f0", textDecoration: "none", fontSize: "13px", fontWeight: "500" }} className="social-link">YouTube</a>
             </div>
           </div>
 

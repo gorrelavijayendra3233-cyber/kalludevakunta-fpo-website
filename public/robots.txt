@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kalludevakuntafpcl.in/sitemap.xml
