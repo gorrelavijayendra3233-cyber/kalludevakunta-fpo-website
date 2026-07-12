@@ -161,8 +161,8 @@ router.post("/login", authLimiter, asyncHandler(async (req, res, next) => {
         village: farmer.village,
         landArea: farmer.landArea,
         landHolding: farmer.landHolding,
-        primaryCrop: farmer.primaryCrop,
-        cropType: farmer.cropType,
+        surveyNumber: farmer.surveyNumber || "",
+        aadharNumber: farmer.aadharNumber || "",
         isVerified: farmer.isVerified,
         status: farmer.status
       }
@@ -171,7 +171,7 @@ router.post("/login", authLimiter, asyncHandler(async (req, res, next) => {
 // POST /api/farmer/register
 router.post("/register", authLimiter, async (req, res, next) => {
   try {
-    const { farmerName, state, district, mandal, village, phone, landArea, primaryCrop } = req.body;
+    const { farmerName, state, district, mandal, village, phone, landArea, surveyNumber, aadharNumber } = req.body;
 
     if (!farmerName || !phone || !state || !district || !mandal || !village) {
       return res.status(400).json({
@@ -184,6 +184,13 @@ router.post("/register", authLimiter, async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: "Invalid farmer name (maximum 100 characters)."
+      });
+    }
+
+    if (aadharNumber && !/^\d{12}$/.test(String(aadharNumber).trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Aadhar number must be exactly 12 digits."
       });
     }
 
@@ -233,7 +240,8 @@ router.post("/register", authLimiter, async (req, res, next) => {
       village: String(village).trim(),
       phone: cleanNum,
       landArea: landArea ? String(landArea).trim() : "",
-      primaryCrop: primaryCrop ? String(primaryCrop).trim() : "",
+      surveyNumber: surveyNumber ? String(surveyNumber).trim() : "",
+      aadharNumber: aadharNumber ? String(aadharNumber).trim() : "",
       isVerified: true,
       status: "Active",
       lastLogin: new Date()
@@ -270,8 +278,8 @@ router.post("/register", authLimiter, async (req, res, next) => {
         village: newFarmer.village,
         landArea: newFarmer.landArea,
         landHolding: newFarmer.landHolding,
-        primaryCrop: newFarmer.primaryCrop,
-        cropType: newFarmer.cropType,
+        surveyNumber: newFarmer.surveyNumber || "",
+        aadharNumber: newFarmer.aadharNumber || "",
         isVerified: newFarmer.isVerified,
         status: newFarmer.status
       }
@@ -284,7 +292,7 @@ router.post("/register", authLimiter, async (req, res, next) => {
 // POST /api/farmer/verify-msg91 (For compatibility)
 router.post("/verify-msg91", authLimiter, async (req, res, next) => {
   try {
-    const { action, otpToken, farmerName, state, district, mandal, village, landArea, primaryCrop } = req.body;
+    const { action, otpToken, farmerName, state, district, mandal, village, landArea, surveyNumber, aadharNumber } = req.body;
 
     if (!otpToken) {
       return res.status(400).json({
@@ -357,6 +365,13 @@ router.post("/verify-msg91", authLimiter, async (req, res, next) => {
         return res.status(400).json({ success: false, message: "Invalid farmer name (maximum 100 characters)." });
       }
 
+      if (aadharNumber && !/^\d{12}$/.test(String(aadharNumber).trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "Aadhar number must be exactly 12 digits."
+        });
+      }
+
       const { validateLocationHierarchy } = require("./locations");
       const validation = await validateLocationHierarchy({ state, district, mandal, village });
       if (!validation.valid) {
@@ -383,7 +398,8 @@ router.post("/verify-msg91", authLimiter, async (req, res, next) => {
         village: String(village).trim(),
         phone: cleanExtracted,
         landArea: landArea ? String(landArea).trim() : "",
-        primaryCrop: primaryCrop ? String(primaryCrop).trim() : "",
+        surveyNumber: surveyNumber ? String(surveyNumber).trim() : "",
+        aadharNumber: aadharNumber ? String(aadharNumber).trim() : "",
         isVerified: true,
         status: "Active",
         lastLogin: new Date()
@@ -415,8 +431,8 @@ router.post("/verify-msg91", authLimiter, async (req, res, next) => {
           village: newFarmer.village,
           landArea: newFarmer.landArea,
           landHolding: newFarmer.landHolding,
-          primaryCrop: newFarmer.primaryCrop,
-          cropType: newFarmer.cropType,
+          surveyNumber: newFarmer.surveyNumber || "",
+          aadharNumber: newFarmer.aadharNumber || "",
           isVerified: newFarmer.isVerified,
           status: newFarmer.status
         }
@@ -467,8 +483,8 @@ router.post("/verify-msg91", authLimiter, async (req, res, next) => {
           village: farmer.village,
           landArea: farmer.landArea,
           landHolding: farmer.landHolding,
-          primaryCrop: farmer.primaryCrop,
-          cropType: farmer.cropType,
+          surveyNumber: farmer.surveyNumber || "",
+          aadharNumber: farmer.aadharNumber || "",
           isVerified: farmer.isVerified,
           status: farmer.status
         }
@@ -497,8 +513,8 @@ router.get("/profile", farmerAuth, async (req, res, next) => {
         village: farmer.village,
         landArea: farmer.landArea,
         landHolding: farmer.landHolding,
-        primaryCrop: farmer.primaryCrop,
-        cropType: farmer.cropType,
+        surveyNumber: farmer.surveyNumber || "",
+        aadharNumber: farmer.aadharNumber || "",
         isVerified: farmer.isVerified,
         status: farmer.status
       }
@@ -512,14 +528,17 @@ router.get("/profile", farmerAuth, async (req, res, next) => {
 router.put("/profile", farmerAuth, async (req, res, next) => {
   try {
     const farmer = req.farmer;
-    const { farmerName, name, state, district, mandal, village, landArea, primaryCrop, cropType } = req.body;
+    const { farmerName, name, state, district, mandal, village, landArea, surveyNumber, aadharNumber } = req.body;
 
     const finalFarmerName = farmerName || name;
     const finalLandArea = landArea;
-    const finalPrimaryCrop = primaryCrop || cropType;
 
     if (finalFarmerName !== undefined && (typeof finalFarmerName !== "string" || finalFarmerName.trim() === "" || finalFarmerName.length > 100)) {
       return res.status(400).json({ success: false, message: "Invalid farmer name (maximum 100 characters)." });
+    }
+
+    if (aadharNumber && !/^\d{12}$/.test(String(aadharNumber).trim())) {
+      return res.status(400).json({ success: false, message: "Aadhar number must be exactly 12 digits." });
     }
 
     if (finalLandArea !== undefined) {
@@ -563,9 +582,11 @@ router.put("/profile", farmerAuth, async (req, res, next) => {
       farmer.landArea = String(finalLandArea).trim();
       farmer.landHolding = parseFloat(finalLandArea) || 0;
     }
-    if (finalPrimaryCrop) {
-      farmer.primaryCrop = String(finalPrimaryCrop).trim();
-      farmer.cropType = String(finalPrimaryCrop).trim();
+    if (surveyNumber !== undefined) {
+      farmer.surveyNumber = String(surveyNumber).trim();
+    }
+    if (aadharNumber !== undefined) {
+      farmer.aadharNumber = String(aadharNumber).trim();
     }
 
     await farmer.save();
@@ -585,8 +606,8 @@ router.put("/profile", farmerAuth, async (req, res, next) => {
         village: farmer.village,
         landArea: farmer.landArea,
         landHolding: farmer.landHolding,
-        primaryCrop: farmer.primaryCrop,
-        cropType: farmer.cropType,
+        surveyNumber: farmer.surveyNumber || "",
+        aadharNumber: farmer.aadharNumber || "",
         isVerified: farmer.isVerified,
         status: farmer.status
       }

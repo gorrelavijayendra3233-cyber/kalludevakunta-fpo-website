@@ -9,7 +9,9 @@ import {
   Sprout, 
   Save, 
   Lock,
-  Loader2
+  Loader2,
+  KeyRound,
+  ShieldCheck
 } from "lucide-react";
 import toast from "react-hot-toast";
 import LocationSelector from "../components/LocationSelector/LocationSelector";
@@ -30,7 +32,8 @@ function FarmerProfile() {
   const [form, setForm] = useState({
     farmerName: "",
     landArea: "",
-    primaryCrop: "",
+    surveyNumber: "",
+    aadharNumber: "",
     state: "",
     district: "",
     mandal: "",
@@ -82,7 +85,8 @@ function FarmerProfile() {
             mandal: data.farmer.mandal || "",
             village: data.farmer.village || "",
             landArea: data.farmer.landArea || "",
-            primaryCrop: data.farmer.primaryCrop || data.farmer.cropType || ""
+            surveyNumber: data.farmer.surveyNumber || "",
+            aadharNumber: data.farmer.aadharNumber || ""
           });
         } else {
           toast.error(data.message || "Failed to load profile.");
@@ -115,6 +119,11 @@ function FarmerProfile() {
       return;
     }
 
+    if (form.aadharNumber && !/^\d{12}$/.test(form.aadharNumber.trim())) {
+      toast.error("Aadhar number must be exactly 12 digits.");
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await fetch(`${API_BASE}/farmer/profile`, {
@@ -130,7 +139,8 @@ function FarmerProfile() {
           mandal: form.mandal,
           village: form.village,
           landArea: form.landArea,
-          primaryCrop: form.primaryCrop
+          surveyNumber: form.surveyNumber,
+          aadharNumber: form.aadharNumber
         })
       });
 
@@ -285,29 +295,6 @@ function FarmerProfile() {
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }} className="profile-form-grid-2">
-                    {/* Primary Crop */}
-                    <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <label className="form-label" htmlFor="primaryCrop" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
-                        Primary Crop / ప్రధాన పంట
-                      </label>
-                      <div className="input-field-wrapper" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                        <Sprout size={18} style={{ position: "absolute", left: "16px", color: "#64748b" }} />
-                        <select
-                          id="primaryCrop"
-                          name="primaryCrop"
-                          value={form.primaryCrop}
-                          onChange={handleChange}
-                          disabled={saving}
-                          style={{ width: "100%", height: "48px", padding: "0 16px 0 48px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", fontSize: "14px", outline: "none", appearance: "none" }}
-                        >
-                          <option value="" style={{ background: "#0a1f10" }}>Select Crop</option>
-                          {CROP_OPTIONS.map((c) => (
-                            <option key={c} value={c} style={{ background: "#0a1f10" }}>{c}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
                     {/* Land Area */}
                     <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       <label className="form-label" htmlFor="landArea" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
@@ -321,6 +308,49 @@ function FarmerProfile() {
                           type="text"
                           placeholder="e.g. 5 Acres"
                           value={form.landArea}
+                          onChange={handleChange}
+                          disabled={saving}
+                          style={{ width: "100%", height: "48px", padding: "0 16px 0 48px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", fontSize: "14px", outline: "none" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Survey Number */}
+                    <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <label className="form-label" htmlFor="surveyNumber" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
+                        Survey Number / సర్వే నంబర్
+                      </label>
+                      <div className="input-field-wrapper" style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                        <KeyRound size={18} style={{ position: "absolute", left: "16px", color: "#64748b" }} />
+                        <input
+                          id="surveyNumber"
+                          name="surveyNumber"
+                          type="text"
+                          placeholder="e.g. 123/A"
+                          value={form.surveyNumber}
+                          onChange={handleChange}
+                          disabled={saving}
+                          style={{ width: "100%", height: "48px", padding: "0 16px 0 48px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", fontSize: "14px", outline: "none" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: "20px" }}>
+                    {/* Aadhar Number */}
+                    <div className="form-group" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <label className="form-label" htmlFor="aadharNumber" style={{ fontSize: "13px", fontWeight: "600", color: "#e2e8f0" }}>
+                        Aadhar Number / ఆధార్ నంబర్
+                      </label>
+                      <div className="input-field-wrapper" style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                        <ShieldCheck size={18} style={{ position: "absolute", left: "16px", color: "#64748b" }} />
+                        <input
+                          id="aadharNumber"
+                          name="aadharNumber"
+                          type="text"
+                          maxLength={12}
+                          placeholder="12-digit number"
+                          value={form.aadharNumber}
                           onChange={handleChange}
                           disabled={saving}
                           style={{ width: "100%", height: "48px", padding: "0 16px 0 48px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "10px", color: "#fff", fontSize: "14px", outline: "none" }}

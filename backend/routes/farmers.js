@@ -94,6 +94,12 @@ router.post("/", auth, asyncHandler(async (req, res) => {
     const numLand = parseFloat(finalLand);
     if (isNaN(numLand) || numLand < 0) {
       return res.status(400).json({ success: false, message: "Land holding must be a non-negative number." });
+  }
+
+  if (req.body.aadharNumber !== undefined && req.body.aadharNumber !== null && req.body.aadharNumber.trim() !== "") {
+    const trimmed = req.body.aadharNumber.trim();
+    if (!/^\d{12}$/.test(trimmed)) {
+      return res.status(400).json({ success: false, message: "Aadhar number must be exactly 12 digits." });
     }
   }
 
@@ -126,7 +132,7 @@ router.post("/", auth, asyncHandler(async (req, res) => {
   // Auto generate notification
   try {
     const dateStr = new Date().toLocaleDateString("en-IN");
-    const telegramMsg = `🌾 New Farmer Registered\n\nName: ${farmer.name}\nVillage: ${farmer.village}\nCrop: ${farmer.cropType}\n\nDate: ${dateStr}`;
+    const telegramMsg = `🌾 New Farmer Registered\n\nName: ${farmer.name}\nVillage: ${farmer.village}\nSurvey No: ${farmer.surveyNumber || "N/A"}\n\nDate: ${dateStr}`;
     const dashboardMsg = `Farmer ${farmer.name} has been added.`;
 
     const { triggerNotification } = require("../services/notificationService");
@@ -188,6 +194,12 @@ router.put("/:id", auth, asyncHandler(async (req, res) => {
     const numLand = parseFloat(finalLand);
     if (isNaN(numLand) || numLand < 0) {
       return res.status(400).json({ success: false, message: "Land holding must be a non-negative number." });
+  }
+
+  if (req.body.aadharNumber !== undefined && req.body.aadharNumber !== null && req.body.aadharNumber.trim() !== "") {
+    const trimmed = req.body.aadharNumber.trim();
+    if (!/^\d{12}$/.test(trimmed)) {
+      return res.status(400).json({ success: false, message: "Aadhar number must be exactly 12 digits." });
     }
   }
 

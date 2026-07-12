@@ -38,6 +38,14 @@ const farmerSchema = new mongoose.Schema(
     primaryCrop: {
       type: String,
     },
+    surveyNumber: {
+      type: String,
+      default: "",
+    },
+    aadharNumber: {
+      type: String,
+      default: "",
+    },
     landHolding: {
       type: Number,
     },
@@ -91,6 +99,11 @@ farmerSchema.pre("save", async function () {
     this.landHolding = parseFloat(this.landArea) || 0;
   } else if (this.landHolding !== undefined && this.landHolding !== null && !this.landArea) {
     this.landArea = `${this.landHolding} Acres`;
+  }
+
+  if (this.aadharNumber && this.aadharNumber.trim().length >= 4) {
+    const trimmed = this.aadharNumber.trim();
+    this.aadhaarLast4 = trimmed.substring(trimmed.length - 4);
   }
 
   if (this.isNew) {

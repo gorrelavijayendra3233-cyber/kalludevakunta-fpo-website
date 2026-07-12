@@ -126,10 +126,10 @@ function Admin() {
     district: "",
     mandal: "",
     village: "",
-    cropType: "",
+    surveyNumber: "",
+    aadharNumber: "",
     landHolding: "",
     gender: "Male",
-    aadhaarLast4: "",
     status: "Active"
   });
 
@@ -1179,6 +1179,10 @@ const handleDelete = async (type, id) => {
       toast.error("Land holding must be a positive number.");
       return;
     }
+    if (farmerForm.aadharNumber && !/^\d{12}$/.test(farmerForm.aadharNumber.trim())) {
+      toast.error("Aadhar number must be exactly 12 digits.");
+      return;
+    }
 
     try {
       const payload = { ...farmerForm };
@@ -1212,10 +1216,10 @@ const handleDelete = async (type, id) => {
           district: "",
           mandal: "",
           village: "",
-          cropType: "",
+          surveyNumber: "",
+          aadharNumber: "",
           landHolding: "",
           gender: "Male",
-          aadhaarLast4: "",
           status: "Active"
         });
         fetchData();
@@ -1240,6 +1244,10 @@ const handleDelete = async (type, id) => {
     }
     if (editingFarmer.landHolding && Number(editingFarmer.landHolding) < 0) {
       toast.error("Land holding must be a positive number.");
+      return;
+    }
+    if (editingFarmer.aadharNumber && !/^\d{12}$/.test(editingFarmer.aadharNumber.trim())) {
+      toast.error("Aadhar number must be exactly 12 digits.");
       return;
     }
 
@@ -1815,13 +1823,14 @@ const handleDelete = async (type, id) => {
 
       if (reportType === "farmers") {
         title = "Farmer Summary Report";
-        headers = ["Farmer ID", "Name", "Phone", "Village", "Crop Type", "Land Holding", "Status"];
+        headers = ["Farmer ID", "Name", "Phone", "Village", "Survey Number", "Aadhar Number", "Land Holding", "Status"];
         rows = dataset.map(f => [
           f.farmerId || "",
           f.name || "",
           f.phone || "",
           f.village || "",
-          f.cropType || "",
+          f.surveyNumber || "",
+          f.aadharNumber || "",
           f.landHolding !== undefined ? `${f.landHolding} Acres` : "",
           f.status || "Active"
         ]);
@@ -2006,13 +2015,14 @@ const handleDelete = async (type, id) => {
     const filteredBookings = filterByTimeframe(bookings, analyticsTimeframe);
     const filteredContacts = filterByTimeframe(contacts, analyticsTimeframe);
 
-    const farmerHeaders = ["Farmer ID", "Name", "Phone", "Village", "Crop Type", "Land Holding", "Status"];
+    const farmerHeaders = ["Farmer ID", "Name", "Phone", "Village", "Survey Number", "Aadhar Number", "Land Holding", "Status"];
     const farmerRows = filteredFarmers.map(f => [
       f.farmerId || "",
       f.name || "",
       f.phone || "",
       f.village || "",
-      f.cropType || "",
+      f.surveyNumber || "",
+      f.aadharNumber || "",
       f.landHolding !== undefined ? `${f.landHolding} Acres` : "",
       f.status || "Active"
     ]);
@@ -2371,7 +2381,7 @@ const handleDelete = async (type, id) => {
         item.status || "Pending"
       ]);
     } else if (type === "farmers") {
-      headers = ["Farmer ID", "Name", "Phone", "Village", "Mandal", "District", "Crop Type", "Land Holding", "Status", "Joined Date"];
+      headers = ["Farmer ID", "Name", "Phone", "Village", "Mandal", "District", "Survey Number", "Aadhar Number", "Land Holding", "Status", "Joined Date"];
       rows = dataList.map(item => [
         item.farmerId || "",
         item.name || "",
@@ -2379,7 +2389,8 @@ const handleDelete = async (type, id) => {
         item.village || "",
         item.mandal || "",
         item.district || "",
-        item.cropType || "",
+        item.surveyNumber || "",
+        item.aadharNumber || "",
         item.landHolding || 0,
         item.status || "Active",
         item.joinedDate ? item.joinedDate.substring(0, 10) : (item.createdAt ? item.createdAt.substring(0, 10) : "")
@@ -2483,14 +2494,15 @@ const handleDelete = async (type, id) => {
         ]);
       } else if (type === "farmers") {
         title = "Farmer Registry Report";
-        headers = ["Farmer ID", "Name", "Phone", "Village", "Mandal", "Crop Type", "Land Holding", "Status"];
+        headers = ["Farmer ID", "Name", "Phone", "Village", "Mandal", "Survey Number", "Aadhar Number", "Land Holding", "Status"];
         rows = dataList.map(item => [
           item.farmerId || "",
           item.name || "",
           item.phone || "",
           item.village || "",
           item.mandal || "",
-          item.cropType || "",
+          item.surveyNumber || "",
+          item.aadharNumber || "",
           `${item.landHolding || 0} Acres`,
           item.status || "Active"
         ]);
@@ -4934,7 +4946,8 @@ const handleDelete = async (type, id) => {
                               <th>Name</th>
                               <th>Phone</th>
                               <th>Village</th>
-                              <th>Crop Type</th>
+                              <th>Survey No</th>
+                              <th>Aadhar No</th>
                               <th>Land Holding</th>
                               <th>Status</th>
                               <th>Joined Date</th>
@@ -4952,7 +4965,8 @@ const handleDelete = async (type, id) => {
                                   <td data-label="Name">{f.name}</td>
                                   <td data-label="Phone">{f.phone}</td>
                                   <td data-label="Village">{f.village}</td>
-                                  <td data-label="Crop Type">{f.cropType || "N/A"}</td>
+                                  <td data-label="Survey No">{f.surveyNumber || "N/A"}</td>
+                                  <td data-label="Aadhar No">{f.aadharNumber || "N/A"}</td>
                                   <td data-label="Land Holding">{f.landHolding ? `${f.landHolding} Acres` : "N/A"}</td>
                                   <td data-label="Status">
                                     <span className={getStatusBadgeClass(f.status || "Active")}>
@@ -6800,13 +6814,13 @@ const handleDelete = async (type, id) => {
                 </div>
 
                 <div className="admin-login-input-group">
-                  <label className="admin-login-label">Crop Type</label>
+                  <label className="admin-login-label">Survey Number</label>
                   <input 
                     type="text" 
                     className="admin-login-input" 
-                    placeholder="e.g. Paddy, Cotton"
-                    value={farmerForm.cropType}
-                    onChange={(e) => setFarmerForm({ ...farmerForm, cropType: e.target.value })}
+                    placeholder="e.g. 123/A"
+                    value={farmerForm.surveyNumber}
+                    onChange={(e) => setFarmerForm({ ...farmerForm, surveyNumber: e.target.value })}
                   />
                 </div>
 
@@ -6823,14 +6837,14 @@ const handleDelete = async (type, id) => {
                 </div>
 
                 <div className="admin-login-input-group">
-                  <label className="admin-login-label">Aadhaar (Last 4 Digits)</label>
+                  <label className="admin-login-label">Aadhar Number</label>
                   <input 
                     type="text" 
-                    maxLength="4"
+                    maxLength="12"
                     className="admin-login-input" 
-                    placeholder="Last 4 digits only"
-                    value={farmerForm.aadhaarLast4}
-                    onChange={(e) => setFarmerForm({ ...farmerForm, aadhaarLast4: e.target.value })}
+                    placeholder="12-digit number"
+                    value={farmerForm.aadharNumber}
+                    onChange={(e) => setFarmerForm({ ...farmerForm, aadharNumber: e.target.value })}
                   />
                 </div>
               </div>
@@ -6883,16 +6897,20 @@ const handleDelete = async (type, id) => {
                   <span className="value">{viewingFarmer.district || "N/A"}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Crop Type:</span>
-                  <span className="value text-accent">{viewingFarmer.cropType || "N/A"}</span>
+                  <span className="label">Survey Number:</span>
+                  <span className="value text-accent">{viewingFarmer.surveyNumber || "N/A"}</span>
                 </div>
                 <div className="detail-item">
                   <span className="label">Land Holding:</span>
                   <span className="value">{viewingFarmer.landHolding ? `${viewingFarmer.landHolding} Acres` : "N/A"}</span>
                 </div>
                 <div className="detail-item">
-                  <span className="label">Aadhaar Last 4:</span>
-                  <span className="value">{viewingFarmer.aadhaarLast4 ? `XXXX-XXXX-${viewingFarmer.aadhaarLast4}` : "N/A"}</span>
+                  <span className="label">Aadhar Number:</span>
+                  <span className="value">
+                    {viewingFarmer.aadharNumber 
+                      ? `${viewingFarmer.aadharNumber.substring(0, 4)}-${viewingFarmer.aadharNumber.substring(4, 8)}-${viewingFarmer.aadharNumber.substring(8, 12)}` 
+                      : (viewingFarmer.aadhaarLast4 ? `XXXX-XXXX-${viewingFarmer.aadhaarLast4}` : "N/A")}
+                  </span>
                 </div>
                 <div className="detail-item">
                   <span className="label">Member Status:</span>
@@ -6972,12 +6990,12 @@ const handleDelete = async (type, id) => {
                 </div>
 
                 <div className="admin-login-input-group">
-                  <label className="admin-login-label">Crop Type</label>
+                  <label className="admin-login-label">Survey Number</label>
                   <input 
                     type="text" 
                     className="admin-login-input" 
-                    value={editingFarmer.cropType || ""}
-                    onChange={(e) => setEditingFarmer({ ...editingFarmer, cropType: e.target.value })}
+                    value={editingFarmer.surveyNumber || ""}
+                    onChange={(e) => setEditingFarmer({ ...editingFarmer, surveyNumber: e.target.value })}
                   />
                 </div>
 
@@ -6993,14 +7011,14 @@ const handleDelete = async (type, id) => {
                 </div>
 
                 <div className="admin-login-input-group">
-                  <label className="admin-login-label">Aadhaar (Last 4 Digits)</label>
+                  <label className="admin-login-label">Aadhar Number</label>
                   <input 
                     type="text" 
-                    maxLength="4"
+                    maxLength="12"
                     className="admin-login-input" 
-                    placeholder="Last 4 digits only"
-                    value={editingFarmer.aadhaarLast4 || ""}
-                    onChange={(e) => setEditingFarmer({ ...editingFarmer, aadhaarLast4: e.target.value })}
+                    placeholder="12-digit number"
+                    value={editingFarmer.aadharNumber || ""}
+                    onChange={(e) => setEditingFarmer({ ...editingFarmer, aadharNumber: e.target.value })}
                   />
                 </div>
 

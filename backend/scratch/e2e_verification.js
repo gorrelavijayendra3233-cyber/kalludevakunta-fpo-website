@@ -3,6 +3,13 @@ const http = require("http");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
+const dns = require("dns");
+
+try {
+  dns.setServers(["8.8.8.8", "8.8.4.4"]);
+} catch (e) {
+  // Ignore failure
+}
 
 // Force resolution of root node_modules for playwright
 module.paths.push("c:/Users/gorre/kalludevakunta-fpo/node_modules");

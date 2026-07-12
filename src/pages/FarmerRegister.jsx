@@ -20,7 +20,8 @@ function FarmerRegister() {
     farmerName: "",
     phone: "",
     landArea: "",
-    primaryCrop: "",
+    surveyNumber: "",
+    aadharNumber: "",
     state: "",
     district: "",
     mandal: "",
@@ -174,6 +175,11 @@ function FarmerRegister() {
       return;
     }
 
+    if (form.aadharNumber && !/^\d{12}$/.test(form.aadharNumber.trim())) {
+      toast.error("Aadhar number must be exactly 12 digits.");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -184,7 +190,8 @@ function FarmerRegister() {
         village: form.village,
         phone: cleanPhone(form.phone),
         landArea: form.landArea,
-        primaryCrop: form.primaryCrop,
+        surveyNumber: form.surveyNumber,
+        aadharNumber: form.aadharNumber,
         otpToken,
         action: "register"
       };
@@ -363,22 +370,35 @@ function FarmerRegister() {
           </div>
 
           <div className="input-group">
-            <label htmlFor="primaryCrop">Primary Crop / ప్రధాన పంట</label>
+            <label htmlFor="surveyNumber">Survey Number / సర్వే నంబర్</label>
             <div className="input-field-wrapper">
-              <Sprout size={18} className="input-icon" />
-              <select
-                id="primaryCrop"
-                name="primaryCrop"
-                value={form.primaryCrop}
+              <KeyRound size={18} className="input-icon" />
+              <input
+                id="surveyNumber"
+                name="surveyNumber"
+                type="text"
+                placeholder="e.g. 123/A"
+                value={form.surveyNumber}
                 onChange={handleChange}
                 disabled={loading}
-                style={{ width: "100%", height: "52px", padding: "0 16px 0 48px", background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", color: "#ffffff", fontSize: "15px", outline: "none" }}
-              >
-                <option value="" style={{ background: "#0a1f10" }}>Select Crop</option>
-                {CROP_OPTIONS.map((c) => (
-                  <option key={c} value={c} style={{ background: "#0a1f10" }}>{c}</option>
-                ))}
-              </select>
+              />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="aadharNumber">Aadhar Number / ఆధార్ నంబర్</label>
+            <div className="input-field-wrapper">
+              <ShieldCheck size={18} className="input-icon" />
+              <input
+                id="aadharNumber"
+                name="aadharNumber"
+                type="text"
+                maxLength={12}
+                placeholder="12-digit number"
+                value={form.aadharNumber}
+                onChange={handleChange}
+                disabled={loading}
+              />
             </div>
           </div>
 
