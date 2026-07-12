@@ -174,12 +174,24 @@ function Admin() {
 
   // ── Equipment Slots States ──
   const [equipmentSlots, setEquipmentSlots] = useState([]);
-  const [showSlotModal, setShowSlotModal] = useState(false);
-  const [slotForm, setSlotForm] = useState({
-    equipmentName: "",
-    date: "",
-    slots: 1
-  });
+  const [editingSlot, setEditingSlot] = useState(null);
+  
+  // Slot Generation Form
+  const [genEquipId, setGenEquipId] = useState("");
+  const [genDate, setGenDate] = useState("");
+  const [genStartTime, setGenStartTime] = useState("09:00");
+  const [genEndTime, setGenEndTime] = useState("17:30");
+  const [genDuration, setGenDuration] = useState("60");
+  const [genPrice, setGenPrice] = useState("");
+
+  // Slot Filter states
+  const [slotFilterEquip, setSlotFilterEquip] = useState("");
+  const [slotFilterDate, setSlotFilterDate] = useState("");
+  const [slotFilterStatus, setSlotFilterStatus] = useState("");
+
+  // Bulk action states
+  const [selectedSlotIds, setSelectedSlotIds] = useState([]);
+  const [copyDays, setCopyDays] = useState("7");
 
   const getProductStatusText = (stock) => {
     if (stock === 0) return "Out Of Stock";
@@ -1715,33 +1727,100 @@ const handleDelete = async (type, id) => {
   };
 
   // ── Equipment Slots Handlers ──
-  const handleSlotSubmit = async (e) => {
+  const handleGenerateSlots = async (e) => {
     e.preventDefault();
-    if (!slotForm.equipmentName || !slotForm.date || slotForm.slots === "") {
-      toast.error("Equipment, Date, and Slots capacity are required.");
+    if (!genEquipId || !genDate || !genStartTime || !genEndTime || !genDuration || genPrice === "") {
+      toast.error("All slot generation parameters (Equipment, Date, Time, Duration, Price) are required.");
       return;
     }
-    if (Number(slotForm.slots) <= 0 || !Number.isInteger(Number(slotForm.slots))) {
-      toast.error("Slots count must be a positive integer.");
-      return;
-    }
+    
     try {
-      const response = await fetch(`${API_BASE}/equipment-slots`, {
+      const response = await fetch(`${API_BASE}/equipment-slots/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...getAuthHeaders()
         },
-        body: JSON.stringify(slotForm)
+        body: JSON.stringify({
+          equipmentId: genEquipId,
+          date: genDate,
+          startTime: genStartTime,
+          endTime: genEndTime,
+          slotDuration: Number(genDuration),
+          price: Number(genPrice)
+        })
       });
       const data = await response.json();
       if (response.ok) {
-        toast.success(data.message || "Daily slot configuration saved!");
-        setShowSlotModal(false);
-        setSlotForm({ equipmentName: "", date: "", slots: 1 });
+        toast.success(data.message || "Slots generated successfully!");
         fetchData();
       } else {
-        toast.error(data.message || "Failed to save slot.");
+        toast.error(data.message || "Failed to generate slots.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  const handleCopySlots = async (daysCount) => {
+    if (!genEquipId || !genDate) {
+      toast.error("Please select an Equipment and Source Date first to copy slots configuration.");
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to copy slots for ${genEquipId} on ${genDate} to the next ${daysCount} days?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/equipment-slots/copy`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          equipmentId: genEquipId,
+          sourceDate: genDate,
+          days: Number(daysCount)
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.message || `Copied configuration successfully to the next ${daysCount} days.`);
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to copy slot layout.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  const handleEditSlotSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingSlot) return;
+    try {
+      const response = await fetch(`${API_BASE}/equipment-slots/${editingSlot._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          price: Number(editingSlot.price),
+          capacity: Number(editingSlot.capacity),
+          isActive: editingSlot.isActive
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success("Slot updated successfully.");
+        setEditingSlot(null);
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to update slot.");
       }
     } catch (err) {
       console.error(err);
@@ -1750,7 +1829,7 @@ const handleDelete = async (type, id) => {
   };
 
   const handleSlotDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to close/remove this booking slot?")) return;
+    if (!window.confirm("Are you sure you want to delete this slot?")) return;
     try {
       const response = await fetch(`${API_BASE}/equipment-slots/${id}`, {
         method: "DELETE",
@@ -1758,15 +1837,149 @@ const handleDelete = async (type, id) => {
       });
       const data = await response.json();
       if (response.ok) {
-        toast.success(data.message || "Slot closed successfully.");
+        toast.success("Slot deleted successfully.");
         fetchData();
       } else {
-        toast.error(data.message || "Failed to close slot.");
+        toast.error(data.message || "Failed to delete slot.");
       }
     } catch (err) {
       console.error(err);
       toast.error("Unable to connect to server.");
     }
+  };
+
+  const handleToggleBlockSlot = async (id) => {
+    try {
+      const response = await fetch(`${API_BASE}/equipment-slots/${id}/block`, {
+        method: "PUT",
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.message || "Slot status updated.");
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to update slot block status.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  // Bulk Actions
+  const handleBulkDeleteSlots = async () => {
+    if (selectedSlotIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to delete all ${selectedSlotIds.length} selected slots?`)) return;
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedSlotIds) {
+      try {
+        const response = await fetch(`${API_BASE}/equipment-slots/${id}`, {
+          method: "DELETE",
+          headers: getAuthHeaders()
+        });
+        if (response.ok) successCount++;
+        else failCount++;
+      } catch (err) {
+        failCount++;
+      }
+    }
+    toast.success(`Bulk Delete: Deleted ${successCount} slots. Failures: ${failCount}`);
+    setSelectedSlotIds([]);
+    fetchData();
+  };
+
+  const handleBulkBlockSlots = async (shouldBlock = true) => {
+    if (selectedSlotIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to ${shouldBlock ? "block" : "unblock"} all ${selectedSlotIds.length} selected slots?`)) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedSlotIds) {
+      try {
+        const slot = equipmentSlots.find(s => s._id === id);
+        if (!slot) continue;
+        if ((shouldBlock && slot.status !== "Blocked") || (!shouldBlock && slot.status === "Blocked")) {
+          const response = await fetch(`${API_BASE}/equipment-slots/${id}/block`, {
+            method: "PUT",
+            headers: getAuthHeaders()
+          });
+          if (response.ok) successCount++;
+          else failCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+    toast.success(`Bulk Update: Toggled block state for ${successCount} slots. Failures: ${failCount}`);
+    setSelectedSlotIds([]);
+    fetchData();
+  };
+
+  const exportSlotsToCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Equipment Name,Date,Start Time,End Time,Duration (Mins),Price,Status,Booked Count,Capacity\n";
+    equipmentSlots.forEach(s => {
+      const dateStr = new Date(s.date).toLocaleDateString("en-IN");
+      const startStr = new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false });
+      const endStr = new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false });
+      csvContent += `"${s.equipmentName}","${dateStr}","${startStr}","${endStr}",${s.slotDuration},${s.price},"${s.status}",${s.bookedCount},${s.capacity}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "Equipment_Slots_Schedule.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportSlotsToExcel = () => {
+    const data = equipmentSlots.map(s => ({
+      "Equipment Name": s.equipmentName,
+      "Date": new Date(s.date).toLocaleDateString("en-IN"),
+      "Start Time": new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false }),
+      "End Time": new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false }),
+      "Duration (Mins)": s.slotDuration,
+      "Price (Rs)": s.price,
+      "Status": s.status,
+      "Booked Count": s.bookedCount,
+      "Capacity": s.capacity
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Slots Schedule");
+    XLSX.writeFile(workbook, "Equipment_Slots_Schedule.xlsx");
+  };
+
+  const exportSlotsToPDF = () => {
+    const doc = new jsPDF();
+    doc.text("KDK FPC - Equipment Booking Slots Schedule", 14, 15);
+    const tableColumn = ["Equipment Name", "Date", "Start Time", "End Time", "Price", "Status"];
+    const tableRows = [];
+
+    equipmentSlots.forEach(s => {
+      const slotData = [
+        s.equipmentName,
+        new Date(s.date).toLocaleDateString("en-IN"),
+        new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false }),
+        new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false }),
+        `Rs. ${s.price}`,
+        s.status
+      ];
+      tableRows.push(slotData);
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20
+    });
+    doc.save("Equipment_Slots_Schedule.pdf");
   };
 
   // ── Authentication Handlers ──
@@ -3506,6 +3719,14 @@ const handleDelete = async (type, id) => {
           </button>
 
           <button 
+            className={`nav-item ${activeTab === "equipment-slots" ? "active" : ""}`}
+            onClick={() => { setActiveTab("equipment-slots"); setMobileMenuOpen(false); }}
+          >
+            <Calendar size={18} />
+            <span>Equipment Slots</span>
+          </button>
+
+          <button 
             className={`nav-item ${activeTab === "equipments" ? "active" : ""}`}
             onClick={() => { setActiveTab("equipments"); setMobileMenuOpen(false); }}
           >
@@ -3607,6 +3828,7 @@ const handleDelete = async (type, id) => {
               {activeTab === "crops" && "Crop Selling Requests"}
               {activeTab === "bookings" && "Machinery Bookings"}
               {activeTab === "equipments" && "Equipment Rates Management"}
+              {activeTab === "equipment-slots" && "Smart Equipment Slot Management"}
               {activeTab === "product-bookings" && "Product Bookings & Orders"}
               {activeTab === "farmers" && "Farmer Management"}
               {activeTab === "products" && "Product Inventory"}
@@ -5509,6 +5731,392 @@ const handleDelete = async (type, id) => {
                   </div>
                 </div>
               )}
+
+              {/* Equipment Slots Management Tab */}
+              {activeTab === "equipment-slots" && (() => {
+                // Calculate analytics inside
+                const totalActive = equipmentSlots.filter(s => s.status !== "Blocked" && s.isActive).length;
+                const booked = equipmentSlots.filter(s => s.status === "Booked" && s.isActive).length;
+                const available = equipmentSlots.filter(s => s.status === "Available" && s.isActive).length;
+                const blocked = equipmentSlots.filter(s => s.status === "Blocked").length;
+                const occupancy = totalActive > 0 ? ((booked / totalActive) * 100).toFixed(1) : "0.0";
+
+                // Filtered slots list
+                const filteredSlots = equipmentSlots.filter(s => {
+                  const matchEquip = !slotFilterEquip || s.equipmentName.toLowerCase().includes(slotFilterEquip.toLowerCase()) || s.equipmentId.toLowerCase().includes(slotFilterEquip.toLowerCase());
+                  const matchStatus = !slotFilterStatus || s.status === slotFilterStatus;
+                  let matchDate = true;
+                  if (slotFilterDate) {
+                    const filterD = new Date(slotFilterDate).toISOString().split("T")[0];
+                    const slotD = new Date(s.date).toISOString().split("T")[0];
+                    matchDate = filterD === slotD;
+                  }
+                  return matchEquip && matchStatus && matchDate;
+                });
+
+                return (
+                  <div className="tab-pane">
+                    <div className="module-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                      <div>
+                        <h2 className="module-title">Smart Equipment Slot Management</h2>
+                        <p className="module-description">Schedule, structure, and inspect individual hourly and daily hiring slots for FPO agricultural machinery.</p>
+                      </div>
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        <button className="admin-btn secondary" onClick={exportSlotsToCSV} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Download size={14} /> CSV
+                        </button>
+                        <button className="admin-btn secondary" onClick={exportSlotsToExcel} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Download size={14} /> Excel
+                        </button>
+                        <button className="admin-btn secondary" onClick={exportSlotsToPDF} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Download size={14} /> PDF
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Analytics Summary */}
+                    <div className="analytics-summary-cards" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "30px" }}>
+                      <div className="analytics-card glass-panel">
+                        <div className="card-label">Available Slots</div>
+                        <div className="card-value" style={{ color: "#22c55e" }}>{available}</div>
+                      </div>
+                      <div className="analytics-card glass-panel">
+                        <div className="card-label">Booked Slots</div>
+                        <div className="card-value" style={{ color: "#eab308" }}>{booked}</div>
+                      </div>
+                      <div className="analytics-card glass-panel">
+                        <div className="card-label">Blocked Slots</div>
+                        <div className="card-value" style={{ color: "#ef4444" }}>{blocked}</div>
+                      </div>
+                      <div className="analytics-card glass-panel">
+                        <div className="card-label">Occupancy Rate</div>
+                        <div className="card-value" style={{ color: "var(--harvest-lt)" }}>{occupancy}%</div>
+                      </div>
+                    </div>
+
+                    {/* Slot Generator Control Panel */}
+                    <div className="slots-generator-panel glass-panel" style={{ padding: "20px", marginBottom: "30px", background: "rgba(10, 25, 15, 0.4)", border: "1px solid rgba(34, 197, 94, 0.1)" }}>
+                      <h3 style={{ fontSize: "15px", fontWeight: "600", color: "#fff", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Calendar size={16} style={{ color: "var(--harvest-lt)" }} /> Open Time Slots & Duplication Tools
+                      </h3>
+                      <form onSubmit={handleGenerateSlots} className="form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px" }}>
+                        <div className="admin-login-input-group">
+                          <label className="admin-login-label">Equipment *</label>
+                          <select 
+                            className="admin-login-input"
+                            value={genEquipId}
+                            onChange={(e) => setGenEquipId(e.target.value)}
+                            style={{ background: "#051207", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "10px", borderRadius: "8px", width: "100%" }}
+                            required
+                          >
+                            <option value="">-- Select Equipment --</option>
+                            {equipments.map((eq) => (
+                              <option key={eq._id} value={eq.equipmentId}>{eq.name} ({eq.equipmentId})</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="admin-login-input-group">
+                          <label className="admin-login-label">Date *</label>
+                          <input 
+                            type="date"
+                            className="admin-login-input"
+                            value={genDate}
+                            onChange={(e) => setGenDate(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="admin-login-input-group">
+                          <label className="admin-login-label">Start Time *</label>
+                          <input 
+                            type="time"
+                            className="admin-login-input"
+                            value={genStartTime}
+                            onChange={(e) => setGenStartTime(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="admin-login-input-group">
+                          <label className="admin-login-label">End Time *</label>
+                          <input 
+                            type="time"
+                            className="admin-login-input"
+                            value={genEndTime}
+                            onChange={(e) => setGenEndTime(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="admin-login-input-group">
+                          <label className="admin-login-label">Duration *</label>
+                          <select 
+                            className="admin-login-input"
+                            value={genDuration}
+                            onChange={(e) => setGenDuration(e.target.value)}
+                            style={{ background: "#051207", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "10px", borderRadius: "8px", width: "100%" }}
+                            required
+                          >
+                            <option value="30">30 Minutes</option>
+                            <option value="60">1 Hour</option>
+                            <option value="120">2 Hours</option>
+                            <option value="240">Half Day (4 hrs)</option>
+                            <option value="480">Full Day (8 hrs)</option>
+                          </select>
+                        </div>
+
+                        <div className="admin-login-input-group">
+                          <label className="admin-login-label">Rate / Slot (₹) *</label>
+                          <input 
+                            type="number"
+                            min="0"
+                            className="admin-login-input"
+                            placeholder="Price in INR"
+                            value={genPrice}
+                            onChange={(e) => setGenPrice(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="admin-login-input-group" style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                          <button type="submit" className="admin-btn primary">
+                            Generate Slots
+                          </button>
+                          <button type="button" className="admin-btn secondary" onClick={() => handleCopySlots(7)}>
+                            Copy Next 7 Days
+                          </button>
+                          <button type="button" className="admin-btn secondary" onClick={() => handleCopySlots(15)}>
+                            Copy Next 15 Days
+                          </button>
+                          <button type="button" className="admin-btn secondary" onClick={() => handleCopySlots(30)}>
+                            Copy Next 30 Days
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Filter and Bulk Actions toolbar */}
+                    <div className="table-filters-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+                      <div className="bulk-actions-wrapper" style={{ display: "flex", gap: "8px" }}>
+                        <button 
+                          className="admin-btn danger-outline" 
+                          onClick={handleBulkDeleteSlots}
+                          disabled={selectedSlotIds.length === 0}
+                          style={{ opacity: selectedSlotIds.length === 0 ? 0.5 : 1, padding: "8px 12px", fontSize: "12px" }}
+                        >
+                          Delete Selected ({selectedSlotIds.length})
+                        </button>
+                        <button 
+                          className="admin-btn secondary" 
+                          onClick={() => handleBulkBlockSlots(true)}
+                          disabled={selectedSlotIds.length === 0}
+                          style={{ opacity: selectedSlotIds.length === 0 ? 0.5 : 1, padding: "8px 12px", fontSize: "12px" }}
+                        >
+                          Block Selected
+                        </button>
+                        <button 
+                          className="admin-btn secondary" 
+                          onClick={() => handleBulkBlockSlots(false)}
+                          disabled={selectedSlotIds.length === 0}
+                          style={{ opacity: selectedSlotIds.length === 0 ? 0.5 : 1, padding: "8px 12px", fontSize: "12px" }}
+                        >
+                          Unblock Selected
+                        </button>
+                      </div>
+
+                      <div className="filters-wrapper" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                        <input 
+                          type="text" 
+                          placeholder="Search Equipment..." 
+                          className="search-input"
+                          value={slotFilterEquip}
+                          onChange={(e) => setSlotFilterEquip(e.target.value)}
+                          style={{ maxWidth: "160px", padding: "6px 12px", fontSize: "13px" }}
+                        />
+                        <input 
+                          type="date" 
+                          className="search-input"
+                          value={slotFilterDate}
+                          onChange={(e) => setSlotFilterDate(e.target.value)}
+                          style={{ maxWidth: "150px", padding: "6px 12px", fontSize: "13px" }}
+                        />
+                        <select 
+                          className="search-input"
+                          value={slotFilterStatus}
+                          onChange={(e) => setSlotFilterStatus(e.target.value)}
+                          style={{ background: "#0c2011", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "6px 12px", borderRadius: "8px", fontSize: "13px" }}
+                        >
+                          <option value="">All Statuses</option>
+                          <option value="Available">Available</option>
+                          <option value="Booked">Booked</option>
+                          <option value="Blocked">Blocked</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Table View */}
+                    {filteredSlots.length === 0 ? (
+                      <div className="empty-state glass-panel" style={{ padding: "40px", textAlign: "center" }}>
+                        <p style={{ color: "rgba(255,255,255,0.5)" }}>No booking slots match the selected filters.</p>
+                      </div>
+                    ) : (
+                      <div className="table-responsive-wrapper">
+                        <div className="table-wrapper">
+                          <table className="admin-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: "40px", textAlign: "center" }}>
+                                  <input 
+                                    type="checkbox"
+                                    checked={selectedSlotIds.length === filteredSlots.length && filteredSlots.length > 0}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedSlotIds(filteredSlots.map(s => s._id));
+                                      } else {
+                                        setSelectedSlotIds([]);
+                                      }
+                                    }}
+                                  />
+                                </th>
+                                <th>Equipment</th>
+                                <th>Date</th>
+                                <th>Start Time</th>
+                                <th>End Time</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th style={{ textAlign: "right" }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredSlots.map((slot) => {
+                                const isChecked = selectedSlotIds.includes(slot._id);
+                                let statusColor = "#22c55e"; // Green
+                                if (slot.status === "Booked") statusColor = "#eab308"; // Yellow
+                                if (slot.status === "Blocked") statusColor = "#ef4444"; // Red
+
+                                return (
+                                  <tr key={slot._id} style={{ opacity: slot.isActive ? 1 : 0.5 }}>
+                                    <td style={{ textAlign: "center" }}>
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isChecked}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setSelectedSlotIds([...selectedSlotIds, slot._id]);
+                                          } else {
+                                            setSelectedSlotIds(selectedSlotIds.filter(id => id !== slot._id));
+                                          }
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="font-semibold text-primary">{slot.equipmentName}</td>
+                                    <td>{new Date(slot.date).toLocaleDateString("en-IN")}</td>
+                                    <td>{new Date(slot.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}</td>
+                                    <td>{new Date(slot.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}</td>
+                                    <td>₹{slot.price}</td>
+                                    <td>
+                                      <span style={{ 
+                                        background: `${statusColor}22`, 
+                                        color: statusColor, 
+                                        padding: "4px 8px", 
+                                        borderRadius: "12px", 
+                                        fontSize: "11px", 
+                                        fontWeight: "600",
+                                        border: `1px solid ${statusColor}44` 
+                                      }}>
+                                        {slot.status}
+                                      </span>
+                                    </td>
+                                    <td style={{ textAlign: "right" }}>
+                                      <div className="action-group" style={{ justifyContent: "flex-end", gap: "6px" }}>
+                                        <button 
+                                          className="action-btn edit" 
+                                          title="Edit Slot Settings"
+                                          onClick={() => setEditingSlot({ ...slot })}
+                                        >
+                                          <Pencil size={14} />
+                                        </button>
+                                        <button 
+                                          className="action-btn secondary" 
+                                          title={slot.status === "Blocked" ? "Unblock Slot" : "Block Slot"}
+                                          onClick={() => handleToggleBlockSlot(slot._id)}
+                                          disabled={slot.status === "Booked"}
+                                          style={{ opacity: slot.status === "Booked" ? 0.4 : 1 }}
+                                        >
+                                          <Ban size={14} />
+                                        </button>
+                                        <button 
+                                          className="action-btn delete" 
+                                          title="Delete Slot"
+                                          onClick={() => handleSlotDelete(slot._id)}
+                                          disabled={slot.status === "Booked"}
+                                          style={{ opacity: slot.status === "Booked" ? 0.4 : 1 }}
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inline edit modal overlay */}
+                    {editingSlot && (
+                      <div className="modal-overlay" onClick={() => setEditingSlot(null)}>
+                        <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+                          <div className="modal-header">
+                            <h3>Edit Slot Configuration</h3>
+                            <button className="modal-close-icon" onClick={() => setEditingSlot(null)}><X size={18} /></button>
+                          </div>
+                          <form onSubmit={handleEditSlotSubmit}>
+                            <div className="modal-body form-grid" style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "20px" }}>
+                              <div className="admin-login-input-group">
+                                <label className="admin-login-label">Price Rate (₹) *</label>
+                                <input 
+                                  type="number"
+                                  className="admin-login-input"
+                                  value={editingSlot.price}
+                                  onChange={(e) => setEditingSlot({ ...editingSlot, price: e.target.value })}
+                                  required
+                                />
+                              </div>
+                              <div className="admin-login-input-group">
+                                <label className="admin-login-label">Slots Capacity *</label>
+                                <input 
+                                  type="number"
+                                  className="admin-login-input"
+                                  value={editingSlot.capacity}
+                                  onChange={(e) => setEditingSlot({ ...editingSlot, capacity: e.target.value })}
+                                  required
+                                />
+                              </div>
+                              <div className="admin-login-input-group" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <input 
+                                  type="checkbox"
+                                  id="edit-slot-isActive"
+                                  checked={editingSlot.isActive}
+                                  onChange={(e) => setEditingSlot({ ...editingSlot, isActive: e.target.checked })}
+                                />
+                                <label htmlFor="edit-slot-isActive" className="admin-login-label" style={{ marginBottom: 0 }}>Active Availability</label>
+                              </div>
+                            </div>
+                            <div className="modal-footer" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)", padding: "15px 20px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                              <button type="button" className="admin-btn secondary" onClick={() => setEditingSlot(null)}>Cancel</button>
+                              <button type="submit" className="admin-btn primary">Save Changes</button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 7. Reports & Analytics Tab */}
               {activeTab === "reports" && (

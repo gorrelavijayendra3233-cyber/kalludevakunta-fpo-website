@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { jsPDF } from "jspdf";
 import toast from "react-hot-toast";
 import { 
   Tractor, 
@@ -104,7 +105,6 @@ function validate(form, selectedEquipment, openSlots) {
 // ── Component ──────────────────────────────────────────────────
 function EquipmentBooking() {
   const [selectedId, setSelectedId]   = useState(null);
-  const [durationUnit, setDurationUnit] = useState("Hours");
   const [form, setForm]               = useState(INITIAL_FORM);
   const [errors, setErrors]           = useState(INITIAL_ERRORS);
   const [loading, setLoading]         = useState(false);
@@ -112,6 +112,12 @@ function EquipmentBooking() {
   const [equipError, setEquipError]   = useState(false);
   const [equipmentList, setEquipmentList] = useState(EQUIPMENT_LIST);
   const [openSlots, setOpenSlots] = useState([]);
+
+  // Advanced Slots States
+  const [slots, setSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
   const navigate = useNavigate();
   const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
 
@@ -182,14 +188,28 @@ function EquipmentBooking() {
     }
   }, [token]);
 
-  // Estimated cost
-  const rate = selectedEquipment
-    ? (durationUnit === "Hours" ? selectedEquipment.rateHour : selectedEquipment.rateDay)
-    : 0;
-  const estimatedCost =
-    form.duration && !isNaN(form.duration) && rate
-      ? Math.round(Number(form.duration) * rate)
-      : null;
+  // Fetch available slots on date or equipment selection change
+  useEffect(() => {
+    const fetchAvailableSlots = async () => {
+      if (selectedEquipment && form.bookingDate) {
+        try {
+          const response = await fetch(`${API_BASE}/equipment-slots/available?equipment=${selectedEquipment.equipmentId || selectedEquipment.name}&date=${form.bookingDate}`);
+          if (response.ok) {
+            const data = await response.json();
+            setSlots(data || []);
+          } else {
+            setSlots([]);
+          }
+        } catch (err) {
+          console.error("Failed to load available slots:", err);
+          setSlots([]);
+        }
+      } else {
+        setSlots([]);
+      }
+    };
+    fetchAvailableSlots();
+  }, [selectedId, form.bookingDate]);
 
   const handleEquipSelect = (id) => {
     setSelectedId(id);
@@ -202,80 +222,126 @@ function EquipmentBooking() {
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-  if (!selectedEquipment) {
-    setEquipError(true);
-    return;
-  }
-
-  const { errors: newErrors, valid } = validate(form, selectedEquipment, openSlots);
-
-  if (!valid) {
-    setErrors(newErrors);
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    const payload = {
-      farmerName: form.farmerName,
-      equipmentName: selectedEquipment.name,
-      bookingDate: form.bookingDate,
-      phone: form.mobileNumber,
-      duration: form.duration ? `${form.duration} ${durationUnit}` : ""
-    };
-
-    const headers = {
-      "Content-Type": "application/json",
-    };
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(
-      `${API_BASE}/bookings`,
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-      }
-    );
-
-    if (response.status === 401 || response.status === 403) {
-      localStorage.removeItem("farmer_token");
-      localStorage.removeItem("farmerToken");
-      localStorage.removeItem("farmer_data");
-      window.dispatchEvent(new Event("storage"));
-      toast.error("Session expired. Please log in again.");
-      navigate("/farmer-login");
+    if (!selectedEquipment) {
+      setEquipError(true);
       return;
     }
 
-    const data = await response.json();
+    const errorsCopy = { ...INITIAL_ERRORS };
+    let valid = true;
 
-    console.log("Server Response:", data);
-
-    if (response.ok) {
-      setSubmitted(true);
-      setForm(INITIAL_FORM);
-      toast.success("Equipment booking submitted successfully!");
-    } else {
-      toast.error(data.message || "Failed to submit booking request");
+    if (!form.farmerName.trim()) {
+      errorsCopy.farmerName = "Name is required / పేరు అవసరం"; valid = false;
     }
-  } catch (error) {
-    console.error(error);
-    toast.error("Server connection failed");
-  } finally {
-    setLoading(false);
-  }
-};
+    if (!/^[6-9]\d{9}$/.test(form.mobileNumber)) {
+      errorsCopy.mobileNumber = "Enter a valid 10-digit mobile number"; valid = false;
+    }
+    if (!form.state || !form.district || !form.mandal || !form.village) {
+      errorsCopy.state = "Complete location address details are required"; valid = false;
+    }
+
+    if (!selectedSlot) {
+      toast.error("Please select an available time slot first.");
+      valid = false;
+    }
+
+    if (!valid) {
+      setErrors(errorsCopy);
+      return;
+    }
+
+    setShowConfirmModal(true);
+  };
+
+  const confirmBooking = async () => {
+    if (!selectedSlot) return;
+    setLoading(true);
+    try {
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_BASE}/equipment-slots/book`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          slotId: selectedSlot._id
+        })
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        localStorage.removeItem("farmer_token");
+        localStorage.removeItem("farmerToken");
+        localStorage.removeItem("farmer_data");
+        window.dispatchEvent(new Event("storage"));
+        toast.error("Session expired. Please log in again.");
+        navigate("/farmer-login");
+        return;
+      }
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setBookingResult(data.data);
+        setSubmitted(true);
+        toast.success("Booking confirmed successfully!");
+        setShowConfirmModal(false);
+      } else {
+        toast.error(data.message || "Failed to confirm slot booking.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Server connection failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadReceipt = () => {
+    if (!bookingResult) return;
+    const doc = new jsPDF();
+    
+    // Receipt styling
+    doc.setFontSize(22);
+    doc.setTextColor(34, 197, 94); // Green
+    doc.text("KALLUDEVAKUNTA FPC LTD", 14, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Agricultural Machinery Hire Booking Receipt", 14, 26);
+    
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, 30, 196, 30);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Receipt ID: ${bookingResult.bookingId}`, 14, 42);
+    doc.text(`Equipment Name: ${bookingResult.equipmentName}`, 14, 52);
+    doc.text(`Booking Date: ${new Date(bookingResult.date).toLocaleDateString("en-IN")}`, 14, 62);
+    doc.text(`Time Slot Range: ${bookingResult.timeSlot}`, 14, 72);
+    doc.text(`Price: Rs. ${bookingResult.price}`, 14, 82);
+    doc.text(`Farmer Name: ${form.farmerName}`, 14, 92);
+    doc.text(`Phone: ${form.mobileNumber}`, 14, 102);
+    doc.text(`Address: ${form.village}, ${form.mandal}, ${form.district}, ${form.state}`, 14, 112);
+    
+    doc.line(14, 122, 196, 122);
+    doc.setFontSize(10);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Thank you for choosing Kalludevakunta Farmers Producer Company Limited.", 14, 132);
+    doc.text("For help and queries, please email info@kalludevakuntafpcl.in", 14, 137);
+    
+    doc.save(`FPO_Booking_Receipt_${bookingResult.bookingId}.pdf`);
+  };
 
   const handleNewBooking = () => {
     setSubmitted(false);
     setSelectedId(null);
+    setSelectedSlot(null);
+    setBookingResult(null);
   };
 
   return (
@@ -355,24 +421,36 @@ const handleSubmit = async (e) => {
                 </button>
               </div>
             ) : submitted ? (
-              <div className="form-success-msg fade-up">
-                <div className="success-icon"><CheckCircle size={44} className="text-leaf-light" /></div>
-                <h3>Booking Confirmed!</h3>
-                <p>
-                  Your request for <strong>{selectedEquipment?.name || "equipment"}</strong> has
-                  been submitted. Our team will call you at your registered number within
-                  <strong> 24 hours</strong> to confirm the booking.
+              <div className="form-success-msg fade-up" style={{ textAlign: "center", padding: "20px" }}>
+                <div className="success-icon" style={{ display: "flex", justifyContent: "center", marginBottom: "15px" }}>
+                  <CheckCircle size={56} style={{ color: "var(--harvest-lt, #22c55e)" }} />
+                </div>
+                <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#fff", marginBottom: "10px" }}>Booking Successful!</h3>
+                <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", marginBottom: "20px" }}>
+                  Your appointment slot booking has been confirmed successfully.
                 </p>
-                <p style={{ marginTop: "12px", color: "var(--text-muted)", fontSize: "12px" }}>
-                  మీ బుకింగ్ అభ్యర్థన విజయవంతంగా సమర్పించబడింది.
-                </p>
-                <button
-                  className="form-submit"
-                  style={{ marginTop: "1.5rem" }}
-                  onClick={handleNewBooking}
-                >
-                  Book Another Equipment
-                </button>
+
+                {bookingResult && (
+                  <div className="booking-receipt-card glass-panel" style={{ padding: "16px", borderRadius: "8px", background: "rgba(255,255,255,0.03)", textAlign: "left", marginBottom: "24px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>Booking ID:</span> <strong style={{ color: "var(--harvest-lt, #22c55e)" }}>{bookingResult.bookingId}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>Equipment Name:</span> <strong>{bookingResult.equipmentName}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>Booking Date:</span> <strong>{new Date(bookingResult.date).toLocaleDateString("en-IN")}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>Time Slot Range:</span> <strong>{bookingResult.timeSlot}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)", fontSize: "12px" }}>Total Price:</span> <strong>₹{bookingResult.price}</strong></div>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <button className="form-submit" onClick={downloadReceipt} style={{ width: "100%" }}>
+                    Download PDF Receipt
+                  </button>
+                  <button className="form-submit secondary-btn" onClick={() => navigate("/farmer-dashboard")} style={{ width: "100%", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "12px", borderRadius: "8px", cursor: "pointer" }}>
+                    View My Bookings
+                  </button>
+                  <button className="form-submit secondary-btn" onClick={handleNewBooking} style={{ width: "100%", background: "transparent", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: "13px" }}>
+                    Book Another Slot
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSubmit} noValidate>
@@ -381,8 +459,7 @@ const handleSubmit = async (e) => {
                   <div className="equip__selected-banner glass-panel">
                     <span className="selected-banner-icon">{selectedEquipment.icon}</span>
                     <span>
-                      <strong>{selectedEquipment.name}</strong> selected — 
-                      ₹{selectedEquipment.rateHour}/hr · ₹{selectedEquipment.rateDay}/day
+                      <strong>{selectedEquipment.name}</strong> selected
                     </span>
                   </div>
                 ) : (
@@ -455,82 +532,73 @@ const handleSubmit = async (e) => {
                 <div className="form-divider" />
 
                 {/* Section: Booking Details */}
-                <div className="form-section-label"><Calendar size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Booking Details</div>
+                <div className="form-section-label"><Calendar size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Select Booking Date & Slot</div>
 
-                <div className="form-group--row">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="eq-bookingDate">
-                      Booking Date <span className="form-label-telugu">/ తేదీ</span>
-                      <span className="req">*</span>
-                    </label>
-                    {selectedEquipment && (
-                      <div className="available-slots-helper" style={{ fontSize: "11.5px", color: "var(--harvest-lt, #22c55e)", margin: "4px 0 8px 0", lineHeight: "1.4", fontStyle: "italic" }}>
-                        <strong>Available dates:</strong> {equipmentOpenSlots.length === 0 ? "No slots open yet. Please contact admin." : equipmentOpenSlots.map(s => {
-                          const rem = s.slots - s.bookedCount;
-                          return `${new Date(s.date).toLocaleDateString("en-IN")} (${rem} left)`;
-                        }).join(", ")}
-                      </div>
-                    )}
-                    <input
-                      id="eq-bookingDate"
-                      className={`form-input${errors.bookingDate ? " error" : ""}`}
-                      type="date"
-                      name="bookingDate"
-                      value={form.bookingDate}
-                      onChange={handleChange}
-                      min={today}
-                    />
-                    {errors.bookingDate && <span className="form-error">{errors.bookingDate}</span>}
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="eq-duration">
-                      Duration <span className="form-label-telugu">/ సమయం</span>
-                      <span className="req">*</span>
-                    </label>
-                    <div className="duration-row">
-                      <div style={{ flex: 1 }}>
-                        <input
-                          id="eq-duration"
-                          className={`form-input${errors.duration ? " error" : ""}`}
-                          type="number"
-                          name="duration"
-                          value={form.duration}
-                          onChange={handleChange}
-                          placeholder={durationUnit === "Hours" ? "Hours" : "Days"}
-                          min="1"
-                          inputMode="decimal"
-                        />
-                      </div>
-                      
-                      <div className="duration-toggle" role="group" aria-label="Duration unit">
-                        <button
-                          type="button"
-                          className={durationUnit === "Hours" ? "active" : ""}
-                          onClick={() => setDurationUnit("Hours")}
-                        >
-                          Hours
-                        </button>
-                        <button
-                          type="button"
-                          className={durationUnit === "Days" ? "active" : ""}
-                          onClick={() => setDurationUnit("Days")}
-                        >
-                          Days
-                        </button>
-                      </div>
-                    </div>
-                    {errors.duration && <span className="form-error" style={{ marginTop: "6px" }}>{errors.duration}</span>}
-                  </div>
+                <div className="form-group" style={{ marginBottom: "20px" }}>
+                  <label className="form-label" htmlFor="eq-bookingDate">
+                    Booking Date <span className="form-label-telugu">/ తేదీ</span>
+                    <span className="req">*</span>
+                  </label>
+                  <input
+                    id="eq-bookingDate"
+                    className={`form-input${errors.bookingDate ? " error" : ""}`}
+                    type="date"
+                    name="bookingDate"
+                    value={form.bookingDate}
+                    onChange={handleChange}
+                    min={today}
+                  />
+                  {errors.bookingDate && <span className="form-error">{errors.bookingDate}</span>}
                 </div>
 
-                {/* Estimated cost details */}
-                {estimatedCost !== null && (
-                  <div className="estimated-cost-card glass-panel fade-up">
-                    <span>Estimated rental cost ({form.duration} {durationUnit.toLowerCase()}):</span>
-                    <strong className="estimated-cost-price">
-                      ₹{estimatedCost.toLocaleString("en-IN")}
-                    </strong>
+                {/* Available Slots Grid */}
+                {selectedEquipment && form.bookingDate && (
+                  <div className="slots-grid-section" style={{ marginBottom: "24px" }}>
+                    <label className="form-label" style={{ marginBottom: "12px", display: "block" }}>
+                      Select Time Slot / సమయం ఎంచుకోండి <span className="req">*</span>
+                    </label>
+                    {slots.length === 0 ? (
+                      <div className="empty-slots-msg glass-panel" style={{ padding: "20px", textStyle: "italic", textAlign: "center", background: "rgba(239, 68, 68, 0.05)", border: "1px solid rgba(239, 68, 68, 0.15)", color: "#f87171", borderRadius: "8px" }}>
+                        No booking slots are currently open for this equipment on the selected date. Please choose another date or contact FPO admin.
+                      </div>
+                    ) : (
+                      <div className="slots-buttons-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "10px" }}>
+                        {slots.map((s) => {
+                          const isBooked = s.status === "Booked";
+                          const isSelected = selectedSlot?._id === s._id;
+                          const startTimeStr = new Date(s.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+                          const endTimeStr = new Date(s.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+                          return (
+                            <button
+                              key={s._id}
+                              type="button"
+                              disabled={isBooked}
+                              onClick={() => setSelectedSlot(s)}
+                              style={{
+                                background: isSelected ? "var(--harvest-lt, #22c55e)" : isBooked ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.02)",
+                                color: isSelected ? "#000" : isBooked ? "rgba(255,255,255,0.2)" : "#fff",
+                                border: isSelected ? "1px solid var(--harvest-lt, #22c55e)" : "1px solid rgba(255,255,255,0.1)",
+                                padding: "12px 10px",
+                                borderRadius: "8px",
+                                cursor: isBooked ? "not-allowed" : "pointer",
+                                transition: "all 0.2s ease",
+                                textAlign: "center",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "4px"
+                              }}
+                            >
+                              <span style={{ fontSize: "13px", fontWeight: "600" }}>{startTimeStr} - {endTimeStr}</span>
+                              <span style={{ fontSize: "11px", opacity: isSelected ? 0.8 : 0.6 }}>₹{s.price}</span>
+                              <span style={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", marginTop: "2px", color: isSelected ? "#000" : isBooked ? "rgba(255,255,255,0.2)" : "var(--harvest-lt, #22c55e)" }}>
+                                {isBooked ? "Booked" : isSelected ? "Selected" : "Available"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -548,11 +616,47 @@ const handleSubmit = async (e) => {
                   />
                 </div>
 
-                <button className="form-submit" type="submit" disabled={loading}>
-                  {loading ? "Submitting…" : <><Calendar size={16} /> Submit Booking Request</>}
+                <button 
+                  className="form-submit" 
+                  type="submit" 
+                  disabled={loading || !selectedSlot}
+                  style={{ opacity: !selectedSlot ? 0.6 : 1 }}
+                >
+                  {loading ? "Processing…" : <><Calendar size={16} /> Confirm Details & Continue</>}
                 </button>
 
               </form>
+            )}
+
+            {/* Booking Confirmation Dialog Overlay */}
+            {showConfirmModal && selectedSlot && (
+              <div className="modal-overlay" onClick={() => setShowConfirmModal(false)} style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+                <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px", width: "90%", background: "#051207", border: "1px solid rgba(34, 197, 94, 0.2)", borderRadius: "12px", padding: "24px" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#fff", marginBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "10px" }}>Confirm Booking Reservation</h3>
+                  
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px", fontSize: "14px" }}>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Machinery:</span> <strong style={{ color: "var(--harvest-lt, #22c55e)" }}>{selectedEquipment?.name}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Date:</span> <strong>{new Date(form.bookingDate).toLocaleDateString("en-IN")}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Selected Time:</span> <strong>{new Date(selectedSlot.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })} - {new Date(selectedSlot.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Total Rental Price:</span> <strong>₹{selectedSlot.price}</strong></div>
+                    
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px", marginTop: "4px" }}>
+                      <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Farmer Name:</span> <strong>{form.farmerName}</strong></div>
+                      <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Phone:</span> <strong>{form.mobileNumber}</strong></div>
+                      <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Address:</span> <strong>{form.village}, {form.mandal}, {form.district}, {form.state}</strong></div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                    <button type="button" className="admin-btn secondary" onClick={() => setShowConfirmModal(false)} style={{ padding: "10px 16px", borderRadius: "8px", cursor: "pointer", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
+                      Cancel
+                    </button>
+                    <button type="button" className="admin-btn primary" onClick={confirmBooking} disabled={loading} style={{ padding: "10px 20px", borderRadius: "8px", cursor: "pointer", background: "var(--harvest-lt, #22c55e)", border: "none", color: "#000", fontWeight: "600" }}>
+                      {loading ? "Securing Reservation…" : "Confirm & Book"}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
