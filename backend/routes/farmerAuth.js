@@ -90,8 +90,9 @@ router.post("/login", authLimiter, asyncHandler(async (req, res, next) => {
       }
     }
 
-    const cleanExtracted = cleanPhone(extractedPhone);
-    const cleanNum = cleanPhone(phone);
+    const cleanExtractedRaw = cleanPhone(extractedPhone);
+    const cleanExtracted = cleanExtractedRaw ? cleanExtractedRaw.slice(-10) : "";
+    const cleanNum = cleanPhone(phone).slice(-10);
 
     if (cleanExtracted !== cleanNum) {
       return res.status(400).json({
@@ -345,7 +346,8 @@ router.post("/verify-msg91", authLimiter, async (req, res, next) => {
       }
     }
 
-    const cleanExtracted = cleanPhone(extractedPhone);
+    const cleanExtractedRaw = cleanPhone(extractedPhone);
+    const cleanExtracted = cleanExtractedRaw ? cleanExtractedRaw.slice(-10) : "";
     if (!cleanExtracted || cleanExtracted.length !== 10) {
       return res.status(400).json({
         success: false,
