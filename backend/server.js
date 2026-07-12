@@ -18,6 +18,7 @@ const documentRoutes = require("./routes/documents");
 const reportRoutes = require("./routes/reports");
 const auditLogRoutes = require("./routes/auditLogs");
 const locationRoutes = require("./routes/locations").router;
+const equipmentSlotRoutes = require("./routes/equipmentSlots");
 const path = require("path");
 
 const express = require("express");
@@ -149,6 +150,7 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/location", locationRoutes);
+app.use("/api/equipment-slots", equipmentSlotRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/api/health", (req, res) => {

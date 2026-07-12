@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const EquipmentBooking = require("../models/EquipmentBooking");
 const Equipment = require("../models/Equipment");
+const EquipmentSlot = require("../models/EquipmentSlot");
 const auth = require("../middleware/auth");
 const Notification = require("../models/Notification");
 const farmerAuth = require("../middleware/farmerAuth");
@@ -59,25 +60,30 @@ router.post("/", farmerAuth, generalWriteLimiter, asyncHandler(async (req, res) 
     }
   }
 
-  // Check slot availability for the selected equipment on the selected date
-  const matchedEquipment = await Equipment.findOne({ name: { $regex: new RegExp("^" + equipmentName.trim() + "$", "i") } });
-  if (matchedEquipment) {
-    const totalSlots = matchedEquipment.slots !== undefined ? matchedEquipment.slots : 1;
-    const datePart = new Date(parsedDate).toISOString().split("T")[0];
+  // Check slot availability based on explicitly opened slots by the admin
+  const datePart = new Date(parsedDate).toISOString().split("T")[0];
+  const matchedSlot = await EquipmentSlot.findOne({
+    equipmentName: { $regex: new RegExp("^" + equipmentName.trim() + "$", "i") },
+    date: datePart
+  });
 
-    const activeBookingsCount = await EquipmentBooking.countDocuments({
-      equipmentName: { $regex: new RegExp("^" + equipmentName.trim() + "$", "i") },
-      bookingDate: { $regex: new RegExp("^" + datePart) },
-      status: { $nin: ["Cancelled", "Rejected"] }
+  if (!matchedSlot) {
+    return res.status(400).json({
+      success: false,
+      message: `Booking slots are not open for ${equipmentName.trim()} on ${new Date(parsedDate).toLocaleDateString("en-IN")}. Please select another date or contact the admin.`
     });
-
-    if (activeBookingsCount >= totalSlots) {
-      return res.status(400).json({
-        success: false,
-        message: `No slots available for ${equipmentName.trim()} on ${new Date(parsedDate).toLocaleDateString("en-IN")}. Total capacity: ${totalSlots}.`
-      });
-    }
   }
+
+  if (matchedSlot.bookedCount >= matchedSlot.slots) {
+    return res.status(400).json({
+      success: false,
+      message: `All booking slots for ${equipmentName.trim()} on ${new Date(parsedDate).toLocaleDateString("en-IN")} have already been filled.`
+    });
+  }
+
+  // Increment slot booked count
+  matchedSlot.bookedCount += 1;
+  await matchedSlot.save();
 
   const booking = new EquipmentBooking({
     farmerId: req.farmer.farmerId,
@@ -180,6 +186,21 @@ router.put("/:id/reject", auth, asyncHandler(async (req, res) => {
   }
   await booking.save();
 
+  // Decrement slot booked count if slot exists
+  try {
+    const datePartStr = new Date(booking.bookingDate).toISOString().split("T")[0];
+    const matchedSlot = await EquipmentSlot.findOne({
+      equipmentName: { $regex: new RegExp("^" + booking.equipmentName.trim() + "$", "i") },
+      date: datePartStr
+    });
+    if (matchedSlot && matchedSlot.bookedCount > 0) {
+      matchedSlot.bookedCount -= 1;
+      await matchedSlot.save();
+    }
+  } catch (err) {
+    console.error("Failed to update slot booked count on rejection:", err);
+  }
+
   const adminUsername = await getAdminUsername(req.admin.id);
   await logAction(adminUsername, "Admin", "Bookings", "REJECT", `Rejected equipment booking for ${booking.farmerName} (Equipment: ${booking.equipmentName}, Date: ${new Date(booking.bookingDate).toLocaleDateString("en-IN")})${remarks ? `. Remarks: ${remarks}` : ""}`, req.ip);
 
@@ -214,6 +235,24 @@ router.delete("/:id", auth, asyncHandler(async (req, res) => {
   if (!booking) {
     return res.status(404).json({ success: false, message: "Booking not found" });
   }
+
+  // Decrement slot booked count on delete if it was active
+  if (booking.status !== STATUS.REJECTED && booking.status !== "Cancelled") {
+    try {
+      const datePartStr = new Date(booking.bookingDate).toISOString().split("T")[0];
+      const matchedSlot = await EquipmentSlot.findOne({
+        equipmentName: { $regex: new RegExp("^" + booking.equipmentName.trim() + "$", "i") },
+        date: datePartStr
+      });
+      if (matchedSlot && matchedSlot.bookedCount > 0) {
+        matchedSlot.bookedCount -= 1;
+        await matchedSlot.save();
+      }
+    } catch (err) {
+      console.error("Failed to update slot booked count on deletion:", err);
+    }
+  }
+
   const adminUsername = await getAdminUsername(req.admin.id);
   await logAction(adminUsername, "Admin", "Bookings", "DELETE", `Deleted equipment booking for ${booking.farmerName} (Equipment: ${booking.equipmentName})`, req.ip);
   res.json({ success: true, message: "Equipment booking deleted successfully" });

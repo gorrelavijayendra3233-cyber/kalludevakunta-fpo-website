@@ -53,7 +53,7 @@ const INITIAL_ERRORS = Object.fromEntries(
 );
 
 // ── Validation ─────────────────────────────────────────────────
-function validate(form, selectedEquipment) {
+function validate(form, selectedEquipment, openSlots) {
   const errors = { ...INITIAL_ERRORS };
   let valid = true;
 
@@ -80,6 +80,19 @@ function validate(form, selectedEquipment) {
   }
   if (!form.bookingDate) {
     errors.bookingDate = "Booking date is required"; valid = false;
+  } else if (selectedEquipment) {
+    const datePart = new Date(form.bookingDate).toISOString().split("T")[0];
+    const match = openSlots.find(s => 
+      s.equipmentName.toLowerCase() === selectedEquipment.name.toLowerCase() &&
+      s.date === datePart
+    );
+    if (!match) {
+      errors.bookingDate = "Booking slots are not open for this equipment on this date.";
+      valid = false;
+    } else if (match.bookedCount >= match.slots) {
+      errors.bookingDate = "All slots for this equipment on this date are already booked.";
+      valid = false;
+    }
   }
   if (!form.duration || isNaN(form.duration) || Number(form.duration) <= 0) {
     errors.duration = "Enter a valid duration"; valid = false;
@@ -98,13 +111,18 @@ function EquipmentBooking() {
   const [submitted, setSubmitted]     = useState(false);
   const [equipError, setEquipError]   = useState(false);
   const [equipmentList, setEquipmentList] = useState(EQUIPMENT_LIST);
+  const [openSlots, setOpenSlots] = useState([]);
   const navigate = useNavigate();
   const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
 
   const today = new Date().toISOString().split("T")[0];
   const selectedEquipment = equipmentList.find((e) => e.id === selectedId) || null;
 
-  // Fetch equipment list dynamically from DB API
+  const equipmentOpenSlots = selectedEquipment
+    ? openSlots.filter(s => s.equipmentName.toLowerCase() === selectedEquipment.name.toLowerCase())
+    : [];
+
+  // Fetch equipment list and slots dynamically from DB API
   useEffect(() => {
     const fetchEquipments = async () => {
       try {
@@ -126,7 +144,19 @@ function EquipmentBooking() {
         console.error("Error fetching equipment details:", err);
       }
     };
+    const fetchSlots = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/equipment-slots`);
+        if (response.ok) {
+          const data = await response.json();
+          setOpenSlots(data || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch slots calendar:", err);
+      }
+    };
     fetchEquipments();
+    fetchSlots();
   }, []);
 
   // Auto-fill from localStorage if logged in
@@ -180,7 +210,7 @@ const handleSubmit = async (e) => {
     return;
   }
 
-  const { errors: newErrors, valid } = validate(form, selectedEquipment);
+  const { errors: newErrors, valid } = validate(form, selectedEquipment, openSlots);
 
   if (!valid) {
     setErrors(newErrors);
@@ -433,6 +463,14 @@ const handleSubmit = async (e) => {
                       Booking Date <span className="form-label-telugu">/ తేదీ</span>
                       <span className="req">*</span>
                     </label>
+                    {selectedEquipment && (
+                      <div className="available-slots-helper" style={{ fontSize: "11.5px", color: "var(--harvest-lt, #22c55e)", margin: "4px 0 8px 0", lineHeight: "1.4", fontStyle: "italic" }}>
+                        <strong>Available dates:</strong> {equipmentOpenSlots.length === 0 ? "No slots open yet. Please contact admin." : equipmentOpenSlots.map(s => {
+                          const rem = s.slots - s.bookedCount;
+                          return `${new Date(s.date).toLocaleDateString("en-IN")} (${rem} left)`;
+                        }).join(", ")}
+                      </div>
+                    )}
                     <input
                       id="eq-bookingDate"
                       className={`form-input${errors.bookingDate ? " error" : ""}`}

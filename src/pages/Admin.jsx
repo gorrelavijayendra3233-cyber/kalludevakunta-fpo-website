@@ -172,6 +172,15 @@ function Admin() {
     equipmentId: ""
   });
 
+  // ── Equipment Slots States ──
+  const [equipmentSlots, setEquipmentSlots] = useState([]);
+  const [showSlotModal, setShowSlotModal] = useState(false);
+  const [slotForm, setSlotForm] = useState({
+    equipmentName: "",
+    date: "",
+    slots: 1
+  });
+
   const getProductStatusText = (stock) => {
     if (stock === 0) return "Out Of Stock";
     if (stock <= 10) return "Low Stock";
@@ -492,6 +501,17 @@ function Admin() {
       setDocuments(documentsData);
       setAuditLogs(auditLogsData);
       setIsOffline(false);
+
+      // Fetch equipment slots calendar
+      try {
+        const slotsRes = await fetch(`${API_BASE}/equipment-slots`, { signal });
+        if (slotsRes.ok) {
+          const slotsData = await slotsRes.json();
+          setEquipmentSlots(slotsData);
+        }
+      } catch (slotErr) {
+        console.error("Failed to load equipment slots:", slotErr);
+      }
     } catch (error) {
       console.error("Database fetch error:", error);
       setIsOffline(true);
@@ -1690,6 +1710,61 @@ const handleDelete = async (type, id) => {
       }
     } catch (error) {
       console.error(error);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  // ── Equipment Slots Handlers ──
+  const handleSlotSubmit = async (e) => {
+    e.preventDefault();
+    if (!slotForm.equipmentName || !slotForm.date || slotForm.slots === "") {
+      toast.error("Equipment, Date, and Slots capacity are required.");
+      return;
+    }
+    if (Number(slotForm.slots) <= 0 || !Number.isInteger(Number(slotForm.slots))) {
+      toast.error("Slots count must be a positive integer.");
+      return;
+    }
+    try {
+      const response = await fetch(`${API_BASE}/equipment-slots`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify(slotForm)
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.message || "Daily slot configuration saved!");
+        setShowSlotModal(false);
+        setSlotForm({ equipmentName: "", date: "", slots: 1 });
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to save slot.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Unable to connect to server.");
+    }
+  };
+
+  const handleSlotDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to close/remove this booking slot?")) return;
+    try {
+      const response = await fetch(`${API_BASE}/equipment-slots/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.message || "Slot closed successfully.");
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to close slot.");
+      }
+    } catch (err) {
+      console.error(err);
       toast.error("Unable to connect to server.");
     }
   };
@@ -5365,6 +5440,73 @@ const handleDelete = async (type, id) => {
                       {renderPagination(filteredEquipments.length)}
                     </div>
                   )}
+
+                  {/* Daily Slots Calendar Manager */}
+                  <div className="slots-manager-section" style={{ marginTop: "40px", borderTop: "1px solid rgba(255, 255, 255, 0.1)", paddingTop: "30px" }}>
+                    <div className="module-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                      <div>
+                        <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#fff" }}>Daily Booking Slots Calendar</h3>
+                        <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: "4px" }}>
+                          Open specific booking dates for each equipment. Customers can only book on dates with open slots.
+                        </p>
+                      </div>
+                      <button className="admin-btn primary" onClick={() => setShowSlotModal(true)}>
+                        Open New Slot
+                      </button>
+                    </div>
+
+                    {equipmentSlots.length === 0 ? (
+                      <div className="empty-state" style={{ padding: "40px 20px" }}>
+                        <p style={{ color: "rgba(255,255,255,0.5)" }}>No booking slots are currently open. Click \"Open New Slot\" to schedule availability.</p>
+                      </div>
+                    ) : (
+                      <div className="table-responsive-wrapper">
+                        <div className="table-wrapper">
+                          <table className="admin-table">
+                            <thead>
+                              <tr>
+                                <th>Equipment Name</th>
+                                <th>Booking Date</th>
+                                <th>Opened Slots</th>
+                                <th>Booked Count</th>
+                                <th>Status</th>
+                                <th style={{ textAlign: "right" }}>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {equipmentSlots.map((slot) => {
+                                const isFilled = slot.bookedCount >= slot.slots;
+                                return (
+                                  <tr key={slot._id}>
+                                    <td className="font-semibold text-primary">{slot.equipmentName}</td>
+                                    <td>{new Date(slot.date).toLocaleDateString("en-IN")}</td>
+                                    <td>{slot.slots}</td>
+                                    <td>{slot.bookedCount}</td>
+                                    <td>
+                                      <span className={getStatusBadgeClass(isFilled ? "inactive" : "active")}>
+                                        {isFilled ? "All Filled" : "Slots Available"}
+                                      </span>
+                                    </td>
+                                    <td style={{ textAlign: "right" }}>
+                                      <button 
+                                        className="action-btn delete" 
+                                        title="Delete/Close Slot"
+                                        onClick={() => handleSlotDelete(slot._id)}
+                                        disabled={slot.bookedCount > 0}
+                                        style={{ opacity: slot.bookedCount > 0 ? 0.4 : 1 }}
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -7041,6 +7183,74 @@ const handleDelete = async (type, id) => {
               <div className="modal-footer" style={{ padding: "16px 20px" }}>
                 <button type="button" className="btn-modal-close" onClick={() => setEditingFarmer(null)}>Cancel</button>
                 <button type="submit" className="btn-action primary" style={{ height: "40px", padding: "0 20px", borderRadius: "8px" }}>Update Farmer</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Equipment Slot Modal */}
+      {showSlotModal && (
+        <div className="modal-overlay" onClick={() => setShowSlotModal(false)}>
+          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
+            <div className="modal-header">
+              <h3>Open Booking Slots Calendar</h3>
+              <button className="modal-close-icon" onClick={() => setShowSlotModal(false)}><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSlotSubmit}>
+              <div className="modal-body form-grid" style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "20px" }}>
+                
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label" style={{ color: "#e2e8f0" }}>Select Equipment *</label>
+                  <select 
+                    className="admin-login-input"
+                    value={slotForm.equipmentName}
+                    onChange={(e) => setSlotForm({ ...slotForm, equipmentName: e.target.value })}
+                    style={{ background: "#051207", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "10px", borderRadius: "8px", width: "100%", outline: "none" }}
+                    required
+                  >
+                    <option value="">-- Choose Equipment --</option>
+                    {equipments.map((eq) => (
+                      <option key={eq._id} value={eq.name}>{eq.name} ({eq.equipmentId})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label" style={{ color: "#e2e8f0" }}>Select Date *</label>
+                  <input 
+                    type="date" 
+                    className="admin-login-input" 
+                    min={new Date().toISOString().split("T")[0]}
+                    value={slotForm.date}
+                    onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })}
+                    style={{ width: "100%" }}
+                    required
+                  />
+                </div>
+
+                <div className="admin-login-input-group">
+                  <label className="admin-login-label" style={{ color: "#e2e8f0" }}>Total Slots Available *</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    className="admin-login-input" 
+                    placeholder="e.g. 1, 2, 5"
+                    value={slotForm.slots}
+                    onChange={(e) => setSlotForm({ ...slotForm, slots: e.target.value })}
+                    style={{ width: "100%" }}
+                    required
+                  />
+                </div>
+
+              </div>
+              <div className="modal-footer" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)", padding: "15px 20px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button type="button" className="admin-btn secondary" onClick={() => setShowSlotModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="admin-btn primary">
+                  Save Slot
+                </button>
               </div>
             </form>
           </div>
