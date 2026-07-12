@@ -48,7 +48,8 @@ router.post("/", farmerAuth, generalWriteLimiter, asyncHandler(async (req, res) 
 
   let numDuration = 1;
   if (duration !== undefined) {
-    numDuration = Number(duration);
+    const cleanDuration = typeof duration === "string" ? duration.trim().split(" ")[0] : duration;
+    numDuration = Number(cleanDuration);
     if (isNaN(numDuration) || numDuration <= 0 || !Number.isInteger(numDuration)) {
       return res.status(400).json({
         success: false,
@@ -63,7 +64,7 @@ router.post("/", farmerAuth, generalWriteLimiter, asyncHandler(async (req, res) 
     phone: req.farmer.phone,
     equipmentName: equipmentName.trim(),
     bookingDate: new Date(parsedDate),
-    duration: numDuration
+    duration: duration || "1 Days"
   });
   await booking.save();
 
