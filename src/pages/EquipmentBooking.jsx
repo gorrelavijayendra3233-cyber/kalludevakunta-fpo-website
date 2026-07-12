@@ -32,6 +32,17 @@ const EQUIPMENT_LIST = [
   { id: "seeddrill",  icon: <Settings size={24} />, name: "Seed Drill", rateHour: 300,  rateDay: 2000 },
 ];
 
+const getEquipmentIcon = (nameOrId, size = 24) => {
+  const norm = String(nameOrId || "").toLowerCase();
+  if (norm.includes("tractor")) return <Tractor size={size} />;
+  if (norm.includes("rotavator")) return <Settings size={size} />;
+  if (norm.includes("sprayer")) return <Droplet size={size} />;
+  if (norm.includes("cultivator")) return <Sprout size={size} />;
+  if (norm.includes("harvester")) return <Wheat size={size} />;
+  if (norm.includes("seeddrill") || norm.includes("seed drill")) return <Settings size={size} />;
+  return <Tractor size={size} />;
+};
+
 const INITIAL_FORM = {
   farmerName: "", mobileNumber: "", state: "", district: "", mandal: "", village: "",
   bookingDate: "", duration: "", remarks: "",
@@ -86,11 +97,37 @@ function EquipmentBooking() {
   const [loading, setLoading]         = useState(false);
   const [submitted, setSubmitted]     = useState(false);
   const [equipError, setEquipError]   = useState(false);
+  const [equipmentList, setEquipmentList] = useState(EQUIPMENT_LIST);
   const navigate = useNavigate();
   const token = localStorage.getItem("farmerToken") || localStorage.getItem("farmer_token");
 
   const today = new Date().toISOString().split("T")[0];
-  const selectedEquipment = EQUIPMENT_LIST.find((e) => e.id === selectedId) || null;
+  const selectedEquipment = equipmentList.find((e) => e.id === selectedId) || null;
+
+  // Fetch equipment list dynamically from DB API
+  useEffect(() => {
+    const fetchEquipments = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/equipments`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const formatted = data.map((eq) => ({
+              id: String(eq.equipmentId || eq._id).toLowerCase().replace(/\s+/g, ""),
+              name: eq.name,
+              rateHour: eq.rateHour,
+              rateDay: eq.rateDay,
+              icon: getEquipmentIcon(eq.equipmentId || eq.name)
+            }));
+            setEquipmentList(formatted);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching equipment details:", err);
+      }
+    };
+    fetchEquipments();
+  }, []);
 
   // Auto-fill from localStorage if logged in
   useEffect(() => {
@@ -231,7 +268,7 @@ const handleSubmit = async (e) => {
         </div>
         
         <div className="equip__grid">
-          {EQUIPMENT_LIST.map((eq) => (
+          {equipmentList.map((eq) => (
             <div
               key={eq.id}
               className={`equip-tile glass-panel${selectedId === eq.id ? " selected" : ""}`}
@@ -489,7 +526,7 @@ const handleSubmit = async (e) => {
           <div className="equip__info-card glass-panel">
             <div className="equip__info-head"><DollarSign size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--harvest-lt)' }} /> Rate Card</div>
             <div className="equip__info-body">
-              {EQUIPMENT_LIST.map((eq) => (
+              {equipmentList.map((eq) => (
                 <div className="equip-rate-row" key={eq.id}>
                   <div className="equip-rate-name">
                     <span className="equip-rate-icon">{eq.icon}</span>
