@@ -25,6 +25,10 @@ const equipmentSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    slots: {
+      type: Number,
+      default: 1,
+    },
   },
   {
     timestamps: true,

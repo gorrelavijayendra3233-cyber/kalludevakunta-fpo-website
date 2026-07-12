@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const EquipmentBooking = require("../models/EquipmentBooking");
+const Equipment = require("../models/Equipment");
 const auth = require("../middleware/auth");
 const Notification = require("../models/Notification");
 const farmerAuth = require("../middleware/farmerAuth");
@@ -54,6 +55,26 @@ router.post("/", farmerAuth, generalWriteLimiter, asyncHandler(async (req, res) 
       return res.status(400).json({
         success: false,
         message: "Duration must be a positive integer number."
+      });
+    }
+  }
+
+  // Check slot availability for the selected equipment on the selected date
+  const matchedEquipment = await Equipment.findOne({ name: { $regex: new RegExp("^" + equipmentName.trim() + "$", "i") } });
+  if (matchedEquipment) {
+    const totalSlots = matchedEquipment.slots !== undefined ? matchedEquipment.slots : 1;
+    const datePart = new Date(parsedDate).toISOString().split("T")[0];
+
+    const activeBookingsCount = await EquipmentBooking.countDocuments({
+      equipmentName: { $regex: new RegExp("^" + equipmentName.trim() + "$", "i") },
+      bookingDate: { $regex: new RegExp("^" + datePart) },
+      status: { $nin: ["Cancelled", "Rejected"] }
+    });
+
+    if (activeBookingsCount >= totalSlots) {
+      return res.status(400).json({
+        success: false,
+        message: `No slots available for ${equipmentName.trim()} on ${new Date(parsedDate).toLocaleDateString("en-IN")}. Total capacity: ${totalSlots}.`
       });
     }
   }

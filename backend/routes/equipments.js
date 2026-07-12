@@ -39,7 +39,7 @@ router.get("/", async (req, res) => {
 // 2. Add Equipment Rate (Protected)
 router.post("/", auth, async (req, res) => {
   try {
-    const { name, rateHour, rateDay, description, available, equipmentId } = req.body;
+    const { name, rateHour, rateDay, description, available, equipmentId, slots } = req.body;
 
     if (!name || rateHour === undefined || rateDay === undefined) {
       return res.status(400).json({
@@ -54,7 +54,8 @@ router.post("/", auth, async (req, res) => {
       description,
       rateHour,
       rateDay,
-      available: available !== undefined ? available : true
+      available: available !== undefined ? available : true,
+      slots: slots !== undefined ? Number(slots) : 1
     });
 
     await equipment.save();
@@ -71,7 +72,7 @@ router.post("/", auth, async (req, res) => {
 // 3. Update Equipment Rate (Protected)
 router.put("/:id", auth, async (req, res) => {
   try {
-    const { name, rateHour, rateDay, description, available } = req.body;
+    const { name, rateHour, rateDay, description, available, slots } = req.body;
 
     const existingEquipment = await Equipment.findById(req.params.id);
     if (!existingEquipment) {
@@ -86,7 +87,8 @@ router.put("/:id", auth, async (req, res) => {
       description: description !== undefined ? description : existingEquipment.description,
       rateHour: rateHour !== undefined ? rateHour : existingEquipment.rateHour,
       rateDay: rateDay !== undefined ? rateDay : existingEquipment.rateDay,
-      available: available !== undefined ? available : existingEquipment.available
+      available: available !== undefined ? available : existingEquipment.available,
+      slots: slots !== undefined ? Number(slots) : existingEquipment.slots
     };
 
     const equipment = await Equipment.findByIdAndUpdate(
