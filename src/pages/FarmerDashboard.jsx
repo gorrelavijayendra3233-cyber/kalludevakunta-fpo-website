@@ -697,6 +697,7 @@ function FarmerDashboard() {
                   <option value="Training Manuals">Training Manuals / శిక్షణ మాన్యువల్లు</option>
                   <option value="Crop Guides">Crop Guides / పంటల సమాచారం</option>
                   <option value="FPO Forms">FPO Forms / ఎఫ్.పి.ఓ పత్రాలు</option>
+                  <option value="KDKFPCL Forms">KDKFPCL Forms / కేడీకేఎఫ్‌పీసీఎల్ పత్రాలు</option>
                   <option value="Other">Other / ఇతరాలు</option>
                 </select>
               </div>

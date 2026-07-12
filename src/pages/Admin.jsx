@@ -5746,6 +5746,7 @@ const handleDelete = async (type, id) => {
                         <option value="Training Manuals">Training Manuals</option>
                         <option value="Crop Guides">Crop Guides</option>
                         <option value="FPO Forms">FPO Forms</option>
+                        <option value="KDKFPCL Forms">KDKFPCL Forms</option>
                         <option value="Other">Other</option>
                       </select>
                     </div>
@@ -5888,6 +5889,7 @@ const handleDelete = async (type, id) => {
                               <option value="Training Manuals">Training Manuals</option>
                               <option value="Crop Guides">Crop Guides</option>
                               <option value="FPO Forms">FPO Forms</option>
+                              <option value="KDKFPCL Forms">KDKFPCL Forms</option>
                               <option value="Other">Other</option>
                             </select>
                           </div>

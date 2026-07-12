@@ -110,12 +110,12 @@ farmerSchema.pre("save", async function () {
     const lastFarmer = await this.constructor.findOne().sort({ farmerId: -1 });
     let nextIdNumber = 1;
     if (lastFarmer && lastFarmer.farmerId) {
-      const match = lastFarmer.farmerId.match(/FPO(\d+)/);
+      const match = lastFarmer.farmerId.match(/(?:KDKFPCL|FPO)(\d+)/);
       if (match) {
         nextIdNumber = parseInt(match[1], 10) + 1;
       }
     }
-    this.farmerId = `FPO${String(nextIdNumber).padStart(3, "0")}`;
+    this.farmerId = `KDKFPCL${String(nextIdNumber).padStart(3, "0")}`;
   }
 });
 

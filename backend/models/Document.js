@@ -13,7 +13,7 @@ const DocumentSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["Government Schemes", "Training Manuals", "Crop Guides", "FPO Forms", "Other"],
+      enum: ["Government Schemes", "Training Manuals", "Crop Guides", "FPO Forms", "KDKFPCL Forms", "Other"],
       default: "Other"
     },
     fileUrl: {

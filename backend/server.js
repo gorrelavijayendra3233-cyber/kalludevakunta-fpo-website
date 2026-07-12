@@ -510,9 +510,9 @@ const seedDocuments = async () => {
           uploadedBy: "Admin"
         },
         {
-          title: "FPO Share Capital Membership Form",
-          description: "Application form to register as a shareholder in Kalludevakunta FPO.",
-          category: "FPO Forms",
+          title: "KDKFPCL Share Capital Membership Form",
+          description: "Application form to register as a shareholder in Kalludevakunta Farmer Producer Company Limited (KDKFPCL).",
+          category: "KDKFPCL Forms",
           fileUrl: "/uploads/fpo_membership_form.pdf",
           fileName: "fpo_membership_form.pdf",
           fileSize: "420 KB",
