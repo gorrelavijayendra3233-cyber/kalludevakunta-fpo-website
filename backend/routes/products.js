@@ -244,7 +244,7 @@ router.post("/", auth, async (req, res, next) => {
 // 4. Get Single Product
 router.get("/:id", async (req, res, next) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isValidObjectId(req.params.id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid product ID format."
@@ -267,7 +267,7 @@ router.get("/:id", async (req, res, next) => {
 // 5. Update Product
 router.put("/:id", auth, async (req, res, next) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isValidObjectId(req.params.id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid product ID format."
@@ -357,7 +357,7 @@ router.put("/:id", auth, async (req, res, next) => {
 // 6. Delete Product
 router.delete("/:id", auth, async (req, res, next) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isValidObjectId(req.params.id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid product ID format."
