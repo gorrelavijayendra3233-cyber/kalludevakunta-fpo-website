@@ -5673,8 +5673,8 @@ const handleDelete = async (type, id) => {
                           Open specific booking dates for each equipment. Customers can only book on dates with open slots.
                         </p>
                       </div>
-                      <button className="admin-btn primary" onClick={() => setShowSlotModal(true)}>
-                        Open New Slot
+                      <button className="admin-btn primary" onClick={() => setActiveTab("equipment-slots")}>
+                        Manage Slots →
                       </button>
                     </div>
 
@@ -7798,73 +7798,7 @@ const handleDelete = async (type, id) => {
         </div>
       )}
 
-      {/* Add Equipment Slot Modal */}
-      {showSlotModal && (
-        <div className="modal-overlay" onClick={() => setShowSlotModal(false)}>
-          <div className="modal-content glass-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "450px" }}>
-            <div className="modal-header">
-              <h3>Open Booking Slots Calendar</h3>
-              <button className="modal-close-icon" onClick={() => setShowSlotModal(false)}><X size={18} /></button>
-            </div>
-            <form onSubmit={handleSlotSubmit}>
-              <div className="modal-body form-grid" style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "20px" }}>
-                
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label" style={{ color: "#e2e8f0" }}>Select Equipment *</label>
-                  <select 
-                    className="admin-login-input"
-                    value={slotForm.equipmentName}
-                    onChange={(e) => setSlotForm({ ...slotForm, equipmentName: e.target.value })}
-                    style={{ background: "#051207", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "10px", borderRadius: "8px", width: "100%", outline: "none" }}
-                    required
-                  >
-                    <option value="">-- Choose Equipment --</option>
-                    {equipments.map((eq) => (
-                      <option key={eq._id} value={eq.name}>{eq.name} ({eq.equipmentId})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label" style={{ color: "#e2e8f0" }}>Select Date *</label>
-                  <input 
-                    type="date" 
-                    className="admin-login-input" 
-                    min={new Date().toISOString().split("T")[0]}
-                    value={slotForm.date}
-                    onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })}
-                    style={{ width: "100%" }}
-                    required
-                  />
-                </div>
-
-                <div className="admin-login-input-group">
-                  <label className="admin-login-label" style={{ color: "#e2e8f0" }}>Total Slots Available *</label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    className="admin-login-input" 
-                    placeholder="e.g. 1, 2, 5"
-                    value={slotForm.slots}
-                    onChange={(e) => setSlotForm({ ...slotForm, slots: e.target.value })}
-                    style={{ width: "100%" }}
-                    required
-                  />
-                </div>
-
-              </div>
-              <div className="modal-footer" style={{ borderTop: "1px solid rgba(255, 255, 255, 0.1)", padding: "15px 20px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" className="admin-btn secondary" onClick={() => setShowSlotModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="admin-btn primary">
-                  Save Slot
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Equipment Slot Modal removed - managed via Equipment Slots tab */}
 
       {/* Add Equipment Modal */}
       {showEquipmentModal && (
