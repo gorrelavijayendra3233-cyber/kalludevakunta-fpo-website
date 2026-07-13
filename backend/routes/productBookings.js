@@ -72,6 +72,20 @@ router.post("/", farmerAuth, generalWriteLimiter, async (req, res, next) => {
       });
     }
 
+    if (product.stock <= 0 || product.status === "Out of Stock") {
+      return res.status(400).json({
+        success: false,
+        message: "Product is currently out of stock."
+      });
+    }
+
+    if (product.stock < numQuantity) {
+      return res.status(400).json({
+        success: false,
+        message: `Requested quantity exceeds available stock. Only ${product.stock} items/bags left.`
+      });
+    }
+
     const totalPrice = product.price * numQuantity;
 
     const booking = new ProductBooking({

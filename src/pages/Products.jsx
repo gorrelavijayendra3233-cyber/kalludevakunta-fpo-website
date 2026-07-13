@@ -499,13 +499,21 @@ function Products() {
           ) : (
             filtered.map((product, idx) => {
               const slug = categorySlug(product.category);
-              const hasStock = product.stock > 0;
+              const hasStock = product.stock > 0 && product.status !== "Out of Stock";
               return (
                 <div 
                   className="product-card-item glass-panel fade-up" 
                   key={product._id || product.id} 
-                  style={{ animationDelay: `${idx * 0.05}s`, cursor: "pointer" }}
-                  onClick={() => setEnquiryProduct(product)}
+                  style={{ 
+                    animationDelay: `${idx * 0.05}s`, 
+                    cursor: hasStock ? "pointer" : "not-allowed",
+                    opacity: hasStock ? 1 : 0.65
+                  }}
+                  onClick={() => {
+                    if (hasStock) {
+                      setEnquiryProduct(product);
+                    }
+                  }}
                 >
                   <div className={`product-card-item__stripe stripe--${slug}`} />
                   <div className={`product-card-item__img img-bg--${slug}`}>
@@ -539,13 +547,21 @@ function Products() {
                     </div>
                     <button
                       className="product-card-item__enquire"
+                      disabled={!hasStock}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEnquiryProduct(product);
+                        if (hasStock) {
+                          setEnquiryProduct(product);
+                        }
                       }}
-                      style={!hasStock ? { background: "rgba(255, 68, 68, 0.08)", color: "#ff4444", border: "1px solid rgba(255, 68, 68, 0.15)", cursor: "pointer" } : {}}
+                      style={!hasStock ? { 
+                        background: "rgba(255, 255, 255, 0.03)", 
+                        color: "rgba(255, 255, 255, 0.2)", 
+                        border: "1px solid rgba(255, 255, 255, 0.03)", 
+                        cursor: "not-allowed" 
+                      } : {}}
                     >
-                      {hasStock ? <><Phone size={14} /> Book Now</> : "View Details (Out of Stock)"}
+                      {hasStock ? <><Phone size={14} /> Book Now</> : "Unavailable"}
                     </button>
                   </div>
                 </div>
