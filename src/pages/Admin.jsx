@@ -528,7 +528,7 @@ function Admin() {
 
       // Fetch equipment slots calendar
       try {
-        const slotsRes = await fetch(`${API_BASE}/equipment-slots`, { signal });
+        const slotsRes = await fetch(`${API_BASE}/equipment-slots`, { headers: getAuthHeaders(), signal });
         if (slotsRes.ok) {
           const slotsData = await slotsRes.json();
           setEquipmentSlots(slotsData);
@@ -5755,7 +5755,9 @@ const handleDelete = async (type, id) => {
 
                 // Filtered slots list
                 const filteredSlots = equipmentSlots.filter(s => {
-                  const matchEquip = !slotFilterEquip || s.equipmentName.toLowerCase().includes(slotFilterEquip.toLowerCase()) || s.equipmentId.toLowerCase().includes(slotFilterEquip.toLowerCase());
+                  const matchEquip = !slotFilterEquip || 
+                    (s.equipmentName || "").toLowerCase().includes(slotFilterEquip.toLowerCase()) || 
+                    (s.equipmentId || "").toLowerCase().includes(slotFilterEquip.toLowerCase());
                   const matchStatus = !slotFilterStatus || s.status === slotFilterStatus;
                   let matchDate = true;
                   if (slotFilterDate) {
