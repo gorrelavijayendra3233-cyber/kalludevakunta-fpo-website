@@ -212,29 +212,6 @@ function Home() {
         </div>
       </section>
 
-      {/* ── Farmer Statistics / Impact ── */}
-      <section className="farmer-stats">
-        <div className="farmer-stats__glow" />
-        <div className="farmer-stats__header fade-up">
-          <span className="section-tag"><TrendingUp size={14} /> Our Impact</span>
-          <h2 className="section-title">Growing stronger,<br />season after season</h2>
-          <div className="section-divider" />
-        </div>
-        
-        <div className="farmer-stats__grid">
-          {FARMER_STATS.map((s, index) => (
-            <div className={`fstat-card glass-panel fade-up-${index + 1}`} key={s.label}>
-              <div className="fstat-card__icon">{s.icon}</div>
-              <div className="fstat-card__num">
-                {s.num}<span className="fstat-card__suffix">{s.suffix}</span>
-              </div>
-              <div className="fstat-card__label">{s.label}</div>
-              <div className="fstat-card__sub">{s.sub}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* ── Product Preview ── */}
       <section className="product-preview">
         <div className="product-preview__header fade-up">
@@ -294,11 +271,7 @@ function Home() {
               <div className="equip-showcase-card__body">
                 <div className="equip-showcase-card__name">{eq.name}</div>
                 <p className="equip-showcase-card__desc">{eq.desc}</p>
-                <div className="equip-showcase-card__rates">
-                  <span className="rate-pill"><strong>₹{eq.rateHour}</strong>/hr</span>
-                  <span className="rate-pill"><strong>₹{Number(eq.rateDay).toLocaleString("en-IN")}</strong>/day</span>
-                </div>
-                <Link to="/equipment-booking" style={{ display: "block" }}>
+                <Link to="/equipment-booking" style={{ display: "block", marginTop: "16px" }}>
                   <button
                     className="equip-showcase-card__btn"
                     disabled={!eq.available}
@@ -308,6 +281,29 @@ function Home() {
                   </button>
                 </Link>
               </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Farmer Statistics / Impact ── */}
+      <section className="farmer-stats">
+        <div className="farmer-stats__glow" />
+        <div className="farmer-stats__header fade-up">
+          <span className="section-tag"><TrendingUp size={14} /> Our Impact</span>
+          <h2 className="section-title">Growing stronger,<br />season after season</h2>
+          <div className="section-divider" />
+        </div>
+        
+        <div className="farmer-stats__grid">
+          {FARMER_STATS.map((s, index) => (
+            <div className={`fstat-card glass-panel fade-up-${index + 1}`} key={s.label}>
+              <div className="fstat-card__icon">{s.icon}</div>
+              <div className="fstat-card__num">
+                {s.num}<span className="fstat-card__suffix">{s.suffix}</span>
+              </div>
+              <div className="fstat-card__label">{s.label}</div>
+              <div className="fstat-card__sub">{s.sub}</div>
             </div>
           ))}
         </div>

@@ -3738,13 +3738,7 @@ const handleDelete = async (type, id) => {
             <span>Equipment Slots</span>
           </button>
 
-          <button 
-            className={`nav-item ${activeTab === "equipments" ? "active" : ""}`}
-            onClick={() => { setActiveTab("equipments"); setMobileMenuOpen(false); }}
-          >
-            <Coins size={18} />
-            <span>Equipment Rates</span>
-          </button>
+          {/* Equipment Rates Tab Nav Item Removed */}
 
           <button 
             className={`nav-item ${activeTab === "product-bookings" ? "active" : ""}`}
@@ -3839,7 +3833,7 @@ const handleDelete = async (type, id) => {
               {activeTab === "contacts" && "Contact Inquiries"}
               {activeTab === "crops" && "Crop Selling Requests"}
               {activeTab === "bookings" && "Machinery Bookings"}
-              {activeTab === "equipments" && "Equipment Rates Management"}
+              {/* Removed Equipment Rates Management header */}
               {activeTab === "equipment-slots" && "Smart Equipment Slot Management"}
               {activeTab === "product-bookings" && "Product Bookings & Orders"}
               {activeTab === "farmers" && "Farmer Management"}
@@ -5553,194 +5547,6 @@ const handleDelete = async (type, id) => {
                       {renderPagination(filteredProducts.length)}
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Equipment Rates Tab */}
-              {activeTab === "equipments" && (
-                <div className="tab-pane">
-                  <div className="module-header">
-                    <h2 className="module-title">Equipment Rates Management</h2>
-                    <p className="module-description">Manage machinery hire charges, description details, and availability parameters.</p>
-                  </div>
-                  {/* Toolbar */}
-                  <div className="pane-header-actions" style={{ marginBottom: "20px" }}>
-                    <div className="search-bar-wrapper">
-                      <Search className="search-icon" size={18} />
-                      <input 
-                        type="text" 
-                        className="search-input" 
-                        placeholder="Search by name, ID, or description..."
-                        value={searchEquipmentInput}
-                        onChange={(e) => setSearchEquipmentInput(e.target.value)}
-                      />
-                      {searchEquipmentInput && (
-                        <button className="clear-search-btn" onClick={() => setSearchEquipmentInput("")}><X size={14} /></button>
-                      )}
-                    </div>
-                    <div className="button-actions-group" style={{ display: "flex", gap: "12px" }}>
-                      <button 
-                        className="btn-action outline" 
-                        onClick={() => exportCSV("equipments", filteredEquipments)}
-                        disabled={filteredEquipments.length === 0}
-                      >
-                        <Download size={15} /> Export CSV
-                      </button>
-                      <button 
-                        className="btn-action outline" 
-                        onClick={() => exportPDF("equipments", filteredEquipments)}
-                        disabled={filteredEquipments.length === 0}
-                      >
-                        <FileText size={15} /> Export PDF
-                      </button>
-                      <button className="btn-action primary" onClick={() => setShowEquipmentModal(true)}>
-                        + Add Equipment
-                      </button>
-                    </div>
-                  </div>
-
-                  {filteredEquipments.length === 0 ? (
-                    <div className="empty-state glass-panel">
-                      <div className="empty-state-icon">
-                        <Tractor size={48} style={{ opacity: 0.5 }} />
-                      </div>
-                      <h3>No equipment found</h3>
-                      <p>Try searching for a different name, ID, or add a new equipment rate.</p>
-                      {searchEquipment && (
-                        <button className="admin-btn primary" onClick={() => setSearchEquipmentInput("")} style={{ marginTop: "15px" }}>
-                          Clear Search
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="table-responsive-wrapper">
-                      <div className="table-wrapper">
-                        <table className="admin-table">
-                          <thead>
-                            <tr>
-                              <th>Equipment ID</th>
-                              <th>Name</th>
-                              <th>Description</th>
-                              <th>Rate / Hour</th>
-                              <th>Rate / Day</th>
-                              <th>Status</th>
-                              <th style={{ textAlign: "right" }}>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {paginatedEquipments.map((eq) => {
-                              return (
-                                <tr key={eq._id}>
-                                  <td className="font-semibold text-primary">{eq.equipmentId}</td>
-                                  <td className="font-semibold">{eq.name}</td>
-                                  <td style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={eq.description}>
-                                    {eq.description || "-"}
-                                  </td>
-                                  <td>₹{eq.rateHour}</td>
-                                  <td>₹{eq.rateDay}</td>
-                                  <td>
-                                    <span className={getStatusBadgeClass(eq.available ? "active" : "inactive")}>
-                                      {eq.available ? "Available" : "Unavailable"}
-                                    </span>
-                                  </td>
-                                  <td style={{ textAlign: "right" }}>
-                                    <div className="action-group" style={{ justifyContent: "flex-end" }}>
-                                      <button 
-                                        className="action-btn edit" 
-                                        title="Edit Equipment"
-                                        onClick={() => setEditingEquipment(eq)}
-                                        tabIndex={0}
-                                        aria-label="Edit Equipment"
-                                      >
-                                        <Pencil size={15} />
-                                      </button>
-                                      <button 
-                                        className="action-btn delete" 
-                                        title="Delete Equipment"
-                                        onClick={() => handleEquipmentDelete(eq._id)}
-                                        tabIndex={0}
-                                        aria-label="Delete Equipment"
-                                      >
-                                        <Trash2 size={15} />
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      {renderPagination(filteredEquipments.length)}
-                    </div>
-                  )}
-
-                  {/* Daily Slots Calendar Manager */}
-                  <div className="slots-manager-section" style={{ marginTop: "40px", borderTop: "1px solid rgba(255, 255, 255, 0.1)", paddingTop: "30px" }}>
-                    <div className="module-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                      <div>
-                        <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#fff" }}>Daily Booking Slots Calendar</h3>
-                        <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: "4px" }}>
-                          Open specific booking dates for each equipment. Customers can only book on dates with open slots.
-                        </p>
-                      </div>
-                      <button className="admin-btn primary" onClick={() => setActiveTab("equipment-slots")}>
-                        Manage Slots →
-                      </button>
-                    </div>
-
-                    {equipmentSlots.length === 0 ? (
-                      <div className="empty-state" style={{ padding: "40px 20px" }}>
-                        <p style={{ color: "rgba(255,255,255,0.5)" }}>No booking slots are currently open. Click \"Open New Slot\" to schedule availability.</p>
-                      </div>
-                    ) : (
-                      <div className="table-responsive-wrapper">
-                        <div className="table-wrapper">
-                          <table className="admin-table">
-                            <thead>
-                              <tr>
-                                <th>Equipment Name</th>
-                                <th>Booking Date</th>
-                                <th>Opened Slots</th>
-                                <th>Booked Count</th>
-                                <th>Status</th>
-                                <th style={{ textAlign: "right" }}>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {equipmentSlots.map((slot) => {
-                                const isFilled = slot.bookedCount >= slot.slots;
-                                return (
-                                  <tr key={slot._id}>
-                                    <td className="font-semibold text-primary">{slot.equipmentName}</td>
-                                    <td>{new Date(slot.date).toLocaleDateString("en-IN")}</td>
-                                    <td>{slot.slots}</td>
-                                    <td>{slot.bookedCount}</td>
-                                    <td>
-                                      <span className={getStatusBadgeClass(isFilled ? "inactive" : "active")}>
-                                        {isFilled ? "All Filled" : "Slots Available"}
-                                      </span>
-                                    </td>
-                                    <td style={{ textAlign: "right" }}>
-                                      <button 
-                                        className="action-btn delete" 
-                                        title="Delete/Close Slot"
-                                        onClick={() => handleSlotDelete(slot._id)}
-                                        disabled={slot.bookedCount > 0}
-                                        style={{ opacity: slot.bookedCount > 0 ? 0.4 : 1 }}
-                                      >
-                                        <Trash2 size={15} />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
 

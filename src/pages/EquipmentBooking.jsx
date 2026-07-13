@@ -376,7 +376,6 @@ function EquipmentBooking() {
             >
               <div className="equip-tile__icon-wrap">{eq.icon}</div>
               <div className="equip-tile__name">{eq.name}</div>
-              <div className="equip-tile__rate">₹{eq.rateHour}/hr</div>
             </div>
           ))}
         </div>
@@ -664,27 +663,7 @@ function EquipmentBooking() {
         {/* ── Sidebar ── */}
         <div className="equip__sidebar fade-up-2">
 
-          {/* Rate card */}
-          <div className="equip__info-card glass-panel">
-            <div className="equip__info-head"><DollarSign size={16} style={{ marginRight: '8px', verticalAlign: 'middle', color: 'var(--harvest-lt)' }} /> Rate Card</div>
-            <div className="equip__info-body">
-              {equipmentList.map((eq) => (
-                <div className="equip-rate-row" key={eq.id}>
-                  <div className="equip-rate-name">
-                    <span className="equip-rate-icon">{eq.icon}</span>
-                    <span>{eq.name}</span>
-                  </div>
-                  <div className="equip-rate-pricing">
-                    <span className="equip-rate-price">₹{eq.rateHour}</span>
-                    <span className="equip-rate-unit">/hr</span>
-                    <span className="rate-divider">·</span>
-                    <span className="equip-rate-price">₹{eq.rateDay}</span>
-                    <span className="equip-rate-unit">/day</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Rate card removed */}
 
           {/* Note */}
           <div className="equip__note glass-panel">
