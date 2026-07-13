@@ -181,9 +181,20 @@ function Admin() {
   const [genEquipId, setGenEquipId] = useState("");
   const [genDate, setGenDate] = useState("");
   const [genStartTime, setGenStartTime] = useState("09:00");
-  const [genEndTime, setGenEndTime] = useState("17:30");
+  const [genEndTime, setGenEndTime] = useState("10:00");
   const [genDuration, setGenDuration] = useState("60");
   const [genPrice, setGenPrice] = useState("");
+
+  // Auto-calculate end time based on start time and duration
+  useEffect(() => {
+    if (genStartTime && genDuration) {
+      const [h, m] = genStartTime.split(":").map(Number);
+      const totalMin = h * 60 + m + Number(genDuration);
+      const endH = Math.floor(totalMin / 60) % 24;
+      const endM = totalMin % 60;
+      setGenEndTime(`${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`);
+    }
+  }, [genStartTime, genDuration]);
 
   // Slot Filter states
   const [slotFilterEquip, setSlotFilterEquip] = useState("");
@@ -1926,8 +1937,8 @@ const handleDelete = async (type, id) => {
     csvContent += "Equipment Name,Date,Start Time,End Time,Duration (Mins),Price,Status,Booked Count,Capacity\n";
     equipmentSlots.forEach(s => {
       const dateStr = new Date(s.date).toLocaleDateString("en-IN");
-      const startStr = new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false });
-      const endStr = new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false });
+      const startStr = new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" });
+      const endStr = new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" });
       csvContent += `"${s.equipmentName}","${dateStr}","${startStr}","${endStr}",${s.slotDuration},${s.price},"${s.status}",${s.bookedCount},${s.capacity}\n`;
     });
     const encodedUri = encodeURI(csvContent);
@@ -1943,8 +1954,8 @@ const handleDelete = async (type, id) => {
     const data = equipmentSlots.map(s => ({
       "Equipment Name": s.equipmentName,
       "Date": new Date(s.date).toLocaleDateString("en-IN"),
-      "Start Time": new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false }),
-      "End Time": new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false }),
+      "Start Time": new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" }),
+      "End Time": new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" }),
       "Duration (Mins)": s.slotDuration,
       "Price (Rs)": s.price,
       "Status": s.status,
@@ -1967,8 +1978,8 @@ const handleDelete = async (type, id) => {
       const slotData = [
         s.equipmentName,
         new Date(s.date).toLocaleDateString("en-IN"),
-        new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false }),
-        new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false }),
+        new Date(s.startTime).toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" }),
+        new Date(s.endTime).toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" }),
         `Rs. ${s.price}`,
         s.status
       ];
@@ -5829,42 +5840,71 @@ const handleDelete = async (type, id) => {
                         </div>
 
                         <div className="admin-login-input-group">
-                          <label className="admin-login-label">Start Time *</label>
+                          <label className="admin-login-label">Start Time (IST) *</label>
                           <input 
                             type="time"
                             className="admin-login-input"
                             value={genStartTime}
-                            onChange={(e) => setGenStartTime(e.target.value)}
+                            onChange={(e) => {
+                              setGenStartTime(e.target.value);
+                              // Auto-calculate end time
+                              if (e.target.value && genDuration) {
+                                const [h, m] = e.target.value.split(":").map(Number);
+                                const totalMin = h * 60 + m + Number(genDuration);
+                                const endH = Math.floor(totalMin / 60) % 24;
+                                const endM = totalMin % 60;
+                                setGenEndTime(`${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`);
+                              }
+                            }}
                             required
                           />
                         </div>
 
                         <div className="admin-login-input-group">
-                          <label className="admin-login-label">End Time *</label>
-                          <input 
-                            type="time"
-                            className="admin-login-input"
-                            value={genEndTime}
-                            onChange={(e) => setGenEndTime(e.target.value)}
-                            required
-                          />
-                        </div>
-
-                        <div className="admin-login-input-group">
-                          <label className="admin-login-label">Duration *</label>
+                          <label className="admin-login-label">Duration (per slot) *</label>
                           <select 
                             className="admin-login-input"
                             value={genDuration}
-                            onChange={(e) => setGenDuration(e.target.value)}
+                            onChange={(e) => {
+                              setGenDuration(e.target.value);
+                              // Auto-calculate end time
+                              if (genStartTime && e.target.value) {
+                                const [h, m] = genStartTime.split(":").map(Number);
+                                const totalMin = h * 60 + m + Number(e.target.value);
+                                const endH = Math.floor(totalMin / 60) % 24;
+                                const endM = totalMin % 60;
+                                setGenEndTime(`${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`);
+                              }
+                            }}
                             style={{ background: "#051207", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "10px", borderRadius: "8px", width: "100%" }}
                             required
                           >
                             <option value="30">30 Minutes</option>
                             <option value="60">1 Hour</option>
                             <option value="120">2 Hours</option>
-                            <option value="240">Half Day (4 hrs)</option>
-                            <option value="480">Full Day (8 hrs)</option>
+                            <option value="180">3 Hours</option>
+                            <option value="240">4 Hours (Half Day)</option>
+                            <option value="300">5 Hours</option>
+                            <option value="360">6 Hours</option>
+                            <option value="480">8 Hours (Full Day)</option>
+                            <option value="600">10 Hours</option>
+                            <option value="720">12 Hours</option>
+                            <option value="960">16 Hours</option>
+                            <option value="1080">18 Hours</option>
+                            <option value="1440">24 Hours (Full Day)</option>
                           </select>
+                        </div>
+
+                        <div className="admin-login-input-group">
+                          <label className="admin-login-label">End Time (IST) — Auto-filled</label>
+                          <input 
+                            type="time"
+                            className="admin-login-input"
+                            value={genEndTime}
+                            onChange={(e) => setGenEndTime(e.target.value)}
+                            style={{ opacity: 0.7 }}
+                            required
+                          />
                         </div>
 
                         <div className="admin-login-input-group">
@@ -6013,8 +6053,8 @@ const handleDelete = async (type, id) => {
                                     </td>
                                     <td className="font-semibold text-primary">{slot.equipmentName}</td>
                                     <td>{new Date(slot.date).toLocaleDateString("en-IN")}</td>
-                                    <td>{new Date(slot.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}</td>
-                                    <td>{new Date(slot.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}</td>
+                                    <td>{new Date(slot.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })}</td>
+                                    <td>{new Date(slot.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })}</td>
                                     <td>₹{slot.price}</td>
                                     <td>
                                       <span style={{ 

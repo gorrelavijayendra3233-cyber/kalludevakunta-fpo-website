@@ -82,12 +82,12 @@ router.post("/generate", auth, async (req, res) => {
     const normDate = normalizeDate(date);
     const dateStr = normDate.toISOString().split("T")[0];
 
-    // Parse start and end times
+    // Parse start and end times in IST (+05:30)
     const startParts = startTime.split(":");
     const endParts = endTime.split(":");
 
-    const startDateTime = new Date(`${dateStr}T${startParts[0]}:${startParts[1]}:00`);
-    const endDateTime = new Date(`${dateStr}T${endParts[0]}:${endParts[1]}:00`);
+    const startDateTime = new Date(`${dateStr}T${startParts[0].padStart(2, "0")}:${startParts[1].padStart(2, "0")}:00+05:30`);
+    const endDateTime = new Date(`${dateStr}T${endParts[0].padStart(2, "0")}:${endParts[1].padStart(2, "0")}:00+05:30`);
 
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime()) || startDateTime >= endDateTime) {
       return res.status(400).json({
@@ -130,7 +130,7 @@ router.post("/generate", auth, async (req, res) => {
       if (overlap) {
         return res.status(400).json({
           success: false,
-          message: `Generation aborted: Overlapping slot found between ${slotInterval.start.toLocaleTimeString("en-US", { hour12: false })} and ${slotInterval.end.toLocaleTimeString("en-US", { hour12: false })}.`
+          message: `Generation aborted: Overlapping slot found between ${slotInterval.start.toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" })} and ${slotInterval.end.toLocaleTimeString("en-US", { hour12: false, timeZone: "Asia/Kolkata" })}.`
         });
       }
     }
@@ -426,8 +426,8 @@ router.post("/book", farmerAuth, generalWriteLimiter, async (req, res) => {
     }
 
     // Create the EquipmentBooking record
-    const startTimeStr = slot.startTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const endTimeStr = slot.endTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const startTimeStr = slot.startTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+    const endTimeStr = slot.endTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
 
     const booking = new EquipmentBooking({
       farmerId: farmer.farmerId || farmer._id.toString(),

@@ -566,8 +566,8 @@ function EquipmentBooking() {
                         {slots.map((s) => {
                           const isBooked = s.status === "Booked";
                           const isSelected = selectedSlot?._id === s._id;
-                          const startTimeStr = new Date(s.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-                          const endTimeStr = new Date(s.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+                          const startTimeStr = new Date(s.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+                          const endTimeStr = new Date(s.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
 
                           return (
                             <button
@@ -637,7 +637,7 @@ function EquipmentBooking() {
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px", fontSize: "14px" }}>
                     <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Machinery:</span> <strong style={{ color: "var(--harvest-lt, #22c55e)" }}>{selectedEquipment?.name}</strong></div>
                     <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Date:</span> <strong>{new Date(form.bookingDate).toLocaleDateString("en-IN")}</strong></div>
-                    <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Selected Time:</span> <strong>{new Date(selectedSlot.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })} - {new Date(selectedSlot.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })}</strong></div>
+                    <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Selected Time:</span> <strong>{new Date(selectedSlot.startTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })} - {new Date(selectedSlot.endTime).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })}</strong></div>
                     <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Total Rental Price:</span> <strong>₹{selectedSlot.price}</strong></div>
                     
                     <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px", marginTop: "4px" }}>
