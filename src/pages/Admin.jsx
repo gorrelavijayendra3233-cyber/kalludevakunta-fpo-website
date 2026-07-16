@@ -3833,9 +3833,23 @@ const handleDelete = async (type, id) => {
           <button 
             className={`nav-item ${activeTab === "notifications" ? "active" : ""}`}
             onClick={() => { setActiveTab("notifications"); setMobileMenuOpen(false); }}
+            style={{ position: "relative" }}
           >
-            <Bell size={18} />
-            <span>Notifications</span>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
+              <Bell size={18} />
+              <span>Notifications</span>
+              {notifications.filter(n => !n.isRead).length > 0 && (
+                <span className="sidebar-red-dot" style={{
+                  display: "inline-block",
+                  width: "8px",
+                  height: "8px",
+                  borderRadius: "50%",
+                  backgroundColor: "#ff5252",
+                  marginLeft: "auto",
+                  boxShadow: "0 0 8px #ff5252"
+                }} />
+              )}
+            </div>
           </button>
 
           <button 
@@ -3890,15 +3904,29 @@ const handleDelete = async (type, id) => {
 
           <div className="header-right">
             {/* Notification Bell & Dropdown */}
-            <div className="notifications-bell-wrapper" style={{ position: "relative" }}>
+            <div className="notifications-bell-wrapper" style={{ position: "relative", zIndex: showNotificationDropdown ? 1001 : 1 }}>
+              {showNotificationDropdown && (
+                <div 
+                  className="notification-backdrop" 
+                  onClick={() => setShowNotificationDropdown(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 999,
+                    background: "rgba(0, 0, 0, 0.45)",
+                    backdropFilter: "blur(2.5px)",
+                    cursor: "default"
+                  }}
+                />
+              )}
               <button 
                 className={`header-bell-btn ${showNotificationDropdown ? "active" : ""}`}
                 title="Notifications"
                 onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
                 style={{
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid rgba(255, 255, 255, 0.1)",
-                  color: "var(--admin-text-primary)",
+                  background: showNotificationDropdown ? "var(--admin-accent-green, #16a34a)" : "rgba(255, 255, 255, 0.05)",
+                  border: showNotificationDropdown ? "1px solid var(--admin-accent-green, #16a34a)" : "1px solid rgba(255, 255, 255, 0.1)",
+                  color: showNotificationDropdown ? "#ffffff" : "var(--admin-text-primary)",
                   padding: "8px",
                   borderRadius: "8px",
                   cursor: "pointer",
@@ -3906,7 +3934,8 @@ const handleDelete = async (type, id) => {
                   alignItems: "center",
                   justifyContent: "center",
                   position: "relative",
-                  transition: "all 0.2s ease"
+                  transition: "all 0.2s ease",
+                  zIndex: 1000
                 }}
               >
                 <Bell size={16} />
@@ -3930,7 +3959,7 @@ const handleDelete = async (type, id) => {
                   </span>
                 )}
               </button>
-
+              
               {showNotificationDropdown && (
                 <div className="bell-dropdown glass-panel" style={{
                   position: "absolute",

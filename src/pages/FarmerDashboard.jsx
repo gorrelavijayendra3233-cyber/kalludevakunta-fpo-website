@@ -71,7 +71,7 @@ function FarmerDashboard() {
   useEffect(() => {
     if (!showProfileDropdown) return;
     const handleOutsideClick = (e) => {
-      if (!e.target.closest(".farmer-profile-summary")) {
+      if (!e.target.closest(".farmer-profile-summary") && !e.target.closest(".header-farmer-dropdown-container")) {
         setShowProfileDropdown(false);
       }
     };
@@ -373,29 +373,125 @@ function FarmerDashboard() {
 
       {/* ── Main Panel ── */}
       <main className="farmer-main">
-        <header className="farmer-header glass-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <header className="farmer-header glass-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
           <div>
-            <h1>Kalludevakunta FPO Portal</h1>
-            <p>Welcome back, <strong>{farmer.name}</strong> — registered FPO member</p>
+            <h1 style={{ margin: "0 0 6px 0", fontSize: "24px", fontWeight: "700" }}>Kalludevakunta FPO Portal</h1>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", fontSize: "13px", color: "#a0a7a1" }}>
+              <span>Welcome back,</span>
+              <div className="header-farmer-dropdown-container" style={{ position: "relative", display: "inline-block" }}>
+                <button 
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  style={{
+                    background: "rgba(22, 163, 74, 0.1)",
+                    border: "1px solid rgba(22, 163, 74, 0.22)",
+                    color: "#ffffff",
+                    padding: "3px 8px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  <span style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", maxWidth: "150px" }}>{farmer.name}</span>
+                  <ChevronDown size={14} style={{ transition: "transform 0.2s ease", transform: showProfileDropdown ? "rotate(180deg)" : "none", color: "var(--admin-accent-green, #16a34a)" }} />
+                </button>
+
+                {showProfileDropdown && (
+                  <div className="profile-dropdown-menu glass-panel" style={{
+                    position: "absolute",
+                    top: "calc(100% + 6px)",
+                    left: "0",
+                    minWidth: "210px",
+                    zIndex: 999,
+                    background: "rgba(10, 25, 15, 0.96)",
+                    border: "1px solid rgba(34, 197, 94, 0.25)",
+                    borderRadius: "8px",
+                    padding: "6px 0",
+                    boxShadow: "0 10px 25px rgba(0, 0, 0, 0.5)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "2px",
+                    backdropFilter: "blur(12px)",
+                    animation: "slideDown 0.2s ease-out"
+                  }} onClick={(e) => e.stopPropagation()}>
+                    <div style={{ padding: "6px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "4px" }}>
+                      <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)" }}>Farmer ID</div>
+                      <div style={{ fontSize: "12px", color: "var(--admin-accent-green, #16a34a)", fontWeight: "700" }}>{farmer.farmerId}</div>
+                    </div>
+                    <button 
+                      onClick={() => { navigate("/farmer-profile"); setShowProfileDropdown(false); }} 
+                      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 16px", background: "none", border: "none", color: "#e2e8f0", width: "100%", textAlign: "left", cursor: "pointer", fontSize: "13px", fontWeight: "500", transition: "all 0.2s" }}
+                      className="dropdown-item"
+                    >
+                      <User size={15} style={{ color: "#22c55e" }} />
+                      <span>My Profile / నా ప్రొఫైల్</span>
+                    </button>
+                    <button 
+                      onClick={() => { navigate("/my-crop-requests"); setShowProfileDropdown(false); }} 
+                      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 16px", background: "none", border: "none", color: "#e2e8f0", width: "100%", textAlign: "left", cursor: "pointer", fontSize: "13px", fontWeight: "500", transition: "all 0.2s" }}
+                      className="dropdown-item"
+                    >
+                      <Sprout size={15} style={{ color: "#22c55e" }} />
+                      <span>My Crop Requests / నా పంటలు</span>
+                    </button>
+                    <div style={{ height: "1px", background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
+                    <button 
+                      onClick={handleLogout} 
+                      style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 16px", background: "none", border: "none", color: "#f87171", width: "100%", textAlign: "left", cursor: "pointer", fontSize: "13px", fontWeight: "600", transition: "all 0.2s" }}
+                      className="dropdown-item logout"
+                    >
+                      <LogOut size={15} />
+                      <span>Logout / లాగ్అవుట్</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <span>— registered FPO member</span>
+            </div>
           </div>
           <div className="farmer-header-right">
             {/* Bell Icon Notification Center */}
-            <div className="notification-bell-wrapper">
+            <div className="notification-bell-wrapper" style={{ position: "relative", zIndex: showNotifDropdown ? 1001 : 1 }}>
+              {showNotifDropdown && (
+                <div 
+                  className="notification-backdrop" 
+                  onClick={() => setShowNotifDropdown(false)}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 999,
+                    background: "rgba(0, 0, 0, 0.45)",
+                    backdropFilter: "blur(2.5px)",
+                    cursor: "default"
+                  }}
+                />
+              )}
               <button 
-                className="notification-bell-btn" 
+                className={`notification-bell-btn ${showNotifDropdown ? "active" : ""}`}
                 onClick={() => setShowNotifDropdown(!showNotifDropdown)}
                 title="Notifications"
+                style={{
+                  background: showNotifDropdown ? "var(--admin-accent-green, #16a34a)" : "rgba(255, 255, 255, 0.03)",
+                  borderColor: showNotifDropdown ? "var(--admin-accent-green, #16a34a)" : "rgba(255, 255, 255, 0.08)",
+                  color: showNotifDropdown ? "#ffffff" : "#ffffff",
+                  position: "relative",
+                  zIndex: 1000
+                }}
               >
                 <Bell size={20} />
                 {notifications.filter(n => !n.read).length > 0 && (
-                  <span className="notification-badge">
+                  <span className="notification-badge" style={{ zIndex: 1001 }}>
                     {notifications.filter(n => !n.read).length}
                   </span>
                 )}
               </button>
 
               {showNotifDropdown && (
-                <div className="notification-dropdown">
+                <div className="notification-dropdown" style={{ zIndex: 1000 }}>
                   <div className="notification-dropdown-header">
                     <h4>Notifications ({notifications.filter(n => !n.read).length} unread)</h4>
                     {notifications.length > 0 && (
