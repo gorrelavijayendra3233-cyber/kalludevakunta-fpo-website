@@ -32,7 +32,8 @@ import {
   Check,
   Ban,
   Megaphone,
-  Calendar
+  Calendar,
+  ChevronDown
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import toast from "react-hot-toast";
@@ -254,6 +255,25 @@ function Admin() {
     setActiveTabState(tab);
     window.location.hash = tab;
   };
+
+  const [farmerRequestsOpen, setFarmerRequestsOpen] = useState(true);
+  const [adminOperationsOpen, setAdminOperationsOpen] = useState(true);
+
+  // Auto-expand nav sections based on current active tab
+  useEffect(() => {
+    const farmerTabs = ["contacts", "crops", "bookings", "product-bookings"];
+    const adminTabs = [
+      "dashboard", "analytics", "announcements", "equipment-slots",
+      "farmers", "products", "documents", "reports", "audit-logs", "notifications", "settings"
+    ];
+    if (farmerTabs.includes(activeTab)) {
+      setFarmerRequestsOpen(true);
+    }
+    if (adminTabs.includes(activeTab)) {
+      setAdminOperationsOpen(true);
+    }
+  }, [activeTab]);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -3726,144 +3746,194 @@ const handleDelete = async (type, id) => {
         </div>
 
         <nav className="admin-sidebar-nav">
-          <button 
-            className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
-            onClick={() => { setActiveTab("dashboard"); setMobileMenuOpen(false); }}
-          >
-            <LayoutDashboard size={18} />
-            <span>Dashboard</span>
-          </button>
+          {/* Section 1: Requests from Farmers */}
+          <div className="nav-section-group">
+            <button 
+              type="button"
+              className="nav-section-header"
+              onClick={() => setFarmerRequestsOpen(!farmerRequestsOpen)}
+            >
+              <div className="nav-section-header-title">
+                <Users size={14} />
+                <span>Requests from Farmers</span>
+              </div>
+              <ChevronDown 
+                size={12} 
+                className="section-chevron" 
+                style={{ 
+                  transform: farmerRequestsOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease" 
+                }} 
+              />
+            </button>
+            
+            {farmerRequestsOpen && (
+              <div className="nav-section-items">
+                <button 
+                  className={`nav-item ${activeTab === "contacts" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("contacts"); setMobileMenuOpen(false); }}
+                >
+                  <MessageSquare size={16} />
+                  <span>Contact Requests</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "analytics" ? "active" : ""}`}
-            onClick={() => { setActiveTab("analytics"); setMobileMenuOpen(false); }}
-          >
-            <BarChart3 size={18} />
-            <span>Analytics Center</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "crops" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("crops"); setMobileMenuOpen(false); }}
+                >
+                  <Sprout size={16} />
+                  <span>Crop Requests</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "announcements" ? "active" : ""}`}
-            onClick={() => { setActiveTab("announcements"); setMobileMenuOpen(false); }}
-          >
-            <Megaphone size={18} />
-            <span>Announcements</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "bookings" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("bookings"); setMobileMenuOpen(false); }}
+                >
+                  <Tractor size={16} />
+                  <span>Equipment Bookings</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "contacts" ? "active" : ""}`}
-            onClick={() => { setActiveTab("contacts"); setMobileMenuOpen(false); }}
-          >
-            <MessageSquare size={18} />
-            <span>Contact Requests</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "product-bookings" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("product-bookings"); setMobileMenuOpen(false); }}
+                >
+                  <ShoppingCart size={16} />
+                  <span>Product Bookings</span>
+                </button>
+              </div>
+            )}
+          </div>
 
-          <button 
-            className={`nav-item ${activeTab === "crops" ? "active" : ""}`}
-            onClick={() => { setActiveTab("crops"); setMobileMenuOpen(false); }}
-          >
-            <Sprout size={18} />
-            <span>Crop Requests</span>
-          </button>
+          {/* Section 2: Admin Operations */}
+          <div className="nav-section-group">
+            <button 
+              type="button"
+              className="nav-section-header"
+              onClick={() => setAdminOperationsOpen(!adminOperationsOpen)}
+            >
+              <div className="nav-section-header-title">
+                <Settings size={14} />
+                <span>Admin Operations</span>
+              </div>
+              <ChevronDown 
+                size={12} 
+                className="section-chevron" 
+                style={{ 
+                  transform: adminOperationsOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease" 
+                }} 
+              />
+            </button>
+            
+            {adminOperationsOpen && (
+              <div className="nav-section-items">
+                <button 
+                  className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("dashboard"); setMobileMenuOpen(false); }}
+                >
+                  <LayoutDashboard size={16} />
+                  <span>Dashboard Overview</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "bookings" ? "active" : ""}`}
-            onClick={() => { setActiveTab("bookings"); setMobileMenuOpen(false); }}
-          >
-            <Tractor size={18} />
-            <span>Equipment Bookings</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "analytics" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("analytics"); setMobileMenuOpen(false); }}
+                >
+                  <BarChart3 size={16} />
+                  <span>Analytics Center</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "equipment-slots" ? "active" : ""}`}
-            onClick={() => { setActiveTab("equipment-slots"); setMobileMenuOpen(false); }}
-          >
-            <Calendar size={18} />
-            <span>Equipment Slots</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "announcements" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("announcements"); setMobileMenuOpen(false); }}
+                >
+                  <Megaphone size={16} />
+                  <span>Announcements</span>
+                </button>
 
-          {/* Equipment Rates Tab Nav Item Removed */}
+                <button 
+                  className={`nav-item ${activeTab === "equipment-slots" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("equipment-slots"); setMobileMenuOpen(false); }}
+                >
+                  <Calendar size={16} />
+                  <span>Equipment Slots</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "product-bookings" ? "active" : ""}`}
-            onClick={() => { setActiveTab("product-bookings"); setMobileMenuOpen(false); }}
-          >
-            <ShoppingCart size={18} />
-            <span>Product Bookings</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "farmers" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("farmers"); setMobileMenuOpen(false); }}
+                >
+                  <Users size={16} />
+                  <span>Farmers Directory</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "farmers" ? "active" : ""}`}
-            onClick={() => { setActiveTab("farmers"); setMobileMenuOpen(false); }}
-          >
-            <Users size={18} />
-            <span>Farmers</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "products" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("products"); setMobileMenuOpen(false); }}
+                >
+                  <Package size={16} />
+                  <span>Products Inventory</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "products" ? "active" : ""}`}
-            onClick={() => { setActiveTab("products"); setMobileMenuOpen(false); }}
-          >
-            <Package size={18} />
-            <span>Products</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "documents" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("documents"); setMobileMenuOpen(false); }}
+                >
+                  <FolderOpen size={16} />
+                  <span>Document Center</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "documents" ? "active" : ""}`}
-            onClick={() => { setActiveTab("documents"); setMobileMenuOpen(false); }}
-          >
-            <FolderOpen size={18} />
-            <span>Document Center</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "reports" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("reports"); setMobileMenuOpen(false); }}
+                >
+                  <FileText size={16} />
+                  <span>Reports Generator</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "reports" ? "active" : ""}`}
-            onClick={() => { setActiveTab("reports"); setMobileMenuOpen(false); }}
-          >
-            <FileText size={18} />
-            <span>Reports</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "audit-logs" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("audit-logs"); setMobileMenuOpen(false); }}
+                >
+                  <Clock size={16} />
+                  <span>Audit Logs</span>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "audit-logs" ? "active" : ""}`}
-            onClick={() => { setActiveTab("audit-logs"); setMobileMenuOpen(false); }}
-          >
-            <Clock size={18} />
-            <span>Audit Logs</span>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "notifications" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("notifications"); setMobileMenuOpen(false); }}
+                  style={{ position: "relative" }}
+                >
+                  <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
+                    <Bell size={16} />
+                    <span>Notifications</span>
+                    {notifications.filter(n => !n.isRead).length > 0 && (
+                      <span className="sidebar-red-dot" style={{
+                        display: "inline-block",
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        backgroundColor: "#ff5252",
+                        marginLeft: "auto",
+                        boxShadow: "0 0 8px #ff5252"
+                      }} />
+                    )}
+                  </div>
+                </button>
 
-          <button 
-            className={`nav-item ${activeTab === "notifications" ? "active" : ""}`}
-            onClick={() => { setActiveTab("notifications"); setMobileMenuOpen(false); }}
-            style={{ position: "relative" }}
-          >
-            <div style={{ position: "relative", display: "flex", alignItems: "center", gap: "10px", width: "100%" }}>
-              <Bell size={18} />
-              <span>Notifications</span>
-              {notifications.filter(n => !n.isRead).length > 0 && (
-                <span className="sidebar-red-dot" style={{
-                  display: "inline-block",
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  backgroundColor: "#ff5252",
-                  marginLeft: "auto",
-                  boxShadow: "0 0 8px #ff5252"
-                }} />
-              )}
-            </div>
-          </button>
+                <button 
+                  className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
+                  onClick={() => { setActiveTab("settings"); setMobileMenuOpen(false); }}
+                >
+                  <Settings size={16} />
+                  <span>Settings</span>
+                </button>
+              </div>
+            )}
+          </div>
 
-          <button 
-            className={`nav-item ${activeTab === "settings" ? "active" : ""}`}
-            onClick={() => { setActiveTab("settings"); setMobileMenuOpen(false); }}
-          >
-            <Settings size={18} />
-            <span>Settings</span>
-          </button>
-
-          <button className="nav-item logout-sidebar" onClick={handleLogout}>
-            <LogOut size={18} />
+          <button className="nav-item logout-sidebar" onClick={handleLogout} style={{ marginTop: "16px" }}>
+            <LogOut size={16} />
             <span>Logout</span>
           </button>
         </nav>

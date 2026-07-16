@@ -2010,3 +2010,75 @@ textarea:focus {
     background: rgba(9, 23, 14, 0.98) !important;
   }
 }
+
+/* Collapsible Navigation Sections in Sidebar */
+.nav-section-group {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--admin-text-muted, #809688);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.nav-section-header:hover {
+  color: var(--admin-text-primary, #ffffff);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.nav-section-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-section-header-title svg {
+  color: var(--admin-accent-green, #16a34a);
+  opacity: 0.8;
+}
+
+.nav-section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  margin-left: 12px;
+  margin-top: 2px;
+  animation: sectionSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes sectionSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-section-items .nav-item {
+  height: 40px !important;
+  padding: 0 12px !important;
+  font-size: 13px !important;
+}
