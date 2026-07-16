@@ -32,13 +32,15 @@ function Navbar() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("farmer_token");
-    localStorage.removeItem("farmerToken");
-    localStorage.removeItem("farmer_data");
-    setIsFarmerLoggedIn(false);
-    window.dispatchEvent(new Event("storage"));
-    toast.success("Logged out successfully");
-    navigate("/farmer-login");
+    if (window.confirm("Are you sure you want to log out? / మీరు ఖచ్చితంగా లాగ్ అవుట్ చేయాలనుకుంటున్నారా?")) {
+      localStorage.removeItem("farmer_token");
+      localStorage.removeItem("farmerToken");
+      localStorage.removeItem("farmer_data");
+      setIsFarmerLoggedIn(false);
+      window.dispatchEvent(new Event("storage"));
+      toast.success("Logged out successfully");
+      navigate("/farmer-login");
+    }
   };
 
   return (

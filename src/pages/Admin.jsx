@@ -2068,8 +2068,10 @@ const handleDelete = async (type, id) => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("fpo_admin_token");
-    setIsAuthenticated(false);
+    if (window.confirm("Are you sure you want to log out from the Admin Portal?")) {
+      localStorage.removeItem("fpo_admin_token");
+      setIsAuthenticated(false);
+    }
   };
 
   function handleUnauthorized() {

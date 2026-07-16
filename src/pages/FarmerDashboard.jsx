@@ -49,13 +49,15 @@ function FarmerDashboard() {
   const location = useLocation();
 
   const handleLogout = () => {
-    localStorage.removeItem("farmer_token");
-    localStorage.removeItem("farmerToken");
-    localStorage.removeItem("farmer_data");
-    toast.success("Logged out successfully");
-    // Dispatch custom storage event to update navbar instantly
-    window.dispatchEvent(new Event("storage"));
-    navigate("/farmer-login");
+    if (window.confirm("Are you sure you want to log out? / మీరు ఖచ్చితంగా లాగ్ అవుట్ చేయాలనుకుంటున్నారా?")) {
+      localStorage.removeItem("farmer_token");
+      localStorage.removeItem("farmerToken");
+      localStorage.removeItem("farmer_data");
+      toast.success("Logged out successfully");
+      // Dispatch custom storage event to update navbar instantly
+      window.dispatchEvent(new Event("storage"));
+      navigate("/farmer-login");
+    }
   };
 
   // Sync tab state with URL query parameter
