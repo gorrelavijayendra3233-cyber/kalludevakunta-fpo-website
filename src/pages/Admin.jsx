@@ -240,7 +240,20 @@ function Admin() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTabState] = useState(() => {
+    const hash = window.location.hash.replace("#", "");
+    const validTabs = [
+      "dashboard", "analytics", "announcements", "contacts", "crops",
+      "bookings", "equipment-slots", "product-bookings", "farmers",
+      "products", "documents", "reports", "audit-logs", "notifications", "settings"
+    ];
+    return validTabs.includes(hash) ? hash : "dashboard";
+  });
+
+  const setActiveTab = (tab) => {
+    setActiveTabState(tab);
+    window.location.hash = tab;
+  };
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
@@ -446,8 +459,10 @@ function Admin() {
     }
   };
 
-  async function fetchData() {
-    setLoading(true);
+  async function fetchData(isSilent = true) {
+    if (!isSilent) {
+      setLoading(true);
+    }
 
     try {
       const signal = AbortSignal.timeout(30000);
@@ -899,11 +914,27 @@ function Admin() {
   };
 
   useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace("#", "");
+      const validTabs = [
+        "dashboard", "analytics", "announcements", "contacts", "crops",
+        "bookings", "equipment-slots", "product-bookings", "farmers",
+        "products", "documents", "reports", "audit-logs", "notifications", "settings"
+      ];
+      if (validTabs.includes(hash)) {
+        setActiveTabState(hash);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  useEffect(() => {
     if (isAuthenticated) {
-      fetchData();
+      fetchData(false);
 
       const interval = setInterval(() => {
-        fetchData();
+        fetchData(true);
       }, 120000);
 
       return () => clearInterval(interval);
@@ -4035,7 +4066,7 @@ const handleDelete = async (type, id) => {
               </div>
               <h2>Unable to connect to server</h2>
               <p>Please check your internet connection or verify if the backend server is running.</p>
-              <button className="btn-action primary" onClick={fetchData}>
+              <button className="btn-action primary" onClick={() => fetchData(false)}>
                 <RefreshCw size={15} style={{ marginRight: "6px", verticalAlign: "middle" }} />
                 <span>Retry Connection</span>
               </button>

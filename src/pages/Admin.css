@@ -1967,10 +1967,20 @@ textarea:focus {
 
 /* Mobile & Tablet Specific Form & Grid Adjustments */
 @media (max-width: 768px) {
+  .modal-overlay {
+    align-items: flex-start !important;
+    overflow-y: auto !important;
+    padding: 1rem !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
   .modal-content {
     max-width: 95% !important;
     padding: 1.25rem !important;
     border-radius: 12px !important;
+    margin-top: 110px !important; /* About one and half finger length space at the top */
+    margin-bottom: 80px !important; /* Leave space at bottom so bottom buttons are scrollable & visible */
+    max-height: none !important;
   }
 
   .form-grid {
