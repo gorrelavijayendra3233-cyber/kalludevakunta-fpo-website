@@ -201,6 +201,22 @@ function FarmerDashboard() {
     }
   };
 
+  const formatDateNice = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      return d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata"
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   if (loading) {
     return (
       <div className="farmer-dashboard-loading">
@@ -670,7 +686,7 @@ function FarmerDashboard() {
                     <tbody>
                       {bookings.map((b) => (
                         <tr key={b._id}>
-                          <td>{b.bookingDate}</td>
+                          <td>{typeof formatDateNice === 'function' ? formatDateNice(b.bookingDate) : b.bookingDate}</td>
                           <td className="font-semibold">{b.equipmentName}</td>
                           <td>{b.duration}</td>
                           <td>

@@ -435,6 +435,17 @@ function Admin() {
     }
   };
 
+  const formatDateNice = (dateInput) => {
+    if (!dateInput) return "";
+    try {
+      const d = new Date(dateInput);
+      if (isNaN(d.getTime())) return String(dateInput);
+      return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+    } catch (err) {
+      return String(dateInput);
+    }
+  };
+
   async function fetchData() {
     setLoading(true);
 
@@ -4884,7 +4895,7 @@ const handleDelete = async (type, id) => {
                           </thead>
                           <tbody>
                             {paginatedBookings.map(b => {
-                              const dateStr = b.bookingDate || (b.createdAt ? b.createdAt.substring(0, 10) : "");
+                              const dateStr = formatDateNice(b.bookingDate || b.createdAt);
                               return (
                                 <tr key={b._id}>
                                   <td className="font-semibold" data-label="Farmer Name">{b.farmerName}</td>
@@ -7191,7 +7202,7 @@ const handleDelete = async (type, id) => {
                   </div>
                   <div className="detail-item">
                     <span className="label">Desired Booking Date:</span>
-                    <span className="value">{selectedItem.data.bookingDate || selectedItem.data.createdAt?.substring(0, 10)}</span>
+                    <span className="value">{formatDateNice(selectedItem.data.bookingDate || selectedItem.data.createdAt)}</span>
                   </div>
                   <div className="detail-item">
                     <span className="label">Rental Duration:</span>

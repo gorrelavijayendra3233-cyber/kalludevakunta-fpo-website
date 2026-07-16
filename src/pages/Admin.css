@@ -1919,3 +1919,72 @@ textarea:focus {
     display: block;
   }
 }
+
+/* ── Professional & Clean Modal Popups overrides ── */
+.modal-content {
+  background: #09170e !important;
+  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+}
+
+.light-mode .modal-content {
+  background: #ffffff !important;
+  border: 1px solid rgba(46, 125, 50, 0.2) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+  color: #1b2b1e !important;
+}
+
+/* Solid background colors for form fields within modals */
+.modal-content .admin-login-input,
+.modal-content select,
+.modal-content textarea,
+.modal-content .searchable-select-btn {
+  background: #050e09 !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.light-mode .modal-content .admin-login-input,
+.light-mode .modal-content select,
+.light-mode .modal-content textarea,
+.light-mode .modal-content .searchable-select-btn {
+  background: #f7fcf8 !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  color: #1b2b1e !important;
+}
+
+/* Form inputs hover & focus overrides for modal context */
+.modal-content .admin-login-input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus,
+.modal-content .searchable-select-btn:focus {
+  border-color: var(--admin-accent-green, #16a34a) !important;
+  box-shadow: 0 0 8px rgba(22, 163, 74, 0.2) !important;
+}
+
+/* Mobile & Tablet Specific Form & Grid Adjustments */
+@media (max-width: 768px) {
+  .modal-content {
+    max-width: 95% !important;
+    padding: 1.25rem !important;
+    border-radius: 12px !important;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 10px 0 !important;
+  }
+
+  .form-grid > * {
+    grid-column: span 1 !important;
+  }
+
+  .details-list {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+}
